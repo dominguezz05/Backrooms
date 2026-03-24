@@ -365,7 +365,7 @@
         rainFilter.Q.value = 0.5;
         
         const rainGain = thunderAudioContext.createGain();
-        rainGain.gain.value = 0.8;
+        rainGain.gain.value = 0.2;
         
         rainSource.connect(rainFilter);
         rainFilter.connect(rainGain);
@@ -849,7 +849,7 @@
       rainFilter.frequency.value = 2000;
       
       const rainGain = audioContext.createGain();
-      rainGain.gain.value = 0.6;
+      rainGain.gain.value = 0.15;
       rainSource.connect(rainFilter);
       rainFilter.connect(rainGain);
       rainGain.connect(windGain);

@@ -2,27 +2,28 @@
    MENU STYLES - Pesadilla en los Backrooms (index.html)
 ═══════════════════════════════════════════════════════════════════ */
 
-/* ════ LLUVIA MEJORADA ════ */
+/* ════ LLUVIA MEJORADA (reducida) ════ */
 .rain-container {
   position: fixed;
   inset: 0;
   overflow: hidden;
   z-index: 0;
   pointer-events: none;
+  opacity: 0.3;
 }
 
 .rain-drop {
   position: absolute;
   bottom: 100%;
-  width: 1.5px;
-  height: 100px;
-  background: linear-gradient(to bottom, transparent 0%, rgba(100, 110, 120, 0.5) 40%, rgba(80, 90, 100, 0.3) 100%);
+  width: 1px;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent 0%, rgba(80, 85, 90, 0.2) 50%, transparent 100%);
   animation: rainFall linear infinite;
 }
 
 @keyframes rainFall {
   to {
-    transform: translateY(calc(100vh + 100px));
+    transform: translateY(calc(100vh + 60px));
   }
 }
 
@@ -158,14 +159,14 @@
   position: fixed;
   bottom: 5vh;
   right: -120px;
-  width: 120px;
-  height: 180px;
+  width: 150px;
+  height: 200px;
   pointer-events: none;
-  z-index: 50;
+  z-index: 400;
   transform: rotate(45deg);
   transform-origin: bottom right;
-  animation: facePeekDiagonal 20s ease-in-out infinite 3s;
-  filter: drop-shadow(0 0 20px rgba(180, 0, 0, 0.6));
+  animation: facePeekDiagonal 20s ease-in-out infinite 1s;
+  filter: drop-shadow(0 0 30px rgba(180, 0, 0, 0.8));
 }
 
 .face-container {
@@ -273,10 +274,10 @@
 .finger:nth-child(5) { left: 48px; width: 6px; height: 24px; transform: rotate(15deg); }
 
 @keyframes facePeekDiagonal {
-  0%, 78%, 100% { right: -180px; opacity: 0; transform: rotate(45deg) scale(0.8); }
-  8%, 70% { right: -80px; opacity: 1; transform: rotate(45deg) scale(1); }
-  18%, 60% { right: -50px; opacity: 1; transform: rotate(45deg) scale(1.05); }
-  28%, 48% { right: -25px; opacity: 1; transform: rotate(45deg) scale(1.1); }
+  0%, 75%, 100% { right: -200px; opacity: 0; transform: rotate(45deg) scale(0.8); }
+  5%, 65% { right: -100px; opacity: 1; transform: rotate(45deg) scale(1); }
+  15%, 55% { right: -60px; opacity: 1; transform: rotate(45deg) scale(1.1); }
+  25%, 45% { right: -30px; opacity: 1; transform: rotate(45deg) scale(1.15); }
 }
 
 @keyframes eyeGlow {
