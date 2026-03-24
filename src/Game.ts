@@ -117,6 +117,7 @@ export class Game {
   // ── Sistema de Puertas Dinámicas ────────────────────────────────────────────
   private dynamicDoors: Array<{
     mesh: THREE.Group;
+    meshCollider: THREE.Mesh;
     cellX: number;
     cellZ: number;
     isClosed: boolean;
@@ -1010,8 +1011,8 @@ export class Game {
     topFrame.position.set(posX, wallHeight - frameThickness / 2, posZ);
     doorGroup.add(topFrame);
 
-    // Luz indicadora (roja = cerrada, verde = abierta)
-    const indicatorLight = new THREE.PointLight(0xff0000, 0.5, 3);
+    // Luz indicadora (verde = abierta, roja = cerrada)
+    const indicatorLight = new THREE.PointLight(0x00ff00, 0.5, 3);
     indicatorLight.position.set(posX, wallHeight - 0.3, posZ);
     doorGroup.add(indicatorLight);
 
@@ -1019,6 +1020,7 @@ export class Game {
 
     this.dynamicDoors.push({
       mesh: doorGroup,
+      meshCollider: doorMesh,
       cellX,
       cellZ,
       isClosed: false,
@@ -1027,9 +1029,7 @@ export class Game {
       closeTimer: 0,
       openTimer: 0
     });
-
-    // Añadir a objetos colisionables si está cerrada
-    this.collidableObjects.push(doorMesh);
+    // La puerta empieza ABIERTA, no se añade collider
   }
 
   private createCobwebMesh(cellX: number, cellZ: number, posX: number, posZ: number): void {
@@ -1177,18 +1177,19 @@ export class Game {
     }
   }
 
-  private addDoorCollider(door: { mesh: THREE.Group; cellX: number; cellZ: number }): void {
-    // El collider ya está en collidableObjects, no hace falta añadirlo de nuevo
-    // La puerta se marca como cerrada y el collision check la detectará
+  private addDoorCollider(door: { meshCollider: THREE.Mesh }): void {
+    // Añadir el mesh de la puerta a objetos colisionables
+    if (!this.collidableObjects.includes(door.meshCollider)) {
+      this.collidableObjects.push(door.meshCollider);
+    }
   }
 
-  private removeDoorCollider(door: { mesh: THREE.Group; cellX: number; cellZ: number }): void {
-    // Cuando la puerta está abierta, no debe bloquear
-    // Esto se maneja en checkWallCollision
-  }
-
-  private checkDoorCollision(pos: THREE.Vector3): boolean {
-    return this.player.checkDoorCollision(pos, this.dynamicDoors);
+  private removeDoorCollider(door: { meshCollider: THREE.Mesh }): void {
+    // Quitar el mesh de la puerta de objetos colisionables
+    const index = this.collidableObjects.indexOf(door.meshCollider);
+    if (index > -1) {
+      this.collidableObjects.splice(index, 1);
+    }
   }
 
   private updateCobwebs(): void {
@@ -2460,8 +2461,9 @@ export class Game {
       this.doSpawnEnemies();
     }
 
-    // Aplicar ralentización de telarañas al jugador
+    // Aplicar ralentización de telarañas y puertas cerradas al jugador
     this.player.cobwebSlowFactor = this.cobwebSlowFactor;
+    this.player.closedDoors = this.dynamicDoors.filter(d => d.isClosed || d.isClosing);
     this.player.update(delta);
     this.checkBatteryCollection();
     this.updatePowerUpVisuals(delta);

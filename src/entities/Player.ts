@@ -21,6 +21,7 @@ export class Player {
   invisibilityTimer: number = 0;
   isInvisible: boolean = false;
   cobwebSlowFactor: number = 1.0; // Factor de ralentización por telarañas
+  closedDoors: Array<{ cellX: number; cellZ: number; isClosed: boolean }> = []; // Puertas cerradas
   private sceneManager: SceneManager;
   private inputManager: InputManager;
   private maze: number[][];
@@ -207,30 +208,20 @@ export class Player {
         return true;
       }
       if (this.maze[cellZ][cellX] === CellType.WALL) return true;
-      // Also check for closed doors
-      if (this.maze[cellZ][cellX] === CellType.DOOR) return true;
+      
+      // Check for closed doors
+      for (const door of this.closedDoors) {
+        if (door.cellX === cellX && door.cellZ === cellZ && door.isClosed) {
+          return true;
+        }
+      }
     }
     return false;
   }
 
-  /** Check if position is inside a closed door - called from Game */
-  checkDoorCollision(pos: THREE.Vector3, closedDoors: Array<{ cellX: number; cellZ: number; isClosed: boolean }>): boolean {
-    if (!closedDoors || closedDoors.length === 0) return false;
-    
-    for (const door of closedDoors) {
-      if (!door.isClosed) continue;
-      
-      const doorWorldX = door.cellX * CONFIG.UNIT_SIZE;
-      const doorWorldZ = door.cellZ * CONFIG.UNIT_SIZE;
-      
-      const dx = Math.abs(pos.x - doorWorldX);
-      const dz = Math.abs(pos.z - doorWorldZ);
-      
-      if (dx < CONFIG.UNIT_SIZE * 0.5 && dz < CONFIG.UNIT_SIZE * 0.5) {
-        return true;
-      }
-    }
-    return false;
+  /** Get closed doors for collision checking - called from Game */
+  getClosedDoors(): Array<{ cellX: number; cellZ: number; isClosed: boolean }> {
+    return this.closedDoors;
   }
 
   private checkHidingSpot(): void {
