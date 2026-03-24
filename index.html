@@ -297,7 +297,7 @@
         if (audioContext) return;
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         masterGain = audioContext.createGain();
-        masterGain.gain.value = 0.6;
+        masterGain.gain.value = 2.0;
         masterGain.connect(audioContext.destination);
       }
       
@@ -322,7 +322,7 @@
           b3 = 0.8665 * b3 + white * 0.3104856;
           b4 = 0.55 * b4 + white * 0.5329522;
           b5 = -0.7616 * b5 - white * 0.016898;
-          data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.05;
+          data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.3;
           b6 = white * 0.115926;
         }
         
@@ -337,8 +337,8 @@
         // Envelope
         const gain = audioContext.createGain();
         gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.8, now + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.3, now + 0.3);
+        gain.gain.linearRampToValueAtTime(2.5, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(1.0, now + 0.3);
         gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
         
         source.connect(filter);
