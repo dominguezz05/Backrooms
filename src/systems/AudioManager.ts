@@ -1552,9 +1552,8 @@ export class AudioManager {
         this._startDistantPipe(0.025);
         break;
       case 'level2':
-        // Más electrónico / industrial — monedas y ruido de maquinaria
-        this._startVentilationHum(180, 0.05);
-        this._startElectricBuzz(0.03);
+        // Más electrónico / industrial — solo ventilación suave
+        this._startVentilationHum(150, 0.035);
         break;
       case 'level3':
         // Salas abiertas — más eco, viento lejano más fuerte

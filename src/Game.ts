@@ -102,15 +102,6 @@ export class Game {
   private readonly MAX_FOOTPRINTS = 28;
   private readonly FOOTPRINT_LIFETIME = 18;
 
-  // ── Sistema de Trail del Jugador ────────────────────────────────────────────
-  private trailPositions: THREE.Vector3[] = [];
-  private trailTimer = 0;
-  private readonly TRAIL_INTERVAL = 0.8;     // Guardar posición cada 0.8s
-  private readonly MAX_TRAIL_LENGTH = 40;    // Máximo de puntos en el trail
-  private trailCanvas: HTMLCanvasElement | null = null;
-  private trailCtx: CanvasRenderingContext2D | null = null;
-  private trailVisible = false;
-
   // ── Sistema de Transiciones Suaves ──────────────────────────────────────────
   private transitionOverlay: HTMLElement | null = null;
 
@@ -182,7 +173,6 @@ export class Game {
 
     // Inicializar sistemas de transición y trail
     this.initTransitionSystem();
-    this.initTrailSystem();
 
     this.uiManager.showLoading(true);
     this.uiManager.setLoadingProgress(5, 'Preparando recursos...');
@@ -269,119 +259,6 @@ export class Game {
         this.transitionOverlay?.classList.remove('active');
       }, fadeInMs);
     }, fadeOutMs);
-  }
-
-  // ── Sistema de Trail del Jugador ────────────────────────────────────────────
-  private initTrailSystem(): void {
-    this.trailCanvas = document.getElementById('trailCanvas') as HTMLCanvasElement | null;
-    if (this.trailCanvas) {
-      this.trailCtx = this.trailCanvas.getContext('2d');
-      this.resizeTrailCanvas();
-      
-      window.addEventListener('resize', () => this.resizeTrailCanvas());
-    }
-  }
-
-  private resizeTrailCanvas(): void {
-    if (this.trailCanvas) {
-      this.trailCanvas.width = window.innerWidth;
-      this.trailCanvas.height = window.innerHeight;
-    }
-    if (this.trailCtx) {
-      this.trailCtx = this.trailCanvas?.getContext('2d') || null;
-    }
-  }
-
-  /** Añade la posición actual al trail del jugador */
-  private addTrailPosition(): void {
-    this.trailPositions.push(this.player.position.clone());
-    
-    // Limitar longitud del trail
-    if (this.trailPositions.length > this.MAX_TRAIL_LENGTH) {
-      this.trailPositions.shift();
-    }
-    
-    this.trailVisible = true;
-  }
-
-  /** Renderiza el trail del jugador en el canvas overlay */
-  private renderTrail(): void {
-    if (!this.trailCtx || !this.trailCanvas || !this.trailVisible || this.trailPositions.length < 2) {
-      if (this.trailCtx && this.trailCanvas) {
-        this.trailCtx.clearRect(0, 0, this.trailCanvas.width, this.trailCanvas.height);
-      }
-      return;
-    }
-
-    const ctx = this.trailCtx;
-    const canvas = this.trailCanvas;
-    
-    // Limpiar canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Obtener la dirección de la cámara
-    const camera = this.sceneManager.camera;
-    const cameraDir = new THREE.Vector3();
-    camera.getWorldDirection(cameraDir);
-    
-    // Proyectar puntos 3D a 2D usando la cámara
-    const projectedPoints: Array<{ x: number; y: number; z: number }> = [];
-    
-    for (const pos of this.trailPositions) {
-      const screenPos = pos.clone().project(camera);
-      const x = (screenPos.x * 0.5 + 0.5) * canvas.width;
-      const y = (-screenPos.y * 0.5 + 0.5) * canvas.height;
-      projectedPoints.push({ x, y, z: screenPos.z });
-    }
-
-    // Solo dibujar puntos que estén frente a la cámara
-    const visiblePoints = projectedPoints.filter(p => p.z < 1);
-    
-    if (visiblePoints.length < 2) return;
-
-    // Dibujar línea de trail con degradado
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    for (let i = 1; i < visiblePoints.length; i++) {
-      const alpha = i / visiblePoints.length; // Más brillante hacia el jugador
-      const prev = visiblePoints[i - 1];
-      const curr = visiblePoints[i];
-      
-      // Calcular distancia en pantalla
-      const distScreen = Math.sqrt(
-        Math.pow(curr.x - prev.x, 2) + Math.pow(curr.y - prev.y, 2)
-      );
-      
-      // No dibujar si los puntos están muy separados (fuera del campo de visión)
-      if (distScreen > 200) continue;
-      
-      const lineWidth = 2 + alpha * 3;
-      
-      // Color con degradado de opacity
-      const r = 60;
-      const g = 50 + Math.floor(alpha * 30);
-      const b = 40;
-      
-      ctx.beginPath();
-      ctx.moveTo(prev.x, prev.y);
-      ctx.lineTo(curr.x, curr.y);
-      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.6})`;
-      ctx.lineWidth = lineWidth;
-      ctx.stroke();
-    }
-
-    // Dibujar puntos como pequeños círculos
-    for (let i = 0; i < visiblePoints.length; i++) {
-      const alpha = (i + 1) / visiblePoints.length;
-      const p = visiblePoints[i];
-      const radius = 2 + alpha * 3;
-      
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(80, 60, 40, ${alpha * 0.5})`;
-      ctx.fill();
-    }
   }
 
   private cleanupMenuAudio(): void {
@@ -953,84 +830,131 @@ export class Game {
   private createDoorMesh(cellX: number, cellZ: number, posX: number, posZ: number, unitSize: number, wallHeight: number): void {
     const doorGroup = new THREE.Group();
     
-    // Puerta corredera metálica (panel horizontal que baja desde el techo)
-    const doorMat = new THREE.MeshStandardMaterial({
-      color: 0x4a4a4a,
-      roughness: 0.6,
-      metalness: 0.8,
-      emissive: new THREE.Color(0x1a1a1a),
-      emissiveIntensity: 0.3
+    // ── Estilo Castillo Medieval ─────────────────────────────────────────────
+    
+    // Puerta de madera gruesa
+    const woodMat = new THREE.MeshStandardMaterial({
+      color: 0x5c3a21,
+      roughness: 0.9,
+      metalness: 0.0,
+      emissive: new THREE.Color(0x1a0a00),
+      emissiveIntensity: 0.15
     });
 
-    const doorWidth = unitSize * 0.95;
-    const doorDepth = unitSize * 0.15;
-    const doorHeight = wallHeight * 0.95;
-    const doorY = wallHeight + doorHeight / 2; // Empieza ARRIBA del todo (abierta)
-
-    const doorMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth),
-      doorMat
-    );
-    
-    doorMesh.position.set(posX, doorY, posZ);
-    doorMesh.castShadow = true;
-    doorMesh.receiveShadow = true;
-    doorGroup.add(doorMesh);
-
-    // Marco metálico en el techo
-    const frameMat = new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      roughness: 0.5,
+    // Rastrillo de hierro (la barrera que baja)
+    const ironMat = new THREE.MeshStandardMaterial({
+      color: 0x3a3a3a,
+      roughness: 0.4,
       metalness: 0.9
     });
 
-    // Riel superior
-    const railMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(doorWidth + 0.2, 0.15, doorDepth + 0.2),
-      frameMat
+    const doorWidth = unitSize * 0.92;
+    const doorDepth = unitSize * 0.12;
+    const gateHeight = wallHeight * 0.85;
+    const gateY = wallHeight + gateHeight / 2; // Empieza ARRIBA (abierta)
+
+    // Rastrillo (rejilla de barras de hierro)
+    const gateMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(doorWidth, gateHeight, doorDepth),
+      ironMat
     );
-    railMesh.position.set(posX, wallHeight - 0.05, posZ);
-    doorGroup.add(railMesh);
+    gateMesh.position.set(posX, gateY, posZ);
+    gateMesh.castShadow = true;
+    gateMesh.receiveShadow = true;
+    doorGroup.add(gateMesh);
 
-    // Soportes laterales del riel
-    const supportGeo = new THREE.BoxGeometry(0.1, 0.3, doorDepth + 0.3);
-    const supportL = new THREE.Mesh(supportGeo, frameMat);
-    supportL.position.set(posX - doorWidth / 2 - 0.05, wallHeight - 0.15, posZ);
-    doorGroup.add(supportL);
-    const supportR = new THREE.Mesh(supportGeo, frameMat);
-    supportR.position.set(posX + doorWidth / 2 + 0.05, wallHeight - 0.15, posZ);
-    doorGroup.add(supportR);
+    // Barras verticales del rastrillo
+    const numBars = 7;
+    const barSpacing = doorWidth / (numBars + 1);
+    for (let i = 1; i <= numBars; i++) {
+      const barMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, gateHeight, 8),
+        ironMat
+      );
+      barMesh.position.set(
+        posX - doorWidth / 2 + i * barSpacing,
+        gateY,
+        posZ
+      );
+      barMesh.castShadow = true;
+      doorGroup.add(barMesh);
+    }
 
-    // Luz indicadora en el marco (verde = abierta/arriba, roja = cerrada/abajo)
-    const indicatorLight = new THREE.PointLight(0x00ff00, 0.6, 4);
-    indicatorLight.position.set(posX, wallHeight - 0.5, posZ);
+    // Barra horizontal superior del rastrillo
+    const topBar = new THREE.Mesh(
+      new THREE.BoxGeometry(doorWidth + 0.1, 0.12, doorDepth + 0.1),
+      ironMat
+    );
+    topBar.position.set(posX, gateY + gateHeight / 2 - 0.06, posZ);
+    doorGroup.add(topBar);
+
+    // Piedras decorativas en los laterales (jambas de castillo)
+    const stoneMat = new THREE.MeshStandardMaterial({
+      color: 0x6b6b6b,
+      roughness: 0.95,
+      metalness: 0.0
+    });
+
+    // Jambas izquierda
+    const jambGeo = new THREE.BoxGeometry(0.3, wallHeight * 0.9, doorDepth + 0.3);
+    const jambL = new THREE.Mesh(jambGeo, stoneMat);
+    jambL.position.set(posX - doorWidth / 2 - 0.2, wallHeight / 2, posZ);
+    jambL.castShadow = true;
+    doorGroup.add(jambL);
+
+    const jambR = new THREE.Mesh(jambGeo, stoneMat);
+    jambR.position.set(posX + doorWidth / 2 + 0.2, wallHeight / 2, posZ);
+    jambR.castShadow = true;
+    doorGroup.add(jambR);
+
+    // Dientes de sierra en la parte inferior del rastrillo
+    for (let i = 0; i < 5; i++) {
+      const toothGeo = new THREE.BoxGeometry(0.15, 0.25, doorDepth);
+      const tooth = new THREE.Mesh(toothGeo, ironMat);
+      tooth.position.set(
+        posX - doorWidth / 2 + 0.3 + i * (doorWidth - 0.6) / 4,
+        gateY - gateHeight / 2 - 0.1,
+        posZ
+      );
+      tooth.castShadow = true;
+      doorGroup.add(tooth);
+    }
+
+    // Luz indicadora (verde = arriba/abierta, roja = abajo/cerrada)
+    const indicatorLight = new THREE.PointLight(0x00ff00, 0.6, 5);
+    indicatorLight.position.set(posX, wallHeight - 0.4, posZ);
     doorGroup.add(indicatorLight);
 
-    // Linha de advertencia en el suelo (se ve cuando está cerrada)
-    const warningLineMat = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
+    // Linterna/antorcha en el lateral
+    const torchLight = new THREE.PointLight(0xff6600, 0.4, 4);
+    torchLight.position.set(posX - doorWidth / 2 - 0.5, wallHeight * 0.6, posZ);
+    doorGroup.add(torchLight);
+
+    // Indicador de riesgo en el suelo
+    const warningMat = new THREE.MeshBasicMaterial({
+      color: 0xff3300,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.7
     });
     const warningLine = new THREE.Mesh(
-      new THREE.BoxGeometry(doorWidth - 0.2, 0.05, doorDepth + 0.1),
-      warningLineMat
+      new THREE.BoxGeometry(doorWidth - 0.3, 0.08, doorDepth + 0.15),
+      warningMat
     );
-    warningLine.position.set(posX, 0.02, posZ);
+    warningLine.position.set(posX, 0.04, posZ);
     doorGroup.add(warningLine);
 
     this.sceneManager.scene.add(doorGroup);
 
     this.dynamicDoors.push({
       mesh: doorGroup,
-      meshCollider: doorMesh,
+      meshCollider: gateMesh,
       cellX,
       cellZ,
       isClosed: false,
       isClosing: false,
       isOpening: false,
-      doorY: doorY, // Posición arriba (abierta)
-      doorClosedY: doorHeight / 2, // Posición abajo (cerrada)
+      doorY: gateY, // Posición arriba (abierta)
+      doorClosedY: gateHeight / 2, // Posición abajo (cerrada)
       light: indicatorLight,
       closeTimer: 0,
       openTimer: 0
@@ -2450,16 +2374,6 @@ export class Game {
 
     // ── Puertas Dinámicas ─────────────────────────────────────────────────────
     this.updateDynamicDoors(delta);
-
-    // ── Trail del Jugador ─────────────────────────────────────────────────────
-    if (isMoving) {
-      this.trailTimer += delta;
-      if (this.trailTimer >= this.TRAIL_INTERVAL) {
-        this.addTrailPosition();
-        this.trailTimer = 0;
-      }
-    }
-    this.renderTrail();
 
     // Guardar distancia para los mini-sustos
     this.lastClosestEnemyDist = closestEnemyDist;

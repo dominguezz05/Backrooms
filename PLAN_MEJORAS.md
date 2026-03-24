@@ -93,7 +93,7 @@
 |--------|-------------|-----------|
 | Tutorial/Hints | Instrucciones contextuales al inicio de cada nivel | ✅ Implementado |
 | ~~Screen shake mejorado~~ | ~~Efecto de temblor al estar cerca de enemigos~~ | ✅ Implementado |
-| Trail del jugador | Línea sutil de por dónde has pasado | ✅ Completado |
+| Trail del jugador | Línea sutil de por dónde has pasado | ❌ Eliminado |
 | Partículas de polvo | Pequeñas partículas flotando en el aire | ✅ Implementado |
 | Indicador de dirección | Flecha hacia la salida cuando no la ves | ✅ Implementado |
 | Vibration móvil | Feedback háptico en dispositivos móviles | Baja |
