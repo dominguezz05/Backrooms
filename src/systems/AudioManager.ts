@@ -22,6 +22,7 @@ export class AudioManager {
   private proximityOsc: OscillatorNode | null = null;
   private proximityGain: GainNode | null = null;
   private proximityLfo: OscillatorNode | null = null;
+  private powerUpNoiseBuffer: AudioBuffer | null = null;
 
   setPlayerName(name: string): void {
     this.playerName = name;
@@ -90,10 +91,13 @@ export class AudioManager {
     this.lastEnemySpeechTime = now;
     
     const phrases = [
-      'Hay una librería',
-      'Soy Jonathan',
-      'Está en desarrollo',
-      'Nahuevoná'
+      '¿Dónde estás?',
+      'Te encontré',
+      'No huyas',
+      'Ven a mí',
+      'Puedo verte',
+      'Alguien necesita ayuda',
+      '¿Por qué estás aquí?'
     ];
     
     const phrase = phrases[Math.floor(Math.random() * phrases.length)];
@@ -232,6 +236,15 @@ export class AudioManager {
     camera.add(this.listener);
 
     this.startProximitySound();
+
+    // Pre-generar buffer de ruido para power-up (evita spike en pickup)
+    const bufSize = Math.ceil(this.context.sampleRate * 0.15);
+    this.powerUpNoiseBuffer = this.context.createBuffer(1, bufSize, this.context.sampleRate);
+    const bufData = this.powerUpNoiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      const t = i / bufSize;
+      bufData[i] = (Math.random() * 2 - 1) * Math.exp(-t * 12) * 0.15;
+    }
 
     this.loadOptions();
 
@@ -1095,20 +1108,15 @@ export class AudioManager {
       osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     });
 
-    // Ruido corto y simple
-    const bufferSize = this.context.sampleRate * 0.15;
-    const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      const t = i / bufferSize;
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 12) * 0.15;
+    // Usar buffer pre-generado en init (evita spike de GC en el pickup)
+    if (this.powerUpNoiseBuffer) {
+      const noise = this.context.createBufferSource();
+      noise.buffer = this.powerUpNoiseBuffer;
+      noise.connect(this.sfxGain);
+      noise.start(now);
+      noise.stop(now + 0.15);
+      noise.onended = () => { noise.disconnect(); };
     }
-    const noise = this.context.createBufferSource();
-    noise.buffer = buffer;
-    noise.connect(this.sfxGain);
-    noise.start(now);
-    noise.stop(now + 0.15);
-    noise.onended = () => { noise.disconnect(); };
   }
 
   playNoteFound(): void {
@@ -1556,17 +1564,14 @@ export class AudioManager {
         this._startVentilationHum(150, 0.035);
         break;
       case 'level3':
-        // Salas abiertas — más eco, viento lejano más fuerte
-        this._startVentilationHum(90, 0.06);
-        this._startDistantPipe(0.04);
-        this._startElectricBuzz(0.015);
+        this._startVentilationHum(90, 0.05);
+        this._startDistantPipe(0.03);
         break;
       case 'ultimate':
-        // Todo en máximo — presión máxima
-        this._startVentilationHum(60, 0.07);
-        this._startDistantPipe(0.05);
-        this._startElectricBuzz(0.04);
-        this._startLowRumble(0.06);
+        this._startVentilationHum(60, 0.06);
+        this._startDistantPipe(0.04);
+        this._startElectricBuzz(0.025);
+        this._startLowRumble(0.04);
         break;
     }
   }
@@ -1635,22 +1640,23 @@ export class AudioManager {
     if (!this.context || !this.ambientGain) return;
 
     const osc = this.context.createOscillator();
-    osc.type = 'square';
-    osc.frequency.value = 60;
+    osc.type = 'sine';
+    osc.frequency.value = 120;
 
     const filter = this.context.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 200;
+    filter.type = 'bandpass';
+    filter.frequency.value = 150;
+    filter.Q.value = 2;
 
     const lfo = this.context.createOscillator();
     lfo.type = 'sine';
-    lfo.frequency.value = 3 + Math.random() * 5;
+    lfo.frequency.value = 0.5 + Math.random() * 1;
     const lfoGain = this.context.createGain();
-    lfoGain.gain.value = vol * 0.5;
+    lfoGain.gain.value = vol * 0.3;
     lfo.connect(lfoGain);
 
     const gain = this.context.createGain();
-    gain.gain.value = vol;
+    gain.gain.value = vol * 0.5;
     lfoGain.connect(gain.gain);
 
     osc.connect(filter);

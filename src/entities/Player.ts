@@ -189,9 +189,7 @@ export class Player {
   }
 
   private checkWallCollision(pos: THREE.Vector3): boolean {
-    // Check 4 points offset by a safety radius around the player so they
-    // can never get close enough to a wall face to clip through it.
-    const r = 0.70; // must be > camera near-plane (0.25) and feel solid
+    const r = 0.70;
     const checks = [
       { x: pos.x + r, z: pos.z },
       { x: pos.x - r, z: pos.z },
@@ -206,9 +204,9 @@ export class Player {
           cellX < 0 || cellX >= this.maze[0].length) {
         return true;
       }
-      if (this.maze[cellZ][cellX] === CellType.WALL) return true;
+      const cell = this.maze[cellZ][cellX];
+      if (cell === CellType.WALL || cell === CellType.RENDIJA) return true;
       
-      // Check for closed doors
       for (const door of this.closedDoors) {
         if (door.cellX === cellX && door.cellZ === cellZ && door.isClosed) {
           return true;

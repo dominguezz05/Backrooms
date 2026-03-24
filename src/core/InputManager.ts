@@ -9,6 +9,7 @@ export interface InputState {
   flashlight: boolean;
   hide: boolean;
   pause: boolean;
+  interact: boolean;
 }
 
 export type PauseCallback = () => void;
@@ -39,6 +40,7 @@ export class InputManager {
       flashlight: false,
       hide: false,
       pause: false,
+      interact: false,
     };
     this.mouseMovement = { x: 0, y: 0 };
     this.isPointerLocked = false;
@@ -102,6 +104,9 @@ export class InputManager {
         case 'ControlRight':
           this.keys.hide = true;
           break;
+        case 'KeyE':
+          this.keys.interact = true;
+          break;
         case 'KeyP':
           if (!this.pausePressed) {
             this.pausePressed = true;
@@ -139,6 +144,9 @@ export class InputManager {
         case 'ControlLeft':
         case 'ControlRight':
           this.keys.hide = false;
+          break;
+        case 'KeyE':
+          this.keys.interact = false;
           break;
         case 'KeyP':
           this.pausePressed = false;
@@ -258,6 +266,7 @@ export class InputManager {
       flashlight: false,
       hide: false,
       pause: false,
+      interact: false,
     };
     this.mouseMovement = { x: 0, y: 0 };
   }

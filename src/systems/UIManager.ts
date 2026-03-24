@@ -7,6 +7,7 @@ export class UIManager {
   private hidingOverlay: HTMLElement | null = null;
   private hidingText: HTMLElement | null = null;
   private hideHint: HTMLElement | null = null;
+  private rendijaHint: HTMLElement | null = null;
   private loadingScreen: HTMLElement | null = null;
   private loadingBar: HTMLElement | null = null;
   private loadingStatus: HTMLElement | null = null;
@@ -27,6 +28,7 @@ export class UIManager {
     this.hidingOverlay = document.getElementById('hidingOverlay');
     this.hidingText = document.getElementById('hidingText');
     this.hideHint = document.getElementById('hideHint');
+    this.rendijaHint = document.getElementById('rendijaHint');
     this.loadingScreen = document.getElementById('loadingScreen');
     this.loadingBar = document.getElementById('loadingBar');
     this.loadingStatus = document.getElementById('loadingStatus');
@@ -101,6 +103,12 @@ export class UIManager {
       } else {
         this.enemyIndicator.textContent = '';
       }
+    }
+  }
+
+  updateRendijaHint(visible: boolean): void {
+    if (this.rendijaHint) {
+      this.rendijaHint.style.display = visible ? 'flex' : 'none';
     }
   }
 

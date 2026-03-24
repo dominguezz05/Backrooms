@@ -278,10 +278,10 @@
 .finger:nth-child(5) { left: 48px; width: 6px; height: 24px; transform: rotate(15deg); }
 
 @keyframes facePeekDiagonal {
-  0%, 82%, 100% { right: -400px; opacity: 0; transform: rotate(45deg) scale(0.8); }
-  2%, 75% { right: -200px; opacity: 1; transform: rotate(45deg) scale(1); }
-  8%, 60% { right: -100px; opacity: 1; transform: rotate(45deg) scale(1.1); }
-  15%, 50% { right: 50px; opacity: 1; transform: rotate(45deg) scale(1.15); }
+  0%, 82%, 100% { right: -500px; opacity: 0; transform: rotate(45deg) scale(0.8); }
+  2%, 75% { right: 80px; opacity: 1; transform: rotate(45deg) scale(1); }
+  8%, 60% { right: 200px; opacity: 1; transform: rotate(45deg) scale(1.1); }
+  15%, 50% { right: 340px; opacity: 1; transform: rotate(45deg) scale(1.15); }
 }
 
 @keyframes eyeGlow {

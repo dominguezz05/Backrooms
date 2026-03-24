@@ -39,8 +39,11 @@ export const HORROR_MESSAGES = [
 
 export const PLAYER_HEIGHT = 1.7;
 export const PLAYER_RADIUS = 0.3;
-export const MONSTER_KILL_DISTANCE = 1.8;
+export const MONSTER_KILL_DISTANCE = 2.8;
 export const HIDING_SPOT_DISTANCE = 2.4;
+
+export const RENDIJA_SPAWN_CHANCE = 0.08;
+export const RENDIJA_WIDTH = 0.8;
 export const FLASHLIGHT_ANGLE = Math.PI / 6;
 export const FLASHLIGHT_INTENSITY = 2;
 export const FLASHLIGHT_DISTANCE = 12;

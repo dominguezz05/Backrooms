@@ -16,6 +16,7 @@ export enum CellType {
   POWER_STUN = 12,
   POWER_SANITY = 13,
   DOOR = 14,
+  RENDIJA = 15,
 }
 
 export enum EnemyType {

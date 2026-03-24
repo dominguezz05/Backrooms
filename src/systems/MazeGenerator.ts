@@ -1,14 +1,28 @@
 import { CellType } from '../types';
-import { CONFIG, DOOR_SPAWN_CHANCE } from '../constants';
+import { CONFIG, DOOR_SPAWN_CHANCE, RENDIJA_SPAWN_CHANCE } from '../constants';
+
+function hasEmptyOpposite(maze: number[][], x: number, z: number, direction: 'horizontal' | 'vertical'): boolean {
+  const cell1 = direction === 'horizontal' ? maze[z]?.[x - 1] : maze[z - 1]?.[x];
+  const cell2 = direction === 'horizontal' ? maze[z]?.[x + 1] : maze[z + 1]?.[x];
+  return (cell1 === CellType.EMPTY || cell1 === CellType.DOOR || cell1 === CellType.RENDIJA) &&
+         (cell2 === CellType.EMPTY || cell2 === CellType.DOOR || cell2 === CellType.RENDIJA);
+}
 
 export interface MazeOptions {
   openRooms?: boolean;
+}
+
+export interface WallInfo {
+  x: number;
+  z: number;
+  orientation: 'horizontal' | 'vertical';
 }
 
 export class MazeGenerator {
   width: number;
   height: number;
   maze: number[][];
+  wallPositions: WallInfo[] = [];
   private options: MazeOptions = {};
 
   constructor(width: number, height: number, options: MazeOptions = {}) {
@@ -253,6 +267,20 @@ export class MazeGenerator {
 
     // ── Puertas dinámicas (Nivel 3, 4 y Ultimate) ────────────────────────────
     if (this.options.openRooms || this.width >= 20) {
+      this.wallPositions = [];
+      
+      for (let z = 2; z < this.height - 2; z++) {
+        for (let x = 2; x < this.width - 2; x++) {
+          if (this.maze[z][x] === CellType.WALL) {
+            const isHorizontalWall = hasEmptyOpposite(this.maze, x, z, 'horizontal') && !hasEmptyOpposite(this.maze, x, z, 'vertical');
+            const isVerticalWall = hasEmptyOpposite(this.maze, x, z, 'vertical') && !hasEmptyOpposite(this.maze, x, z, 'horizontal');
+            if (isHorizontalWall || isVerticalWall) {
+              this.wallPositions.push({ x, z, orientation: isHorizontalWall ? 'horizontal' : 'vertical' });
+            }
+          }
+        }
+      }
+
       let doorsPlaced = 0;
       const maxDoors = 6;
       
@@ -267,7 +295,35 @@ export class MazeGenerator {
           }
         }
       }
+
+      for (const wall of this.wallPositions) {
+        if (this.maze[wall.z][wall.x] === CellType.WALL && wall.x > 3 && wall.z > 3) {
+          // Solo colocar rendija donde haya pasillo en ambos lados opuestos
+          const hasH = hasEmptyOpposite(this.maze, wall.x, wall.z, 'horizontal');
+          const hasV = hasEmptyOpposite(this.maze, wall.x, wall.z, 'vertical');
+          if ((hasH || hasV) && Math.random() < RENDIJA_SPAWN_CHANCE) {
+            this.maze[wall.z][wall.x] = CellType.RENDIJA;
+          }
+        }
+      }
     }
+  }
+  
+  getRendijaExit(x: number, z: number, fromX: number, fromZ: number): { x: number; z: number } | null {
+    if (this.maze[z]?.[x] !== CellType.RENDIJA) return null;
+
+    // El jugador viene de (fromX, fromZ) — buscar el lado OPUESTO de la pared
+    const dx = x - fromX;
+    const dz = z - fromZ;
+    const exitX = x + dx;
+    const exitZ = z + dz;
+
+    if (this.maze[exitZ]?.[exitX] !== undefined &&
+        this.maze[exitZ][exitX] !== CellType.WALL &&
+        this.maze[exitZ][exitX] !== CellType.RENDIJA) {
+      return { x: exitX, z: exitZ };
+    }
+    return null;
   }
 
   private countNearbyWalls(x: number, z: number): number {

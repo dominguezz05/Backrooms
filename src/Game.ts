@@ -660,6 +660,77 @@ export class Game {
           this.bloodStains.push(stain);
         }
 
+        if (cell === CellType.RENDIJA) {
+          // Pared base (igual que WALL, sin añadir a collidableObjects — Player usa maze array)
+          const rendijaWall = new THREE.Mesh(wallGeometry, wallMaterial);
+          rendijaWall.position.set(posX, wallHeight / 2, posZ);
+          rendijaWall.castShadow = true;
+          rendijaWall.receiveShadow = true;
+          this.sceneManager.scene.add(rendijaWall);
+
+          // Determinar orientación: ¿pasillo a izquierda/derecha (horizontal) o arriba/abajo (vertical)?
+          const leftEmpty  = this.maze[z]?.[x - 1] !== CellType.WALL && this.maze[z]?.[x - 1] !== CellType.RENDIJA;
+          const rightEmpty = this.maze[z]?.[x + 1] !== CellType.WALL && this.maze[z]?.[x + 1] !== CellType.RENDIJA;
+          const isHorizontal = leftEmpty || rightEmpty;
+
+          // Textura de grieta: franja oscura con brillo anaranjado
+          const cc = document.createElement('canvas');
+          cc.width = 32; cc.height = 256;
+          const ctx = cc.getContext('2d')!;
+          ctx.clearRect(0, 0, 32, 256);
+
+          // Núcleo negro de la grieta
+          ctx.strokeStyle = 'rgba(0,0,0,1)';
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(16, 4);
+          ctx.lineTo(13, 55); ctx.lineTo(19, 100);
+          ctx.lineTo(12, 155); ctx.lineTo(17, 200);
+          ctx.lineTo(15, 252);
+          ctx.stroke();
+
+          // Glow naranja-rojo
+          const grd = ctx.createLinearGradient(16, 0, 16, 256);
+          grd.addColorStop(0,    'rgba(255,80,0,0)');
+          grd.addColorStop(0.1,  'rgba(255,100,10,0.7)');
+          grd.addColorStop(0.5,  'rgba(255,60,0,1)');
+          grd.addColorStop(0.9,  'rgba(255,100,10,0.7)');
+          grd.addColorStop(1,    'rgba(255,80,0,0)');
+          ctx.strokeStyle = grd;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          // Grietas secundarias
+          ctx.strokeStyle = 'rgba(200,60,0,0.5)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(13, 55); ctx.lineTo(4, 70); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(19, 120); ctx.lineTo(28, 135); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(12, 170); ctx.lineTo(3, 185); ctx.stroke();
+
+          const crackTex = new THREE.CanvasTexture(cc);
+          const crackMat = new THREE.MeshBasicMaterial({
+            map: crackTex,
+            transparent: true,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          });
+
+          // Plano vertical alineado con la pared
+          const crackMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(unitSize * 0.15, wallHeight * 0.92),
+            crackMat
+          );
+          crackMesh.position.set(posX, wallHeight / 2, posZ);
+          // Si pasillos a izq/dcha → la pared mira en Z → giramos 90° para que el crack mire en X
+          crackMesh.rotation.y = isHorizontal ? Math.PI / 2 : 0;
+          this.sceneManager.scene.add(crackMesh);
+
+          // Luz naranja tenue que delata la rendija
+          const rendijaLight = new THREE.PointLight(0xff4400, 1.2, 4);
+          rendijaLight.position.set(posX, wallHeight * 0.45, posZ);
+          this.sceneManager.scene.add(rendijaLight);
+        }
+
         if (cell === CellType.HIDING_SPOT) {
           // Ataúd empotrado en la pared más cercana
           const coffinDirs = [
@@ -811,7 +882,8 @@ export class Game {
 
         // Puertas dinámicas
         if (cell === CellType.DOOR) {
-          this.createDoorMesh(x, z, posX, posZ, unitSize, wallHeight);
+          const isHorizontalPassage = (this.maze[z]?.[x - 1] !== 1 && this.maze[z]?.[x + 1] !== 1);
+          this.createDoorMesh(x, z, posX, posZ, unitSize, wallHeight, isHorizontalPassage);
         }
       }
     }
@@ -827,8 +899,12 @@ export class Game {
     this.doorTimer = 0;
   }
 
-  private createDoorMesh(cellX: number, cellZ: number, posX: number, posZ: number, unitSize: number, wallHeight: number): void {
+  private createDoorMesh(cellX: number, cellZ: number, posX: number, posZ: number, unitSize: number, wallHeight: number, isHorizontalPassage: boolean = true): void {
     const doorGroup = new THREE.Group();
+    
+    if (isHorizontalPassage) {
+      doorGroup.rotation.y = Math.PI / 2;
+    }
     
     // ── Estilo Castillo Medieval ─────────────────────────────────────────────
     
@@ -1615,18 +1691,22 @@ export class Game {
         break;
     }
     
-    for (const type of types) {
-      const pos = this.mazeGenerator.findRandomEmptyPosition(8);
-      if (pos) {
-        const enemy = new Enemy(
-          type,
-          new THREE.Vector3(pos.x * CONFIG.UNIT_SIZE, 0, pos.z * CONFIG.UNIT_SIZE),
-          this.sceneManager.scene,
-          this.maze
-        );
-        this.enemies.push(enemy);
-      }
-    }
+    // Crear cada enemigo en un frame separado para no congelar el hilo principal
+    types.forEach((type, index) => {
+      setTimeout(() => {
+        if (!this.isActive) return;
+        const pos = this.mazeGenerator.findRandomEmptyPosition(8);
+        if (pos) {
+          const enemy = new Enemy(
+            type,
+            new THREE.Vector3(pos.x * CONFIG.UNIT_SIZE, 0, pos.z * CONFIG.UNIT_SIZE),
+            this.sceneManager.scene,
+            this.maze
+          );
+          this.enemies.push(enemy);
+        }
+      }, index * 80);
+    });
 
     this.monsterSpawned = true;
     console.log('[Game] Enemies spawned for level:', this.currentLevel);
@@ -1736,6 +1816,52 @@ export class Game {
           console.log('[Game] Power-up collected! Type:', cellType);
         }
       }
+    }
+  }
+  
+  private nearbyRendija: { x: number; z: number; exitX: number; exitZ: number } | null = null;
+  
+  private checkRendijaInteraction(): void {
+    const px = Math.round(this.player.position.x / CONFIG.UNIT_SIZE);
+    const pz = Math.round(this.player.position.z / CONFIG.UNIT_SIZE);
+    
+    this.nearbyRendija = null;
+    
+    const directions: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const checkX = px + dx;
+        const checkZ = pz + dz;
+        
+        if (checkZ >= 0 && checkZ < this.maze.length && 
+            checkX >= 0 && checkX < this.maze[0].length) {
+          if (this.maze[checkZ][checkX] === CellType.RENDIJA) {
+            const exit = this.mazeGenerator.getRendijaExit(checkX, checkZ, px, pz);
+            if (exit) {
+              const distToRendija = Math.sqrt(
+                Math.pow((checkX - px) * CONFIG.UNIT_SIZE, 2) +
+                Math.pow((checkZ - pz) * CONFIG.UNIT_SIZE, 2)
+              );
+              if (distToRendija < 2.5) {
+                this.nearbyRendija = { x: checkX, z: checkZ, exitX: exit.x, exitZ: exit.z };
+                break;
+              }
+            }
+          }
+        }
+      }
+      if (this.nearbyRendija) break;
+    }
+    
+    if (this.nearbyRendija && this.inputManager.keys.interact) {
+      const newX = this.nearbyRendija.exitX * CONFIG.UNIT_SIZE;
+      const newZ = this.nearbyRendija.exitZ * CONFIG.UNIT_SIZE;
+      
+      this.player.position.x = newX;
+      this.player.position.z = newZ;
+      
+      console.log('[Game] Used rendija! Teleported to:', this.nearbyRendija.exitX, this.nearbyRendija.exitZ);
     }
   }
 
@@ -2303,6 +2429,10 @@ export class Game {
     this.player.update(delta);
     this.checkBatteryCollection();
     this.updatePowerUpVisuals(delta);
+    
+    // ── Rendijas (atajos secretos) ──────────────────────────────────────────────
+    this.checkRendijaInteraction();
+    this.uiManager.updateRendijaHint(this.nearbyRendija !== null);
 
     // ── Estadísticas ─────────────────────────────────────────────────────────
     this.statsDistanceWalked += this.player.position.distanceTo(this.statsLastPos);
