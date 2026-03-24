@@ -91,11 +91,11 @@
 
 | Mejora | Descripción | Prioridad |
 |--------|-------------|-----------|
-| Tutorial/Hints | Instrucciones contextuales al inicio de cada nivel | Media |
+| Tutorial/Hints | Instrucciones contextuales al inicio de cada nivel | ✅ Implementado |
 | ~~Screen shake mejorado~~ | ~~Efecto de temblor al estar cerca de enemigos~~ | ✅ Implementado |
 | Trail del jugador | Línea sutil de por dónde has pasado | Baja |
 | Partículas de polvo | Pequeñas partículas flotando en el aire | ✅ Implementado |
-| Indicador de dirección | Flecha hacia la salida cuando no la ves | Media |
+| Indicador de dirección | Flecha hacia la salida cuando no la ves | ✅ Implementado |
 | Vibration móvil | Feedback háptico en dispositivos móviles | Baja |
 | Transiciones suaves | Fade entre pantallas (menú→juego→muerte) | Baja |
 
@@ -106,7 +106,7 @@
 | Partículas flotantes | Polvo/flocos en el fondo del menú | ✅ Implementado |
 | Niebla dinámica | Niebla que se mueve lentamente | ✅ Implementado |
 | Escuchas | Manos en las paredes como decoración | Baja |
-| Cuadros de miedo | Pinturas perturbadoras en las paredes del laberinto | Media |
+| Cuadros de miedo | Pinturas perturbadoras en las paredes del laberinto | ✅ Implementado |
 
 ## 9. Gameplay Avanzado
 

@@ -102,6 +102,12 @@ export class Game {
   private readonly MAX_FOOTPRINTS = 28;
   private readonly FOOTPRINT_LIFETIME = 18;
 
+  // Sistema de tutorial/hints
+  private tutorialHints: Array<{ key: string; text: string; time: number }> = [];
+  private currentHintIndex = 0;
+  private tutorialTimer = 0;
+  private tutorialShown = false;
+
   constructor() {
     this.sceneManager = new SceneManager();
     this.inputManager = new InputManager();
@@ -185,6 +191,12 @@ export class Game {
     await delay(200);
     this.uiManager.setLoadingProgress(95, 'Listo para comenzar...');
     this.setupStartButton();
+    this.initTutorial();
+
+    await delay(300);
+    this.uiManager.setLoadingProgress(100, '¡Pulsa para empezar!');
+    await delay(500);
+    this.uiManager.showLoading(false);
 
     await delay(300);
     this.uiManager.setLoadingProgress(100, '¡Pulsa para empezar!');
@@ -704,6 +716,9 @@ export class Game {
       }
     }
 
+    // Cuadros de miedo en las paredes
+    this.addScaryPictures();
+
     // Flechas de pista pintadas en las paredes (solo visibles con linterna)
     this.addExitArrows();
   }
@@ -829,6 +844,106 @@ export class Game {
         }
       }
     }
+  }
+
+  private addScaryPictures(): void {
+    const unitSize = CONFIG.UNIT_SIZE;
+    const wallHeight = CONFIG.WALL_HEIGHT;
+    const pictureCount = 5 + Math.floor(Math.random() * 4);
+
+    const scaryImages = [
+      { text: 'CORPORATION', subtext: 'TE NECESITA', dark: true },
+      { text: 'SALIDA', subtext: '→ → →', dark: false },
+      { text: 'NO MIRES', subtext: 'ATRÁS', dark: true },
+      { text: '¿QUIÉN', subtext: 'ESTÁ AHÍ?', dark: true },
+      { text: 'AYUDA', subtext: ' POR FAVOR', dark: false },
+      { text: 'SÉ QUE', subtext: 'TE VEO', dark: true },
+      { text: 'VUELVE', subtext: 'A casa', dark: false },
+      { text: 'ERROR', subtext: '404: cordura no encontrada', dark: true },
+    ];
+
+    const wallConfigs = [
+      { dx: 0, dz: 1, offsetZ: unitSize / 2 - 0.02, rotY: Math.PI },
+      { dx: 0, dz: -1, offsetZ: -(unitSize / 2 - 0.02), rotY: 0 },
+      { dx: 1, dz: 0, offsetX: unitSize / 2 - 0.02, rotY: -Math.PI / 2 },
+      { dx: -1, dz: 0, offsetX: -(unitSize / 2 - 0.02), rotY: Math.PI / 2 },
+    ];
+
+    let placed = 0;
+    const maxAttempts = 200;
+    let attempts = 0;
+
+    while (placed < pictureCount && attempts < maxAttempts) {
+      attempts++;
+      const x = 3 + Math.floor(Math.random() * (this.maze[0].length - 6));
+      const z = 3 + Math.floor(Math.random() * (this.maze.length - 6));
+
+      if (this.maze[z][x] !== CellType.EMPTY) continue;
+      if (Math.abs(x - 1) + Math.abs(z - 1) < 8) continue;
+
+      const config = wallConfigs[Math.floor(Math.random() * wallConfigs.length)];
+      const nx = x + config.dx;
+      const nz = z + config.dz;
+
+      if (nx < 0 || nx >= this.maze[0].length || nz < 0 || nz >= this.maze.length) continue;
+      if (this.maze[nz][nx] !== CellType.WALL) continue;
+
+      const imageData = scaryImages[Math.floor(Math.random() * scaryImages.length)];
+      const texture = this.createScaryPictureTexture(imageData.text, imageData.subtext, imageData.dark);
+      const geo = new THREE.PlaneGeometry(1.0, 0.7);
+      const mat = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        alphaTest: 0.1,
+      });
+
+      const picture = new THREE.Mesh(geo, mat);
+      const posX = x * unitSize + (config.offsetX || 0);
+      const posZ = z * unitSize + (config.offsetZ || 0);
+      picture.position.set(posX, 1.5, posZ);
+      picture.rotation.y = config.rotY;
+
+      this.sceneManager.scene.add(picture);
+      placed++;
+    }
+  }
+
+  private createScaryPictureTexture(mainText: string, subtext: string, dark: boolean): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 180;
+    const ctx = canvas.getContext('2d')!;
+
+    if (dark) {
+      ctx.fillStyle = '#1a0a0a';
+      ctx.fillRect(0, 0, 256, 180);
+      ctx.strokeStyle = '#4a1515';
+    } else {
+      ctx.fillStyle = '#f5f0e0';
+      ctx.fillRect(0, 0, 256, 180);
+      ctx.strokeStyle = '#8a7a6a';
+    }
+    ctx.lineWidth = 3;
+    ctx.strokeRect(5, 5, 246, 170);
+
+    ctx.fillStyle = dark ? '#cc2222' : '#553300';
+    ctx.font = 'bold 32px Creepster, cursive';
+    ctx.textAlign = 'center';
+    ctx.fillText(mainText, 128, 70);
+
+    ctx.fillStyle = dark ? '#884444' : '#776655';
+    ctx.font = '20px VT323, monospace';
+    ctx.fillText(subtext, 128, 110);
+
+    ctx.fillStyle = dark ? '#331111' : '#a09080';
+    ctx.font = '12px monospace';
+    for (let i = 0; i < 5; i++) {
+      ctx.fillText('░', 20 + Math.random() * 216, 140 + Math.random() * 30);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
   }
 
   /** Canvas texture de flecha apuntando a la derecha (→).
@@ -1279,6 +1394,47 @@ export class Game {
         }
       }
     }
+  }
+
+  private initTutorial(): void {
+    const isFirstTime = !localStorage.getItem('backrooms_tutorial_done');
+    
+    this.tutorialHints = [
+      { key: 'WASD', text: 'WASD o flechas para moverte', time: 5 },
+      { key: 'MOUSE', text: 'MOUSE para mirar alrededor', time: 6 },
+      { key: 'SHIFT', text: 'SHIFT para correr (gasta stamina)', time: 7 },
+      { key: 'F', text: 'F para encender/apagar linterna', time: 8 },
+      { key: 'CTRL', text: 'CTRL para esconderte cerca de arbustos', time: 9 },
+      { key: 'P', text: 'P para pausar', time: 10 },
+    ];
+    
+    if (isFirstTime) {
+      this.tutorialShown = true;
+      this.currentHintIndex = 0;
+      this.tutorialTimer = 0;
+      this.showTutorialHint();
+    }
+  }
+
+  private showTutorialHint(): void {
+    if (this.currentHintIndex >= this.tutorialHints.length) {
+      localStorage.setItem('backrooms_tutorial_done', 'true');
+      this.tutorialShown = false;
+      return;
+    }
+
+    const hint = this.tutorialHints[this.currentHintIndex];
+    this.horrorEffects.showMessage(`${hint.key}: ${hint.text}`, 3000);
+    
+    setTimeout(() => {
+      this.currentHintIndex++;
+      if (this.currentHintIndex < this.tutorialHints.length) {
+        setTimeout(() => this.showTutorialHint(), 1000);
+      } else {
+        localStorage.setItem('backrooms_tutorial_done', 'true');
+        this.tutorialShown = false;
+      }
+    }, hint.time * 1000);
   }
 
   private stunAllEnemies(): void {
