@@ -1000,3 +1000,41 @@ body::after {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
 }
+
+/* ════ CONTROLES EN OPCIONES ════ */
+.controls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(20, 10, 10, 0.5);
+  border-radius: 6px;
+  border: 1px solid rgba(80, 40, 40, 0.3);
+}
+
+.control-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(60, 30, 30, 0.2);
+}
+
+.control-item:last-child {
+  border-bottom: none;
+}
+
+.control-key {
+  font-family: var(--font-title);
+  font-size: 1rem;
+  color: #ff9999;
+  background: rgba(80, 30, 30, 0.4);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(150, 60, 60, 0.4);
+}
+
+.control-desc {
+  font-size: 0.95rem;
+  color: #888;
+}
