@@ -612,8 +612,14 @@ export class Enemy {
       }
     }
 
-    if (playerHiding && distToPlayer > 3) {
+    // Si el jugador está escondido, el enemigo le pierde la pista y no le persigue
+    if (playerHiding) {
       this.isMoving = false;
+      // El enemigo se queda quieto y vuelve a idle, no investiga
+      if (this.state === 'chase' || this.state === 'investigate') {
+        this.state = 'idle';
+        this.lastKnownPlayerPos = null;
+      }
       return distToPlayer;
     }
 
