@@ -157,15 +157,15 @@
 /* ════ CARA DEL MALO 45 GRADOS ════ */
 .shadow-figure {
   position: fixed;
-  bottom: 2vh;
-  right: -100px;
-  width: 200px;
-  height: 280px;
+  bottom: 0vh;
+  right: -80px;
+  width: 280px;
+  height: 320px;
   pointer-events: none;
   z-index: 400;
   transform: rotate(45deg);
   transform-origin: bottom right;
-  animation: facePeekDiagonal 20s ease-in-out infinite 1s;
+  animation: facePeekDiagonal 18s ease-in-out infinite 1s;
   filter: drop-shadow(0 0 40px rgba(200, 0, 0, 1));
 }
 
@@ -278,10 +278,10 @@
 .finger:nth-child(5) { left: 48px; width: 6px; height: 24px; transform: rotate(15deg); }
 
 @keyframes facePeekDiagonal {
-  0%, 75%, 100% { right: -200px; opacity: 0; transform: rotate(45deg) scale(0.8); }
-  5%, 65% { right: -100px; opacity: 1; transform: rotate(45deg) scale(1); }
-  15%, 55% { right: -60px; opacity: 1; transform: rotate(45deg) scale(1.1); }
-  25%, 45% { right: -30px; opacity: 1; transform: rotate(45deg) scale(1.15); }
+  0%, 80%, 100% { right: -250px; opacity: 0; transform: rotate(45deg) scale(0.8); }
+  3%, 70% { right: -150px; opacity: 1; transform: rotate(45deg) scale(1); }
+  10%, 55% { right: -80px; opacity: 1; transform: rotate(45deg) scale(1.1); }
+  20%, 45% { right: -10px; opacity: 1; transform: rotate(45deg) scale(1.15); }
 }
 
 @keyframes eyeGlow {
