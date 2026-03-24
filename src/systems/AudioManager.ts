@@ -183,6 +183,29 @@ export class AudioManager {
     });
   }
 
+  private loadOptions(): void {
+    const musicVol = parseFloat(localStorage.getItem('optMusic') || '70');
+    const sfxVol = parseFloat(localStorage.getItem('optSfx') || '80');
+    
+    const musicGain = musicVol / 100;
+    const sfxGain = sfxVol / 100;
+    
+    if (this.musicGain) this.musicGain.gain.value = musicGain;
+    if (this.ambientGain) this.ambientGain.gain.value = musicGain * 0.5;
+    if (this.sfxGain) this.sfxGain.gain.value = sfxGain;
+  }
+
+  setMusicVolume(vol: number): void {
+    const gain = Math.max(0, Math.min(1, vol / 100));
+    if (this.musicGain) this.musicGain.gain.value = gain;
+    if (this.ambientGain) this.ambientGain.gain.value = gain * 0.5;
+  }
+
+  setSfxVolume(vol: number): void {
+    const gain = Math.max(0, Math.min(1, vol / 100));
+    if (this.sfxGain) this.sfxGain.gain.value = gain;
+  }
+
   async init(camera: THREE.Camera): Promise<void> {
     if (this.isInitialized) return;
 
@@ -194,7 +217,7 @@ export class AudioManager {
     this.masterGain.connect(this.context.destination);
 
     this.musicGain = this.context.createGain();
-    this.musicGain.gain.value = 0.5;
+    this.musicGain.gain.value = 0.7;
     this.musicGain.connect(this.masterGain);
 
     this.ambientGain = this.context.createGain();
@@ -209,6 +232,8 @@ export class AudioManager {
     camera.add(this.listener);
 
     this.startProximitySound();
+
+    this.loadOptions();
 
     this.isInitialized = true;
     console.log('[AudioManager] Audio terrorífico inicializado');

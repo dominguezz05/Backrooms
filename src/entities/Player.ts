@@ -84,7 +84,8 @@ export class Player {
 
     // Permitir mirar dentro del ataúd aunque no se pueda mover
     const mouseDelta = this.inputManager.consumeMouseMovement();
-    this.yaw -= mouseDelta.x * 0.002;
+    const sensFactor = this.inputManager.sensitivity / 5; // 1-10 mapeado a 0.2-2
+    this.yaw -= mouseDelta.x * 0.002 * sensFactor;
 
     if (this.isHiding) return;
 

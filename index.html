@@ -1,1493 +1,1409 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pesadilla en los Backrooms - Abismo</title>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Creepster&family=VT323&display=swap");
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pesadilla en los Backrooms - Abismo</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Creepster&family=VT323&display=swap");
 
-      :root {
-        --main-bg-color: #020202;
-        --container-bg-color: rgba(6, 2, 2, 0.78);
-        --text-color: #909090;
-        --title-color: #900000;
-        --title-glow1: #b00000;
-        --title-glow2: #efa000;
-        --button-bg-color: #4d0208;
-        --button-hover-bg-color: #6a020b;
-        --button-text-color: #d0d0d0;
-        --particle-color-1: rgba(110, 0, 0, 0.3);
-        --particle-color-2: rgba(60, 60, 60, 0.2);
-        --particle-color-3: rgba(120, 60, 0, 0.1);
-        --lightning-color: rgba(180, 180, 220, 0.5);
-        --lightning-glow: rgba(160, 160, 220, 0.3);
-        --rain-color: rgba(100, 110, 120, 0.55);
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --main-bg: #020202;
+      --text-color: #909090;
+      --text-dim: #555;
+      --accent-red: #b00000;
+      --accent-glow: #ff4444;
+      --menu-bg: rgba(8, 3, 3, 0.95);
+      --btn-bg: #3a0208;
+      --btn-hover: #5a020b;
+      --btn-text: #ddd;
+    }
+
+    body {
+      background-color: var(--main-bg);
+      color: var(--text-color);
+      font-family: 'VT323', monospace;
+      min-height: 100vh;
+      overflow: hidden;
+      cursor: default;
+      position: relative;
+    }
+
+    /* ════ LLUVIA MEJORADA ════ */
+    .rain-container {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .rain-drop {
+      position: absolute;
+      bottom: 100%;
+      width: 1.5px;
+      height: 100px;
+      background: linear-gradient(to bottom, transparent 0%, rgba(100, 110, 120, 0.5) 40%, rgba(80, 90, 100, 0.3) 100%);
+      animation: rainFall linear infinite;
+    }
+
+    @keyframes rainFall {
+      to {
+        transform: translateY(calc(100vh + 100px));
       }
+    }
 
-      body {
-        margin: 0;
-        padding: 0;
-        background-color: var(--main-bg-color);
-        color: var(--text-color);
-        font-family: "VT323", monospace;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        overflow: hidden;
-        text-align: center;
-        cursor: default;
-        position: relative;
-        animation: bodyBackgroundPulse 25s infinite ease-in-out;
-      }
+    /* ════ FONDO OSCURO CON GRID ════ */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent 0, transparent 59px, rgba(40, 30, 5, 0.05) 59px, rgba(40, 30, 5, 0.05) 60px),
+        repeating-linear-gradient(90deg, transparent 0, transparent 79px, rgba(40, 30, 5, 0.05) 79px, rgba(40, 30, 5, 0.05) 80px);
+      opacity: 0.7;
+    }
 
-      @keyframes bodyBackgroundPulse {
-        0% {
-          background-color: #010101;
-        }
-        50% {
-          background-color: #050505;
-        }
-        100% {
-          background-color: #010101;
-        }
-      }
+    .bg-vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(0, 0, 0, 0.6) 70%, rgba(0, 0, 0, 0.9) 100%);
+      pointer-events: none;
+    }
 
-      .background-effects {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 1;
-      }
+    /* ════ CARA DEL MALO LATERAL ════ */
+    .shadow-figure {
+      position: fixed;
+      bottom: 10vh;
+      right: -60px;
+      width: 100px;
+      height: 150px;
+      pointer-events: none;
+      z-index: 5;
+      animation: facePeek 18s ease-in-out infinite 2s;
+    }
 
-      .rain-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        z-index: 0;
-      }
+    .face-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
 
-      .rain-drop {
-        position: absolute;
-        bottom: 100%;
-        width: 1.5px;
-        height: 60px;
-        background: linear-gradient(
-          to bottom,
-          rgba(0, 0, 0, 0) 0%,
-          var(--rain-color) 100%
-        );
-        animation: fall linear infinite;
-      }
+    .face-head {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 70px;
+      height: 90px;
+      background: #0a0505;
+      border-radius: 35% 35% 45% 45%;
+      box-shadow: 0 0 30px rgba(150, 0, 0, 0.3);
+    }
 
-      @keyframes fall {
-        to {
-          transform: translateY(100vh);
-          bottom: -60px;
-        }
-      }
+    .face-eye {
+      position: absolute;
+      top: 30px;
+      width: 18px;
+      height: 10px;
+      background: #ff0000;
+      border-radius: 50%;
+      box-shadow: 
+        0 0 10px #ff0000,
+        0 0 20px rgba(255, 0, 0, 0.7),
+        0 0 40px rgba(255, 0, 0, 0.4);
+      animation: eyeGlow 2s ease-in-out infinite;
+    }
 
-      .container {
-        position: relative;
-        z-index: 3;
-        padding: clamp(12px, 2vh, 24px) clamp(16px, 3vw, 35px);
-        max-width: min(680px, 92vw);
-        width: 100%;
-        background-color: var(--container-bg-color);
-        border-radius: 8px;
-        box-shadow:
-          0 0 30px rgba(0, 0, 0, 0.8),
-          inset 0 0 15px rgba(0, 0, 0, 0.95);
-        border: 1px solid rgba(70, 0, 0, 0.45);
-        animation: containerSubtleShift 23s infinite ease-in-out;
-      }
+    .face-eye.left { left: 12px; }
+    .face-eye.right { right: 12px; }
 
-      @keyframes containerSubtleShift {
-        0%,
-        100% {
-          transform: translate(0, 0) skewX(0deg);
-        }
-        25% {
-          transform: translate(0.5px, -0.5px) skewX(0.05deg);
-        }
-        50% {
-          transform: translate(-0.5px, 0.5px) skewX(-0.05deg);
-        }
-        75% {
-          transform: translate(-0.5px, -0.5px) skewX(0.02deg);
-        }
-      }
+    .face-mouth {
+      position: absolute;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 25px;
+      background: #000;
+      border-radius: 0 0 50% 50%;
+      overflow: hidden;
+    }
 
-      h1 {
-        font-family: "Creepster", cursive;
-        font-size: clamp(1.5rem, 7vw, 4rem);
-        color: var(--title-color);
+    .face-teeth {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 3px;
+    }
+
+    .face-tooth {
+      width: 6px;
+      height: 12px;
+      background: #2a1a1a;
+      border-radius: 0 0 2px 2px;
+    }
+
+    @keyframes facePeek {
+      0%, 65%, 100% { right: -80px; opacity: 0.7; }
+      15%, 55% { right: -20px; opacity: 1; }
+      25%, 45% { right: -10px; opacity: 1; }
+    }
+
+    @keyframes eyeGlow {
+      0%, 100% { box-shadow: 0 0 10px #ff0000, 0 0 20px rgba(255, 0, 0, 0.7); }
+      50% { box-shadow: 0 0 15px #ff0000, 0 0 30px rgba(255, 0, 0, 0.9), 0 0 50px rgba(255, 0, 0, 0.5); }
+    }
+
+    /* ════ PORTADA PRINCIPAL ════ */
+    #mainCover {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(ellipse at 50% 40%, rgba(40, 10, 10, 0.4) 0%, transparent 60%);
+    }
+
+    .cover-title {
+      font-family: 'Creepster', cursive;
+      font-size: clamp(2.5rem, 10vw, 6rem);
+      color: #cc0000;
+      text-shadow:
+        0 0 10px #b00000,
+        0 0 30px rgba(180, 0, 0, 0.5),
+        0 0 60px rgba(180, 0, 0, 0.3),
+        2px 2px 0 #000,
+        -2px -2px 0 #000;
+      letter-spacing: 6px;
+      text-align: center;
+      line-height: 1.1;
+      animation: titlePulse 3s ease-in-out infinite;
+      margin-bottom: 10px;
+    }
+
+    .cover-subtitle {
+      font-family: 'VT323', monospace;
+      font-size: clamp(1rem, 3vw, 1.4rem);
+      color: #666;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      margin-bottom: 50px;
+      animation: subtitleFlicker 8s ease-in-out infinite;
+    }
+
+    @keyframes titlePulse {
+      0%, 100% {
         text-shadow:
-          0 0 3px var(--title-color),
-          0 0 7px var(--title-glow1),
-          0 0 11px var(--title-glow1),
-          0 0 18px var(--title-glow2),
-          1px 1px 0px #000,
-          -1px -1px 0px #000;
-        margin-bottom: 20px;
-        line-height: 1.1;
-        animation:
-          titlePulsatingGlow 2.8s infinite alternate,
-          titleTextDistort 13s infinite steps(1);
+          0 0 10px #b00000,
+          0 0 30px rgba(180, 0, 0, 0.5),
+          0 0 60px rgba(180, 0, 0, 0.3),
+          2px 2px 0 #000;
+        opacity: 0.9;
       }
+      50% {
+        text-shadow:
+          0 0 20px #cc0000,
+          0 0 50px rgba(200, 0, 0, 0.7),
+          0 0 80px rgba(200, 0, 0, 0.4),
+          2px 2px 0 #000;
+        opacity: 1;
+      }
+    }
 
-      @keyframes titlePulsatingGlow {
-        from {
-          text-shadow:
-            0 0 2px var(--title-color),
-            0 0 5px var(--title-glow1),
-            0 0 8px var(--title-glow1),
-            0 0 13px var(--title-glow2),
-            1px 1px 0px #000,
-            -1px -1px 0px #000;
-          opacity: 0.8;
-        }
-        to {
-          text-shadow:
-            0 0 4px var(--title-color),
-            0 0 9px var(--title-glow1),
-            0 0 16px var(--title-glow1),
-            0 0 25px var(--title-glow2),
-            1px 1px 0px #000,
-            -1px -1px 0px #000;
-          opacity: 1;
-        }
-      }
+    @keyframes subtitleFlicker {
+      0%, 95%, 100% { opacity: 0.6; }
+      96%, 98% { opacity: 0.3; }
+      97%, 99% { opacity: 0.7; }
+    }
 
-      @keyframes titleTextDistort {
-        0%,
-        100% {
-          transform: skewX(0deg) translateX(0);
-        }
-        2.5% {
-          transform: skewX(-0.6deg) translateX(-1.5px);
-        }
-        5% {
-          transform: skewX(0.35deg) translateX(1px);
-        }
-        95% {
-          transform: skewX(0.25deg) translateX(-1px);
-        }
-        97.5% {
-          transform: skewX(-0.45deg) translateX(1.5px);
-        }
-      }
+    /* ════ MENÚ PRINCIPAL ════ */
+    .main-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
 
-      p {
-        font-size: clamp(0.85rem, min(1.8vw, 2vh), 1.2rem);
-        margin-bottom: clamp(6px, 1.2vh, 14px);
-        line-height: 1.45;
-        color: var(--text-color);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
-      }
+    .menu-btn {
+      font-family: 'Creepster', cursive;
+      font-size: clamp(1.2rem, 4vw, 1.8rem);
+      padding: 14px 60px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: 2px solid rgba(180, 50, 50, 0.4);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      letter-spacing: 3px;
+      text-decoration: none;
+      min-width: 280px;
+      text-align: center;
+    }
 
-      .play-button {
-        font-family: "Creepster", cursive;
-        font-size: clamp(1rem, min(3vw, 2.8vh), 1.6rem);
-        padding: clamp(8px, 1.2vh, 14px) 28px;
-        background-color: var(--button-bg-color);
-        color: var(--button-text-color);
-        border: 1px solid #1a0003;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
-        transition:
-          background-color 0.25s ease,
-          transform 0.15s ease,
-          box-shadow 0.25s ease,
-          letter-spacing 0.25s ease;
-        box-shadow:
-          0 0 12px rgba(0, 0, 0, 0.85),
-          inset 0 0 10px rgba(0, 0, 0, 0.75);
-        letter-spacing: 2px;
-      }
+    .menu-btn:hover {
+      background: var(--btn-hover);
+      transform: scale(1.05) translateY(-2px);
+      border-color: rgba(255, 100, 100, 0.7);
+      box-shadow: 0 0 20px rgba(180, 0, 0, 0.4);
+      letter-spacing: 5px;
+    }
 
-      .play-button:hover {
-        background-color: var(--button-hover-bg-color);
-        transform: scale(1.03) translateY(-2.5px);
-        box-shadow:
-          0 0 20px rgba(130, 0, 8, 0.6),
-          inset 0 0 12px rgba(0, 0, 0, 0.65);
-        letter-spacing: 3.5px;
-        color: #fff;
-      }
+    .menu-btn.primary {
+      background: linear-gradient(135deg, #5a0208, #7a030a);
+      font-size: clamp(1.4rem, 5vw, 2.2rem);
+      padding: 18px 80px;
+      border-color: rgba(255, 100, 100, 0.6);
+    }
 
-      .play-button:active {
-        transform: scale(0.97) translateY(0px);
-        box-shadow:
-          0 0 6px rgba(0, 0, 0, 0.9),
-          inset 0 0 14px rgba(0, 0, 0, 0.95);
-        letter-spacing: 1px;
-      }
+    .menu-btn.primary:hover {
+      background: linear-gradient(135deg, #7a030a, #9a040c);
+      box-shadow: 0 0 30px rgba(200, 0, 0, 0.5);
+    }
 
-      .particle {
-        position: absolute;
-        border-radius: 50%;
-        animation: eerieParticleAnimation linear infinite;
-        opacity: 0;
-        z-index: 1;
-      }
+    /* ════ MODAL NIVELES ════ */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(4px);
+    }
 
-      @keyframes eerieParticleAnimation {
-        0% {
-          transform: translate(var(--x-start), var(--y-start))
-            scale(var(--scale-start));
-          opacity: 0;
-        }
-        15%,
-        75% {
-          opacity: var(--opacity-max);
-        }
-        100% {
-          transform: translate(var(--x-end), var(--y-end))
-            scale(var(--scale-end));
-          opacity: 0;
-        }
-      }
+    .modal.active {
+      display: flex;
+    }
 
-      .lightning-bolt {
-        position: absolute;
-        background-color: var(--lightning-color);
-        box-shadow:
-          0 0 6px 1px var(--lightning-glow),
-          0 0 12px 2px var(--lightning-color);
-        transform-origin: top center;
-        opacity: 0;
-        animation: lightningFlash linear;
-        z-index: 2;
-      }
+    .modal-content {
+      background: var(--menu-bg);
+      border: 2px solid rgba(150, 30, 30, 0.5);
+      border-radius: 8px;
+      padding: 30px 40px;
+      max-width: 500px;
+      width: 95%;
+      max-height: 90vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      box-shadow: 0 0 60px rgba(150, 0, 0, 0.3);
+      mask-image: linear-gradient(to bottom, transparent 0%, black 3%, black 95%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 3%, black 95%, transparent 100%);
+    }
 
-      @keyframes lightningFlash {
-        0% {
-          opacity: 0;
-          transform: scaleY(0.2) scaleX(0.7);
-        }
-        5% {
-          opacity: 0.9;
-          transform: scaleY(1) scaleX(1);
-        }
-        10% {
-          opacity: 0.3;
-        }
-        12% {
-          opacity: 0.7;
-          transform: scaleY(0.8) scaleX(0.9);
-        }
-        15% {
-          opacity: 0;
-          transform: scaleY(0.3) scaleX(0.6);
-        }
-        100% {
-          opacity: 0;
-        }
-      }
+    .modal-content::-webkit-scrollbar {
+      width: 3px;
+    }
 
-      .footer-text {
-        position: fixed;
-        bottom: 10px;
-        font-size: 0.8rem;
-        color: rgba(100, 100, 100, 0.35);
-        z-index: 2;
-        text-shadow: 1px 1px 1px #000;
-        pointer-events: none;
-      }
+    .modal-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
-      /* ── CRT SCANLINES ───────────────────────────────────────── */
-      body::after {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background: repeating-linear-gradient(
-          0deg,
-          transparent 0px,
-          transparent 3px,
-          rgba(0, 0, 0, 0.06) 3px,
-          rgba(0, 0, 0, 0.06) 4px
-        );
-        pointer-events: none;
-        z-index: 998;
-        animation: scanFlicker 0.12s steps(1) infinite;
-      }
-      @keyframes scanFlicker {
-        0% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.92;
-        }
-        100% {
-          opacity: 1;
-        }
-      }
+    .modal-content::-webkit-scrollbar-thumb {
+      background: rgba(150, 50, 50, 0.3);
+      border-radius: 2px;
+    }
 
-      /* ── CORNER VIGNETTE ─────────────────────────────────────── */
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background: radial-gradient(
-          ellipse at 50% 50%,
-          transparent 35%,
-          rgba(0, 0, 0, 0.55) 75%,
-          rgba(0, 0, 0, 0.85) 100%
-        );
-        pointer-events: none;
-        z-index: 997;
-      }
+    .modal-header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
 
-      /* ── BACKROOMS CORRIDOR BG ───────────────────────────────── */
-      .corridor-bg {
-        position: fixed;
-        inset: 0;
-        z-index: 0;
-        overflow: hidden;
-      }
-      .corridor-bg::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        /* floor lines */
-        background:
-          repeating-linear-gradient(
-            90deg,
-            transparent 0,
-            transparent 79px,
-            rgba(40, 30, 5, 0.07) 79px,
-            rgba(40, 30, 5, 0.07) 80px
-          ),
-          repeating-linear-gradient(
-            0deg,
-            transparent 0,
-            transparent 59px,
-            rgba(40, 30, 5, 0.06) 59px,
-            rgba(40, 30, 5, 0.06) 60px
-          );
-        transform-origin: 50% 60%;
-        animation: corridorBreath 9s ease-in-out infinite;
-      }
-      .corridor-bg::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(
-          ellipse at 50% 48%,
-          transparent 8%,
-          rgba(15, 8, 2, 0.35) 40%,
-          rgba(3, 1, 0, 0.7) 80%
-        );
-        animation: corridorPulse 9s ease-in-out infinite;
-      }
-      @keyframes corridorBreath {
-        0%,
-        100% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.04);
-        }
-      }
-      @keyframes corridorPulse {
-        0%,
-        100% {
-          opacity: 0.8;
-        }
-        50% {
-          opacity: 1;
-        }
-      }
+    .modal-title {
+      font-family: 'Creepster', cursive;
+      font-size: 2rem;
+      color: #cc0000;
+      text-shadow: 0 0 15px rgba(180, 0, 0, 0.5);
+      letter-spacing: 4px;
+    }
 
-      /* ── SHADOW FIGURE (right side) ──────────────────────────── */
-      .shadow-figure {
-        position: fixed;
-        bottom: 0;
-        right: -110px;
-        width: 90px;
-        height: min(85vh, 520px);
-        pointer-events: none;
-        z-index: 6;
-        animation: shadowPeek 22s ease-in-out infinite 4s;
-      }
-      /* torso + legs */
-      .shadow-figure::before {
-        content: "";
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 32px;
-        height: 62%;
-        background: #000;
-        border-radius: 8px 8px 0 0;
-        box-shadow:
-          -18px 10px 0 6px #000,
-          /* left arm */ 18px 10px 0 6px #000,
-          /* right arm */ -12px 100% 0 0 #000,
-          /* left leg extension */ 12px 100% 0 0 #000; /* right leg extension */
-      }
-      /* head with glowing red eyes */
-      .shadow-figure::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 34px;
-        height: 34px;
-        background: #000;
-        border-radius: 50%;
-        /* two red eyes */
-        box-shadow:
-          -7px 12px 0 2px rgba(200, 0, 0, 0.9),
-          -7px 12px 6px 2px rgba(255, 0, 0, 0.5),
-          7px 12px 0 2px rgba(200, 0, 0, 0.9),
-          7px 12px 6px 2px rgba(255, 0, 0, 0.5);
-      }
-      @keyframes shadowPeek {
-        0%,
-        55%,
-        100% {
-          right: -110px;
-        }
-        20%,
-        45% {
-          right: -40px;
-        }
-        32% {
-          right: -28px;
-        }
-      }
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 2rem;
+      color: #666;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
 
-      /* ── BLOOD DRIPS ─────────────────────────────────────────── */
-      .blood-drip {
-        position: fixed;
-        top: 0;
-        width: 3px;
-        border-radius: 0 0 50% 50%;
-        background: linear-gradient(
-          to bottom,
-          rgba(160, 0, 0, 0.95) 0%,
-          rgba(100, 0, 0, 0.7) 70%,
-          transparent 100%
-        );
-        pointer-events: none;
-        z-index: 50;
-        transform-origin: top center;
-        animation: bloodDrip ease-in infinite;
-      }
-      @keyframes bloodDrip {
-        0% {
-          height: 0px;
-          opacity: 0;
-        }
-        10% {
-          opacity: 0.9;
-        }
-        65% {
-          height: 90px;
-          opacity: 0.7;
-        }
-        100% {
-          height: 5px;
-          opacity: 0;
-          margin-top: 90px;
-        }
-      }
+    .modal-close:hover {
+      color: #ff4444;
+    }
 
-      /* ── FOG WISPS ───────────────────────────────────────────── */
-      .fog-wisp {
-        position: fixed;
-        bottom: -20px;
-        border-radius: 50%;
-        background: radial-gradient(
-          ellipse,
-          rgba(60, 5, 5, 0.14) 0%,
-          transparent 65%
-        );
-        pointer-events: none;
-        z-index: 4;
-        animation: fogDrift linear infinite;
-      }
-      @keyframes fogDrift {
-        0% {
-          transform: translateX(0) scaleX(1);
-          opacity: 0;
-        }
-        15% {
-          opacity: 1;
-        }
-        85% {
-          opacity: 0.6;
-        }
-        100% {
-          transform: translateX(120px) scaleX(1.3);
-          opacity: 0;
-        }
-      }
+    /* Dificultad */
+    .difficulty-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
 
-      /* ── RED CURSOR DOT ──────────────────────────────────────── */
-      .cursor-trail {
-        position: fixed;
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background: rgba(220, 0, 0, 0.85);
-        box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
-        pointer-events: none;
-        z-index: 9999;
-        transform: translate(-50%, -50%);
-        transition:
-          opacity 0.5s ease,
-          transform 0.5s ease;
-      }
+    .diff-btn {
+      font-family: 'VT323', monospace;
+      font-size: 1rem;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid;
+    }
 
-      /* ── STATIC GLITCH FLASH ─────────────────────────────────── */
-      .glitch-flash {
-        position: fixed;
-        inset: 0;
-        background: rgba(180, 0, 0, 0.04);
-        pointer-events: none;
-        z-index: 996;
-        opacity: 0;
-        animation: staticGlitch 0.08s steps(1) 3;
-      }
-      @keyframes staticGlitch {
-        0%,
-        100% {
-          opacity: 0;
-        }
-        33% {
-          opacity: 1;
-          background: rgba(200, 0, 0, 0.06);
-        }
-        66% {
-          opacity: 0.5;
-          background: rgba(0, 200, 0, 0.02);
-        }
-      }
+    .diff-btn.easy {
+      background: rgba(30, 60, 30, 0.8);
+      color: #88ff88;
+      border-color: #2a5a2a;
+    }
 
-      /* ── Modal de nombre ── */
-      #nameModal {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.97);
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        animation: modalFadeIn 0.6s ease;
-      }
-      @keyframes modalFadeIn {
-        from { opacity: 0; }
-        to   { opacity: 1; }
-      }
-      .modal-card {
-        position: relative;
-        background: rgba(8,3,3,0.92);
-        border: 1px solid rgba(120,0,0,0.5);
-        border-radius: 4px;
-        padding: clamp(24px,4vh,40px) clamp(28px,5vw,54px);
-        max-width: min(480px,90vw);
-        width: 100%;
-        text-align: center;
-        box-shadow: 0 0 40px rgba(180,0,0,0.2), inset 0 0 30px rgba(0,0,0,0.8);
-      }
-      .modal-card::before {
-        content: '';
-        position: absolute;
-        inset: -1px;
-        border-radius: 4px;
-        background: linear-gradient(135deg, rgba(120,0,0,0.4) 0%, transparent 50%, rgba(120,0,0,0.2) 100%);
-        pointer-events: none;
-      }
-      .modal-eyebrow {
-        font-family: 'VT323', monospace;
-        font-size: 0.9em;
-        letter-spacing: 5px;
-        color: rgba(160,50,50,0.7);
-        margin-bottom: 6px;
-        text-transform: uppercase;
-      }
-      .modal-title {
-        font-family: 'Creepster', cursive;
-        font-size: clamp(2.2rem,8vw,3.4rem);
-        color: #cc1111;
-        text-shadow: 0 0 12px rgba(200,0,0,0.5), 0 0 30px rgba(180,0,0,0.2);
-        margin-bottom: 4px;
-        line-height: 1;
-        animation: titlePulsatingGlow 2.8s infinite alternate;
-      }
-      .modal-sub {
-        font-family: 'VT323', monospace;
-        font-size: 1em;
-        color: rgba(110,70,70,0.8);
-        letter-spacing: 2px;
-        margin-bottom: 28px;
-      }
-      .modal-label {
-        font-family: 'VT323', monospace;
-        font-size: 1.05em;
-        letter-spacing: 3px;
-        color: rgba(160,100,80,0.75);
-        margin-bottom: 10px;
-      }
-      #playerNameInput {
-        display: block;
-        width: 100%;
-        box-sizing: border-box;
-        padding: 12px 18px;
-        font-family: 'VT323', monospace;
-        font-size: 1.6em;
-        letter-spacing: 3px;
-        background: rgba(4,1,1,0.9);
-        color: #d8b8a0;
-        border: 1px solid rgba(100,30,30,0.6);
-        border-bottom: 2px solid rgba(180,40,40,0.7);
-        border-radius: 3px;
-        text-align: center;
-        outline: none;
-        margin-bottom: 20px;
-        transition: border-color 0.25s, box-shadow 0.25s;
-        caret-color: #cc2222;
-      }
-      #playerNameInput::placeholder { color: rgba(120,70,60,0.5); }
-      #playerNameInput:focus {
-        border-color: rgba(200,50,50,0.8);
-        box-shadow: 0 0 14px rgba(180,30,30,0.25), inset 0 0 8px rgba(0,0,0,0.4);
-      }
-      #startGameBtn {
-        font-family: 'Creepster', cursive;
-        font-size: 1.6em;
-        letter-spacing: 4px;
-        padding: 12px 42px;
-        background: linear-gradient(135deg, #3a0206, #5a0209);
-        color: #e0b0a0;
-        border: 1px solid rgba(200,50,50,0.5);
-        border-radius: 3px;
-        cursor: pointer;
-        transition: background 0.2s, transform 0.15s, box-shadow 0.2s, letter-spacing 0.2s;
-        box-shadow: 0 0 16px rgba(180,0,0,0.15), inset 0 0 10px rgba(0,0,0,0.5);
-      }
-      #startGameBtn:hover {
-        background: linear-gradient(135deg, #5a0209, #800210);
-        color: #fff;
-        letter-spacing: 6px;
-        transform: translateY(-2px);
-        box-shadow: 0 0 24px rgba(200,0,0,0.35);
-      }
-      #startGameBtn:active { transform: translateY(0); }
-      .modal-footer {
-        font-family: 'VT323', monospace;
-        font-size: 0.8em;
-        color: rgba(90,50,50,0.5);
-        letter-spacing: 1px;
-        margin-top: 18px;
-      }
+    .diff-btn.normal {
+      background: rgba(60, 40, 20, 0.8);
+      color: #ffcc88;
+      border-color: #5a4a2a;
+    }
 
-      @keyframes gradient-shift {
-        0% {
-          background-position: 0% 50%;
-        }
-        50% {
-          background-position: 100% 50%;
-        }
-        100% {
-          background-position: 0% 50%;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="nameModal">
-      <div class="modal-card">
-        <div class="modal-eyebrow">— IDENTIFICACIÓN —</div>
-        <div class="modal-title">PESADILLA<br/>EN LOS BACKROOMS</div>
-        <div class="modal-sub">PROTOCOLO DE ENTRADA · NIVEL CERO</div>
-        <div class="modal-label">¿CÓMO TE LLAMAS, VÍCTIMA?</div>
-        <input
-          type="text"
-          id="playerNameInput"
-          placeholder="Escribe tu nombre..."
-          maxlength="30"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <button id="startGameBtn">ENTRAR</button>
-        <div class="modal-footer">
-          Tu nombre será susurrado en la oscuridad.<br/>
-          Nadie escapó antes. Tú tampoco escaparás.
+    .diff-btn.nightmare {
+      background: rgba(60, 20, 20, 0.8);
+      color: #ff8888;
+      border-color: #6a2a2a;
+    }
+
+    .diff-btn.active {
+      box-shadow: 0 0 12px rgba(255, 200, 100, 0.5);
+      transform: scale(1.05);
+    }
+
+    /* Lista de niveles */
+    .level-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .level-card {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 12px 16px;
+      background: rgba(30, 15, 15, 0.8);
+      border: 1px solid rgba(100, 40, 40, 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .level-card:hover {
+      background: rgba(50, 20, 20, 0.9);
+      border-color: rgba(150, 60, 60, 0.6);
+      transform: translateX(5px);
+    }
+
+    .level-icon {
+      font-size: 1.8rem;
+      width: 45px;
+      text-align: center;
+    }
+
+    .level-info {
+      flex: 1;
+    }
+
+    .level-name {
+      font-family: 'Creepster', cursive;
+      font-size: 1.2rem;
+      color: #ddd;
+      letter-spacing: 2px;
+    }
+
+    .level-desc {
+      font-size: 0.9rem;
+      color: #777;
+    }
+
+    .level-ultimate {
+      background: linear-gradient(135deg, rgba(80, 10, 10, 0.9), rgba(120, 20, 20, 0.9));
+      border-color: rgba(200, 80, 80, 0.5);
+    }
+
+    .level-ultimate:hover {
+      background: linear-gradient(135deg, rgba(100, 15, 15, 0.95), rgba(150, 30, 30, 0.95));
+    }
+
+    /* ════ MODAL OPCIONES ════ */
+    .options-section {
+      margin-bottom: 15px;
+    }
+
+    .options-section h4 {
+      color: #aa6666;
+      font-family: 'Creepster', cursive;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .option-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(80, 30, 30, 0.15);
+    }
+
+    .option-row:last-child {
+      border-bottom: none;
+    }
+
+    .option-label {
+      color: #999;
+      font-size: 1rem;
+    }
+
+    .option-row input[type="range"] {
+      width: 100px;
+      accent-color: #cc0000;
+    }
+
+    .option-value {
+      color: #ccc;
+      min-width: 45px;
+      text-align: right;
+      font-size: 0.95rem;
+    }
+
+    .toggle-btn {
+      font-family: 'VT323', monospace;
+      font-size: 0.95rem;
+      padding: 4px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.on {
+      background: rgba(80, 30, 30, 0.8);
+      color: #ff8888;
+      border-color: rgba(180, 60, 60, 0.5);
+    }
+
+    .toggle-btn.off {
+      background: rgba(30, 30, 30, 0.6);
+      color: #666;
+      border-color: rgba(80, 80, 80, 0.3);
+    }
+
+    /* ════ MODAL RÉCORDS ════ */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+
+    .tab-btn {
+      font-family: 'VT323', monospace;
+      font-size: 1rem;
+      padding: 6px 16px;
+      background: rgba(30, 20, 20, 0.8);
+      color: #777;
+      border: 1px solid rgba(100, 50, 50, 0.3);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: rgba(60, 20, 20, 0.9);
+      color: #ffaa88;
+      border-color: rgba(150, 60, 60, 0.5);
+    }
+
+    .scores-list {
+      max-height: 300px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 90%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 90%, transparent 100%);
+    }
+
+    .scores-list::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .scores-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .scores-list::-webkit-scrollbar-thumb {
+      background: rgba(150, 100, 50, 0.3);
+      border-radius: 2px;
+    }
+
+    .score-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(100, 50, 50, 0.15);
+      font-size: 1rem;
+    }
+
+    .score-item.gold { color: #ffd700; }
+    .score-item.silver { color: #c0c0c0; }
+    .score-item.bronze { color: #cd7f32; }
+
+    .score-rank { width: 35px; }
+    .score-pts { color: #ddd; min-width: 80px; text-align: right; }
+    .score-time { color: #888; min-width: 60px; text-align: right; }
+
+    .no-scores {
+      text-align: center;
+      color: #555;
+      padding: 30px;
+    }
+
+    /* ════ MODAL LOGROS ════ */
+    .achievements-list {
+      max-height: 400px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      /* Fade en los bordes para disimular */
+      mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 90%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 90%, transparent 100%);
+    }
+
+    .achievements-list::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .achievements-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .achievements-list::-webkit-scrollbar-thumb {
+      background: rgba(150, 50, 50, 0.3);
+      border-radius: 2px;
+    }
+
+    .achievements-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(150, 50, 50, 0.5);
+    }
+
+    .achievement-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(80, 50, 50, 0.2);
+    }
+
+    .achievement-item.locked {
+      opacity: 0.4;
+    }
+
+    .achievement-icon {
+      font-size: 1.8rem;
+      width: 40px;
+      text-align: center;
+    }
+
+    .achievement-name {
+      color: #ddd;
+      font-size: 1.1rem;
+    }
+
+    .achievement-desc {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    /* ════ NOMBRE MODAL ════ */
+    #nameModal {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.98);
+    }
+
+    .name-card {
+      background: rgba(10, 4, 4, 0.98);
+      border: 1px solid rgba(150, 30, 30, 0.5);
+      border-radius: 6px;
+      padding: 40px 50px;
+      text-align: center;
+      max-width: 450px;
+      width: 90%;
+    }
+
+    .name-title {
+      font-family: 'Creepster', cursive;
+      font-size: 2.5rem;
+      color: #cc0000;
+      text-shadow: 0 0 20px rgba(180, 0, 0, 0.6);
+      margin-bottom: 8px;
+      line-height: 1;
+    }
+
+    .name-subtitle {
+      color: #555;
+      font-size: 1rem;
+      letter-spacing: 4px;
+      margin-bottom: 30px;
+    }
+
+    .name-input {
+      width: 100%;
+      padding: 14px 20px;
+      font-family: 'VT323', monospace;
+      font-size: 1.5rem;
+      background: rgba(5, 2, 2, 0.9);
+      color: #d8b8a0;
+      border: 1px solid rgba(120, 40, 40, 0.5);
+      border-bottom: 2px solid rgba(180, 50, 50, 0.6);
+      border-radius: 4px;
+      text-align: center;
+      outline: none;
+      margin-bottom: 20px;
+      caret-color: #cc2222;
+    }
+
+    .name-input:focus {
+      border-color: rgba(200, 60, 60, 0.8);
+      box-shadow: 0 0 15px rgba(180, 30, 30, 0.3);
+    }
+
+    .name-btn {
+      font-family: 'Creepster', cursive;
+      font-size: 1.4rem;
+      padding: 12px 40px;
+      background: linear-gradient(135deg, #4a0208, #6a020a);
+      color: #e0c0b0;
+      border: 1px solid rgba(200, 60, 60, 0.5);
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 3px;
+      transition: all 0.2s;
+    }
+
+    .name-btn:hover {
+      background: linear-gradient(135deg, #6a020a, #8a030c);
+      color: #fff;
+      letter-spacing: 5px;
+      transform: translateY(-2px);
+    }
+
+    /* ════ SCANLINES CRT ════ */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 0, 0, 0.05) 3px,
+        rgba(0, 0, 0, 0.05) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* ════ GOTA DE SANGRE ════ */
+    .blood-drip {
+      position: fixed;
+      top: 0;
+      width: 2px;
+      border-radius: 0 0 50% 50%;
+      background: linear-gradient(to bottom, rgba(160, 0, 0, 0.9) 0%, rgba(80, 0, 0, 0.6) 70%, transparent 100%);
+      pointer-events: none;
+      z-index: 50;
+      animation: drip 4s ease-in infinite;
+    }
+
+    @keyframes drip {
+      0% { height: 0; opacity: 0; }
+      10% { opacity: 0.8; }
+      60% { height: 80px; opacity: 0.6; }
+      100% { height: 5px; opacity: 0; margin-top: 80px; }
+    }
+
+    /* ════ FOOTER ════ */
+    .footer {
+      position: fixed;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.85rem;
+      color: rgba(80, 60, 60, 0.4);
+      z-index: 10;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Fondo con grid -->
+  <div class="bg-grid"></div>
+  <div class="rain-container" id="rainContainer"></div>
+  <div class="bg-vignette"></div>
+  
+  <!-- Cara del malo -->
+  <div class="shadow-figure">
+    <div class="face-container">
+      <div class="face-head">
+        <div class="face-eye left"></div>
+        <div class="face-eye right"></div>
+        <div class="face-mouth">
+          <div class="face-teeth">
+            <div class="face-tooth"></div>
+            <div class="face-tooth"></div>
+            <div class="face-tooth"></div>
+            <div class="face-tooth"></div>
+          </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Efectos de fondo -->
-    <div class="corridor-bg"></div>
-    <div class="shadow-figure"></div>
-    <div id="fogContainer"></div>
-
-    <div class="background-effects">
-      <div class="rain-container"></div>
+  <!-- Modal Nombre -->
+  <div id="nameModal">
+    <div class="name-card">
+      <div class="name-title">PESADILLA<br>EN LOS BACKROOMS</div>
+      <div class="name-subtitle">IDENTIFICACIÓN REQUERIDA</div>
+      <input type="text" id="playerNameInput" class="name-input" placeholder="Escribe tu nombre..." maxlength="30" autocomplete="off">
+      <button id="startBtn" class="name-btn">ENTRAR</button>
     </div>
+  </div>
 
-    <div class="container" id="mainMenu" style="display: none">
-      <h1>Pesadilla en los Backrooms</h1>
-      <p>
-        El eco de tus pasos en el silencio. Paredes que susurran secretos
-        olvidados.<br />
-        Cada sombra es una amenaza, cada pasillo una trampa.<br />
-        ¿Escaparás de esta locura o te consumirá la oscuridad?
-      </p>
+  <!-- Portada Principal -->
+  <div id="mainCover">
+    <div class="cover-title">PESADILLA EN LOS<br>BACKROOMS</div>
+    <div class="cover-subtitle">Nivel Cero</div>
+    
+    <div class="main-menu">
+      <button class="menu-btn primary" id="btnJugar">JUGAR</button>
+      <button class="menu-btn" id="btnRecords">RÉCORDS</button>
+      <button class="menu-btn" id="btnAchievements">LOGROS</button>
+      <button class="menu-btn" id="btnOptions">OPCIONES</button>
+    </div>
+  </div>
 
-      <div
-        style="
-          margin-top: clamp(8px, 1.5vh, 18px);
-          display: flex;
-          flex-direction: column;
-          gap: clamp(6px, 0.9vh, 10px);
-          align-items: center;
-        "
-      >
-        <div
-          style="
-            font-size: clamp(1.1em, min(2.5vw, 3vh), 1.6em);
-            margin-bottom: clamp(4px, 0.8vh, 10px);
-            color: #ff6b6b;
-            text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
-            font-family: &quot;Creepster&quot;, cursive;
-            letter-spacing: 2px;
-          "
-        >
-          ELIGE TU DESTINO
-        </div>
-
-        <!-- Selector de dificultad -->
-        <div
-          id="difficultySelector"
-          style="
-            display: flex;
-            gap: 6px;
-            margin-bottom: 8px;
-            align-items: center;
-          "
-        >
-          <span style="color: #888; font-size: 0.85em; letter-spacing: 1px"
-            >DIFICULTAD:</span
-          >
-          <button
-            class="diff-btn"
-            data-diff="easy"
-            onclick="setDifficulty('easy')"
-            style="
-              padding: 4px 10px;
-              font-family: &quot;Creepster&quot;, cursive;
-              font-size: 0.95em;
-              background: #1a3a1a;
-              color: #88ffaa;
-              border: 1px solid #2a5a2a;
-              border-radius: 4px;
-              cursor: pointer;
-            "
-          >
-            FÁCIL
-          </button>
-          <button
-            class="diff-btn"
-            data-diff="normal"
-            onclick="setDifficulty('normal')"
-            style="
-              padding: 4px 10px;
-              font-family: &quot;Creepster&quot;, cursive;
-              font-size: 0.95em;
-              background: #3a1a08;
-              color: #ffcc88;
-              border: 1px solid #5a2a08;
-              border-radius: 4px;
-              cursor: pointer;
-            "
-          >
-            NORMAL
-          </button>
-          <button
-            class="diff-btn"
-            data-diff="nightmare"
-            onclick="setDifficulty('nightmare')"
-            style="
-              padding: 4px 10px;
-              font-family: &quot;Creepster&quot;, cursive;
-              font-size: 0.95em;
-              background: #3a0208;
-              color: #ff8888;
-              border: 1px solid #6a020b;
-              border-radius: 4px;
-              cursor: pointer;
-            "
-          >
-            PESADILLA
-          </button>
-        </div>
-        <div
-          id="diffDesc"
-          style="
-            font-size: 0.75em;
-            color: #777;
-            margin-bottom: 4px;
-            min-height: 14px;
-          "
-        ></div>
-
-        <a
-          href="game.html?level=1"
-          class="play-button"
-          style="
-            width: clamp(240px, 75%, 400px);
-            background: linear-gradient(135deg, #3a0208, #5a0208);
-            border: 2px solid rgba(255, 107, 107, 0.3);
-            position: relative;
-            overflow: hidden;
-          "
-        >
-          <div style="font-size: 1.35em; margin-bottom: 3px">🔊 NIVEL 1</div>
-          <div style="font-size: 0.75em; opacity: 0.85; color: #ffaaaa">
-            Audio 3D • Encuentra la Salida
+  <!-- Modal Niveles -->
+  <div class="modal" id="modalNiveles">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">ELIGE TU DESTINO</div>
+      </div>
+      
+      <div class="difficulty-row">
+        <button class="diff-btn easy" data-diff="easy">FÁCIL</button>
+        <button class="diff-btn normal active" data-diff="normal">NORMAL</button>
+        <button class="diff-btn nightmare" data-diff="nightmare">PESADILLA</button>
+      </div>
+      <div id="diffDesc" style="text-align: center; color: #777; font-size: 0.85rem; margin-bottom: 15px; min-height: 35px;"></div>
+      
+      <div class="level-list">
+        <a href="game.html?level=1" class="level-card">
+          <span class="level-icon">🔊</span>
+          <div class="level-info">
+            <div class="level-name">NIVEL 1 — LA BÚSQUEDA</div>
+            <div class="level-desc">Encuentra la salida verde</div>
           </div>
         </a>
-
-        <a
-          href="game.html?level=2"
-          class="play-button"
-          style="
-            width: clamp(240px, 75%, 400px);
-            background: linear-gradient(135deg, #3a0208, #5a0208);
-            border: 2px solid rgba(255, 215, 0, 0.3);
-            position: relative;
-            overflow: hidden;
-          "
-        >
-          <div style="font-size: 1.35em; margin-bottom: 3px">💰 NIVEL 2</div>
-          <div style="font-size: 0.75em; opacity: 0.85; color: #ffd700">
-            Colecciona 100 Puntos
+        
+        <a href="game.html?level=2" class="level-card">
+          <span class="level-icon">💰</span>
+          <div class="level-info">
+            <div class="level-name">NIVEL 2 — EL BOTÍN</div>
+            <div class="level-desc">Recoge 100 puntos en monedas</div>
           </div>
         </a>
-
-        <a
-          href="game.html?level=3"
-          class="play-button"
-          style="
-            width: clamp(240px, 75%, 400px);
-            background: linear-gradient(135deg, #1a3a1a, #2a5a2a);
-            border: 2px solid rgba(100, 255, 150, 0.3);
-            position: relative;
-            overflow: hidden;
-          "
-        >
-          <div style="font-size: 1.35em; margin-bottom: 3px">🚪 NIVEL 3</div>
-          <div style="font-size: 0.75em; opacity: 0.85; color: #88ffaa">
-            Salas Abiertas • Pasillos Anchos
+        
+        <a href="game.html?level=3" class="level-card">
+          <span class="level-icon">🚪</span>
+          <div class="level-info">
+            <div class="level-name">NIVEL 3 — SALAS ABIERTAS</div>
+            <div class="level-desc">Pasillos amplios, sin rincones</div>
           </div>
         </a>
-
-        <a
-          href="game.html?level=4"
-          class="play-button"
-          style="
-            width: clamp(240px, 75%, 400px);
-            background: linear-gradient(135deg, #0a0a0a, #1a0808);
-            border: 2px solid rgba(80, 0, 0, 0.5);
-            position: relative;
-            overflow: hidden;
-          "
-        >
-          <div style="font-size: 1.35em; margin-bottom: 3px">🔦 NIVEL 4</div>
-          <div style="font-size: 0.75em; opacity: 0.85; color: #cc4444">
-            Apagón Total • Solo la Linterna
+        
+        <a href="game.html?level=4" class="level-card">
+          <span class="level-icon">🔦</span>
+          <div class="level-info">
+            <div class="level-name">NIVEL 4 — APAGÓN TOTAL</div>
+            <div class="level-desc">Solo tu linterna ilumina</div>
           </div>
         </a>
-
-        <a
-          href="game.html?level=ultimate"
-          class="play-button"
-          style="
-            width: clamp(240px, 75%, 400px);
-            background: linear-gradient(135deg, #6a020b, #900000, #6a020b);
-            background-size: 200% 200%;
-            animation: gradient-shift 3s ease infinite;
-            border: 3px solid #ff6b6b;
-            box-shadow:
-              0 0 20px rgba(255, 107, 107, 0.5),
-              inset 0 0 20px rgba(0, 0, 0, 0.5);
-            position: relative;
-            overflow: hidden;
-          "
-        >
-          <div
-            style="
-              font-size: 1.4em;
-              margin-bottom: 3px;
-              text-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
-            "
-          >
-            🔥 ULTIMATE
-          </div>
-          <div
-            style="
-              font-size: 0.7em;
-              opacity: 0.95;
-              color: #ffcccc;
-              font-weight: bold;
-            "
-          >
-            Supervivencia • 3 Enemigos
+        
+        <a href="game.html?level=ultimate" class="level-card level-ultimate">
+          <span class="level-icon">🔥</span>
+          <div class="level-info">
+            <div class="level-name">ULTIMATE — SUPERVIVENCIA</div>
+            <div class="level-desc">3 enemigos, sin piedad</div>
           </div>
         </a>
       </div>
     </div>
+  </div>
 
-    <div class="footer-text">
-      La cordura es un lujo que no puedes permitirte.
+  <!-- Modal Récords -->
+  <div class="modal" id="modalRecords">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">🏆 RÉCORDS</div>
+      </div>
+      
+      <div class="tabs">
+        <button class="tab-btn active" data-level="level1">Nivel 1</button>
+        <button class="tab-btn" data-level="level2">Nivel 2</button>
+        <button class="tab-btn" data-level="level3">Nivel 3</button>
+        <button class="tab-btn" data-level="level4">Nivel 4</button>
+        <button class="tab-btn" data-level="ultimate">Ultimate</button>
+      </div>
+      
+      <div class="scores-list" id="scoresList"></div>
     </div>
+  </div>
 
-    <script>
-      let audioStarted = false;
-      let playerName = "";
+  <!-- Modal Logros -->
+  <div class="modal" id="modalAchievements">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">🏅 LOGROS</div>
+      </div>
+      
+      <div class="achievements-list" id="achievementsList"></div>
+    </div>
+  </div>
 
-      // ── DIFICULTAD ─────────────────────────────────────────────────────────
-      const DIFF_DESCS = {
-        easy: "😌 Enemigos más lentos, linterna dura más, sin penalización de cordura",
-        normal: "⚔ Experiencia equilibrada — el juego tal como fue diseñado",
-        nightmare:
-          "💀 Enemigos rápidos, linterna escasa, cordura cae muy rápido",
-      };
-      function setDifficulty(diff) {
-        sessionStorage.setItem("difficulty", diff);
-        document.getElementById("diffDesc").textContent =
-          DIFF_DESCS[diff] || "";
-        document.querySelectorAll(".diff-btn").forEach((b) => {
-          b.style.boxShadow =
-            b.dataset.diff === diff ? "0 0 10px rgba(255,200,100,0.7)" : "none";
-          b.style.color = b.dataset.diff === diff ? "#fff" : "";
-        });
+  <!-- Modal Opciones -->
+  <div class="modal" id="modalOptions">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">⚙ OPCIONES</div>
+      </div>
+      
+      <div class="options-section">
+        <h4>─── AUDIO ───</h4>
+        <div class="option-row">
+          <span class="option-label">Música</span>
+          <input type="range" id="optMusic" min="0" max="100" value="70">
+          <span class="option-value" id="optMusicVal">70%</span>
+        </div>
+        <div class="option-row">
+          <span class="option-label">Efectos de Sonido</span>
+          <input type="range" id="optSfx" min="0" max="100" value="80">
+          <span class="option-value" id="optSfxVal">80%</span>
+        </div>
+        <div class="option-row">
+          <span class="option-label">Linterna Sonido</span>
+          <input type="range" id="optFlashlight" min="0" max="100" value="60">
+          <span class="option-value" id="optFlashlightVal">60%</span>
+        </div>
+      </div>
+
+      <div class="options-section">
+        <h4>─── VIDEO ───</h4>
+        <div class="option-row">
+          <span class="option-label">Efectos de Partículas</span>
+          <button class="toggle-btn on" id="toggleParticles" data-val="true">ON</button>
+        </div>
+        <div class="option-row">
+          <span class="option-label">Scanlines CRT</span>
+          <button class="toggle-btn on" id="toggleScanlines" data-val="true">ON</button>
+        </div>
+        <div class="option-row">
+          <span class="option-label">Sombras 3D</span>
+          <button class="toggle-btn on" id="toggleShadows" data-val="true">ON</button>
+        </div>
+      </div>
+
+      <div class="options-section">
+        <h4>─── GAMEPLAY ───</h4>
+        <div class="option-row">
+          <span class="option-label">Sensibilidad Ratón</span>
+          <input type="range" id="optSensitivity" min="1" max="10" value="5">
+          <span class="option-value" id="optSensitivityVal">5</span>
+        </div>
+        <div class="option-row">
+          <span class="option-label">HUD Compacto</span>
+          <button class="toggle-btn off" id="toggleCompactHUD" data-val="false">OFF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">La cordura es un lujo que no puedes permitirte.</div>
+
+  <script>
+    // ════ LLUVIA ════
+    (function createRain() {
+      const container = document.getElementById('rainContainer');
+      const dropCount = window.innerWidth < 600 ? 60 : 120;
+      
+      for (let i = 0; i < dropCount; i++) {
+        const drop = document.createElement('div');
+        drop.className = 'rain-drop';
+        drop.style.left = Math.random() * 100 + '%';
+        drop.style.animationDuration = (0.35 + Math.random() * 0.4) + 's';
+        drop.style.animationDelay = Math.random() * 2 + 's';
+        drop.style.opacity = 0.3 + Math.random() * 0.4;
+        container.appendChild(drop);
       }
-      // Dificultad por defecto
-      setDifficulty(sessionStorage.getItem("difficulty") || "normal");
+    })();
 
-      const nameModal = document.getElementById("nameModal");
-      const playerNameInput = document.getElementById("playerNameInput");
-      const startGameBtn = document.getElementById("startGameBtn");
-      const mainMenu = document.getElementById("mainMenu");
-
-      function startGame() {
-        playerName = playerNameInput.value.trim();
-        sessionStorage.setItem("playerName", playerName);
-
-        nameModal.style.display = "none";
-        mainMenu.style.display = "block";
-
-        startRainMusic();
-        startVisualEffects();
-
-        if (playerName) {
-          speakPlayerName(playerName);
-        }
-      }
-
-      function speakPlayerName(name) {
-        const synth = window.speechSynthesis;
-        if (!synth) return;
-
-        const phrase = `${name}...`;
-        const utterance = new SpeechSynthesisUtterance(phrase);
-        utterance.lang = "es-ES";
-        utterance.rate = 0.5;
-        utterance.pitch = 0.3;
-        utterance.volume = 0.9;
-
-        const speak = () => {
-          synth.cancel();
-          synth.speak(utterance);
-        };
-
-        if (synth.getVoices().length > 0) {
-          const voice =
-            synth.getVoices().find((v) => v.lang.includes("es")) ||
-            synth.getVoices()[0];
-          if (voice) utterance.voice = voice;
-          speak();
-        } else {
-          synth.addEventListener(
-            "voiceschanged",
-            () => {
-              const voice =
-                synth.getVoices().find((v) => v.lang.includes("es")) ||
-                synth.getVoices()[0];
-              if (voice) utterance.voice = voice;
-              speak();
-            },
-            { once: true },
-          );
-          setTimeout(speak, 200);
-        }
-      }
-
-      if (startGameBtn) {
-        startGameBtn.addEventListener("click", startGame);
-      }
-      if (playerNameInput) {
-        playerNameInput.addEventListener("keypress", (e) => {
-          if (e.key === "Enter") startGame();
-        });
-      }
-
-      // Si ya hay nombre guardado (vuelve del juego), saltar el modal
-      const _savedName = sessionStorage.getItem("playerName");
-      if (_savedName !== null) {
-        playerName = _savedName;
-        nameModal.style.display = "none";
-        mainMenu.style.display = "block";
-        startVisualEffects();
-        // El AudioContext necesita gesto del usuario — arranca al primer click
-        document.addEventListener("click", () => startRainMusic(), {
-          once: true,
-        });
-      }
-
-      // ── BLOOD DRIPS ──────────────────────────────────────────────
-      (function spawnBloodDrips() {
-        const positions = [8, 17, 28, 42, 55, 67, 79, 88]; // % from left
-        positions.forEach((pct, i) => {
-          const d = document.createElement("div");
-          d.className = "blood-drip";
-          d.style.left = pct + "%";
-          d.style.width = 2 + Math.random() * 2 + "px";
-          const dur = (3 + Math.random() * 5).toFixed(2) + "s";
-          const delay = (i * 1.3 + Math.random() * 4).toFixed(2) + "s";
-          d.style.animationDuration = dur;
-          d.style.animationDelay = delay;
-          document.body.appendChild(d);
-        });
-      })();
-
-      // ── FOG WISPS ────────────────────────────────────────────────
-      (function spawnFog() {
-        const fog = document.getElementById("fogContainer");
-        if (!fog) return;
-        for (let i = 0; i < 8; i++) {
-          const w = document.createElement("div");
-          w.className = "fog-wisp";
-          const size = 200 + Math.random() * 300;
-          w.style.width = size + "px";
-          w.style.height = size * 0.4 + "px";
-          w.style.left = Math.random() * 110 - 10 + "%";
-          w.style.animationDuration =
-            (14 + Math.random() * 12).toFixed(1) + "s";
-          w.style.animationDelay = (Math.random() * -20).toFixed(1) + "s";
-          fog.appendChild(w);
-        }
-      })();
-
-      // ── CURSOR TRAIL ─────────────────────────────────────────────
-      document.addEventListener("mousemove", (e) => {
-        const dot = document.createElement("div");
-        dot.className = "cursor-trail";
-        dot.style.left = e.clientX + "px";
-        dot.style.top = e.clientY + "px";
-        document.body.appendChild(dot);
-        requestAnimationFrame(() => {
-          dot.style.transform = "translate(-50%,-50%) scale(0)";
-          dot.style.opacity = "0";
-        });
-        setTimeout(() => dot.remove(), 500);
+    // ════ GOTAS DE SANGRE ════
+    (function createBlood() {
+      const positions = [5, 15, 28, 42, 58, 72, 85, 95];
+      positions.forEach(p => {
+        const drop = document.createElement('div');
+        drop.className = 'blood-drip';
+        drop.style.left = p + '%';
+        drop.style.animationDelay = Math.random() * 5 + 's';
+        document.body.appendChild(drop);
       });
+    })();
 
-      // ── RANDOM GLITCH FLASH ──────────────────────────────────────
-      (function scheduleGlitch() {
-        const delay = 8000 + Math.random() * 20000;
-        setTimeout(() => {
-          const f = document.createElement("div");
-          f.className = "glitch-flash";
-          document.body.appendChild(f);
-          setTimeout(() => f.remove(), 300);
-          scheduleGlitch();
-        }, delay);
-      })();
+    // ════ MODALES ════
+    const nameModal = document.getElementById('nameModal');
+    const mainCover = document.getElementById('mainCover');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const startBtn = document.getElementById('startBtn');
 
-      function startRainMusic() {
-        if (audioStarted) return;
-        audioStarted = true;
+    // Mostrar nombre si ya existe
+    const savedName = sessionStorage.getItem('playerName');
+    if (savedName) {
+      nameModal.style.display = 'none';
+      mainCover.style.display = 'flex';
+      // Si hay nombre guardado, decirlo
+      if (savedName) {
+        setTimeout(() => speakPlayerName(savedName), 500);
+      }
+    }
 
-        const audioContext = new (
-          window.AudioContext || window.webkitAudioContext
-        )();
+    // Función para decir el nombre
+    function speakPlayerName(name) {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      
+      const phrase = `${name}...`;
+      const utterance = new SpeechSynthesisUtterance(phrase);
+      utterance.lang = 'es-ES';
+      utterance.rate = 0.5;
+      utterance.pitch = 0.3;
+      utterance.volume = 0.9;
+      
+      const voices = synth.getVoices();
+      const voice = voices.find(v => v.lang.includes('es')) || voices[0];
+      if (voice) utterance.voice = voice;
+      
+      synth.cancel();
+      synth.speak(utterance);
+    }
 
-        if (audioContext.state === "suspended") {
-          audioContext.resume();
-        }
+    // Iniciar juego
+    function startGame() {
+      const name = playerNameInput.value.trim();
+      if (name) {
+        sessionStorage.setItem('playerName', name);
+        nameModal.style.display = 'none';
+        mainCover.style.display = 'flex';
+        // Decir el nombre
+        setTimeout(() => speakPlayerName(name), 300);
+      } else {
+        nameModal.style.display = 'none';
+        mainCover.style.display = 'flex';
+      }
+    }
 
-        const masterGain = audioContext.createGain();
-        masterGain.gain.value = 0.5;
-        masterGain.connect(audioContext.destination);
+    startBtn.addEventListener('click', startGame);
+    playerNameInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') startGame();
+    });
 
-        function createAmbientDrone() {
-          const droneGain = audioContext.createGain();
-          droneGain.gain.value = 0.35;
-          droneGain.connect(masterGain);
+    // Abrir/cerrar modales
+    function openModal(id) {
+      document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('active');
+    }
 
-          const osc1 = audioContext.createOscillator();
-          osc1.type = "sine";
-          osc1.frequency.value = 55;
+    function closeModal(e) {
+      if (e.target.classList.contains('modal')) {
+        e.target.classList.remove('active');
+      }
+    }
 
-          const osc2 = audioContext.createOscillator();
-          osc2.type = "sine";
-          osc2.frequency.value = 57;
+    document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', closeModal));
 
-          const osc3 = audioContext.createOscillator();
-          osc3.type = "triangle";
-          osc3.frequency.value = 110;
+    // Botones menú
+    document.getElementById('btnJugar').addEventListener('click', () => openModal('modalNiveles'));
+    document.getElementById('btnRecords').addEventListener('click', () => {
+      renderScores('level1');
+      openModal('modalRecords');
+    });
+    document.getElementById('btnAchievements').addEventListener('click', () => {
+      renderAchievements();
+      openModal('modalAchievements');
+    });
+    document.getElementById('btnOptions').addEventListener('click', () => openModal('modalOptions'));
 
-          const lfo = audioContext.createOscillator();
-          lfo.type = "sine";
-          lfo.frequency.value = 0.1;
+    // ════ DIFICULTAD ════
+    const DIFF_DESCS = {
+      easy: "Enemigos lentos, batería dura más, cordura estable. Ideal para aprender.",
+      normal: "La experiencia completa. Equilibrio entre reto y diversión.",
+      nightmare: "Enemigos agresivos, batería escasa, cordura crítica. Solo para valientes."
+    };
 
-          const lfoGain = audioContext.createGain();
-          lfoGain.gain.value = 5;
+    function updateDiffDesc(diff) {
+      const el = document.getElementById('diffDesc');
+      if (el) el.textContent = DIFF_DESCS[diff] || '';
+    }
 
-          lfo.connect(lfoGain);
-          lfoGain.connect(osc1.frequency);
-          lfoGain.connect(osc2.frequency);
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        sessionStorage.setItem('difficulty', btn.dataset.diff);
+        updateDiffDesc(btn.dataset.diff);
+      });
+    });
 
-          const droneFilter = audioContext.createBiquadFilter();
-          droneFilter.type = "lowpass";
-          droneFilter.frequency.value = 180;
-          droneFilter.Q.value = 2;
+    // Restaurar dificultad
+    const savedDiff = sessionStorage.getItem('difficulty') || 'normal';
+    const diffBtn = document.querySelector(`.diff-btn[data-diff="${savedDiff}"]`);
+    if (diffBtn) diffBtn.click();
+    updateDiffDesc(savedDiff);
 
-          const reverb = audioContext.createConvolver();
-          const reverbLength = audioContext.sampleRate * 3;
-          const reverbBuffer = audioContext.createBuffer(
-            2,
-            reverbLength,
-            audioContext.sampleRate,
-          );
-          for (let channel = 0; channel < 2; channel++) {
-            const data = reverbBuffer.getChannelData(channel);
-            for (let i = 0; i < reverbLength; i++) {
-              data[i] =
-                (Math.random() * 2 - 1) *
-                Math.exp(-i / (audioContext.sampleRate * 1.5));
-            }
-          }
-          reverb.buffer = reverbBuffer;
+    // ════ RÉCORDS ════
+    function renderScores(level) {
+      const list = document.getElementById('scoresList');
+      if (!list) return;
 
-          const reverbGain = audioContext.createGain();
-          reverbGain.gain.value = 0.5;
+      const data = localStorage.getItem('backrooms_highscores');
+      const scores = data ? JSON.parse(data)[level] || [] : [];
 
-          osc1.connect(droneFilter);
-          osc2.connect(droneFilter);
-          osc3.connect(droneFilter);
-          droneFilter.connect(reverb);
-          reverb.connect(reverbGain);
-          reverbGain.connect(droneGain);
-
-          osc1.start();
-          osc2.start();
-          osc3.start();
-          lfo.start();
-        }
-
-        function createWindNoise() {
-          const windGain = audioContext.createGain();
-          windGain.gain.value = 0.15;
-          windGain.connect(masterGain);
-
-          const bufferSize = audioContext.sampleRate * 4;
-          const buffer = audioContext.createBuffer(
-            2,
-            bufferSize,
-            audioContext.sampleRate,
-          );
-
-          for (let channel = 0; channel < 2; channel++) {
-            const data = buffer.getChannelData(channel);
-            let b0 = 0,
-              b1 = 0,
-              b2 = 0,
-              b3 = 0,
-              b4 = 0,
-              b5 = 0,
-              b6 = 0;
-            for (let i = 0; i < bufferSize; i++) {
-              const white = Math.random() * 2 - 1;
-              b0 = 0.99886 * b0 + white * 0.0555179;
-              b1 = 0.99332 * b1 + white * 0.0750759;
-              b2 = 0.969 * b2 + white * 0.153852;
-              b3 = 0.8665 * b3 + white * 0.3104856;
-              b4 = 0.55 * b4 + white * 0.5329522;
-              b5 = -0.7616 * b5 - white * 0.016898;
-              data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
-              data[i] *= 0.11;
-              b6 = white * 0.115926;
-            }
-          }
-
-          const windSource = audioContext.createBufferSource();
-          windSource.buffer = buffer;
-          windSource.loop = true;
-
-          const windFilter = audioContext.createBiquadFilter();
-          windFilter.type = "lowpass";
-          windFilter.frequency.value = 350;
-
-          const windFilter2 = audioContext.createBiquadFilter();
-          windFilter2.type = "highpass";
-          windFilter2.frequency.value = 60;
-
-          const lfo = audioContext.createOscillator();
-          lfo.type = "sine";
-          lfo.frequency.value = 0.12;
-
-          const lfoGain = audioContext.createGain();
-          lfoGain.gain.value = 0.08;
-
-          lfo.connect(lfoGain);
-          lfoGain.connect(windGain.gain);
-
-          windSource.connect(windFilter);
-          windFilter.connect(windFilter2);
-          windFilter2.connect(windGain);
-          windSource.start();
-          lfo.start();
-        }
-
-        function createCreepyWhispers() {
-          console.log("[Audio] Starting whispers...");
-
-          const whisperGain = audioContext.createGain();
-          whisperGain.gain.value = 0.5;
-          whisperGain.connect(masterGain);
-
-          function playWhisper() {
-            try {
-              const now = audioContext.currentTime;
-
-              const bufferSize = Math.floor(audioContext.sampleRate * 1.2);
-              const buffer = audioContext.createBuffer(
-                1,
-                bufferSize,
-                audioContext.sampleRate,
-              );
-              const data = buffer.getChannelData(0);
-
-              for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * 0.5;
-              }
-
-              const source = audioContext.createBufferSource();
-              source.buffer = buffer;
-
-              const filter = audioContext.createBiquadFilter();
-              filter.type = "bandpass";
-              filter.frequency.value = 800;
-              filter.Q.value = 8;
-
-              const gain = audioContext.createGain();
-              gain.gain.setValueAtTime(0.8, now);
-              gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
-
-              source.connect(filter);
-              filter.connect(gain);
-              gain.connect(whisperGain);
-
-              source.start(now);
-              source.stop(now + 1.0);
-
-              console.log("[Audio] Whisper played");
-            } catch (e) {
-              console.log("[Audio] Whisper error:", e);
-            }
-
-            setTimeout(playWhisper, 3000 + Math.random() * 8000);
-          }
-
-          setTimeout(playWhisper, 2000);
-        }
-
-        createAmbientDrone();
-        createWindNoise();
-        createCreepyWhispers();
-
-        console.log("[Audio] All audio started");
+      if (!scores.length) {
+        list.innerHTML = '<div class="no-scores">No hay récords aún</div>';
+        return;
       }
 
-      function startVisualEffects() {
-        const title = document.querySelector("h1");
-        if (title) {
-          const originalText = title.textContent;
-          let initialGlitchInterval;
-          const duration = 1300;
-          const intervalTime = 90;
+      const medals = ['🥇', '🥈', '🥉'];
+      list.innerHTML = scores.map((s, i) => {
+        const cls = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+        const time = Math.floor(s.time / 60) + ':' + (s.time % 60).toString().padStart(2, '0');
+        return `<div class="score-item ${cls}">
+          <span class="score-rank">${i < 3 ? medals[i] : (i + 1)}</span>
+          <span class="score-pts">${s.score} pts</span>
+          <span class="score-time">${time}</span>
+        </div>`;
+      }).join('');
+    }
 
-          const initialGlitchEffect = () => {
-            let newText = "";
-            for (let i = 0; i < originalText.length; i++) {
-              if (Math.random() < 0.3) {
-                const randomChar = String.fromCharCode(
-                  33 + Math.floor(Math.random() * 94),
-                );
-                newText += `<span style="opacity:${Math.random() * 0.4 + 0.3}; color: hsl(${Math.random() * 30}, 100%, ${50 + Math.random() * 20}%); transform: translate(${(Math.random() - 0.5) * 4}px, ${(Math.random() - 0.5) * 4}px) skew(${(Math.random() - 0.5) * 8}deg); display:inline-block;">${randomChar}</span>`;
-              } else {
-                newText += originalText[i];
-              }
-            }
-            title.innerHTML = newText;
-          };
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderScores(btn.dataset.level);
+      });
+    });
 
-          const originalAnimation = title.style.animation;
-          title.style.animation = "none";
-          initialGlitchInterval = setInterval(
-            initialGlitchEffect,
-            intervalTime,
-          );
+    // ════ LOGROS ════
+    function renderAchievements() {
+      const list = document.getElementById('achievementsList');
+      if (!list) return;
 
-          setTimeout(() => {
-            clearInterval(initialGlitchInterval);
-            title.innerHTML = originalText;
-            title.style.animation =
-              originalAnimation ||
-              "titlePulsatingGlow 2.8s infinite alternate, titleTextDistort 13s infinite steps(1)";
-          }, duration);
+      const achievements = [
+        { id: 'first_death', name: 'Primera Muerte', desc: 'Muere por primera vez' },
+        { id: 'first_escape', name: 'Primer Escape', desc: 'Escapa de un nivel' },
+        { id: 'speedrunner', name: 'Speedrunner', desc: 'Completa Nivel 1 en <2 min' },
+        { id: 'coin_collector', name: 'Coleccionista', desc: 'Recoge 500 monedas' },
+        { id: 'survivor_5', name: 'Superviviente', desc: 'Sobrevive 5 min en Ultimate' },
+        { id: 'note_reader', name: 'Curioso', desc: 'Lee 10 notas' },
+        { id: 'hider', name: 'Tímido', desc: 'Escondete 50 veces' },
+        { id: 'battery_hoarder', name: 'Coleccionista', desc: 'Recoge 100 baterías' },
+        { id: 'no_flashlight', name: 'A oscuras', desc: 'Completa Nivel 4 sin linterna' },
+        { id: 'closecall', name: 'Afortunado', desc: 'Escapa de enemigo 10 veces' },
+      ];
+
+      const data = localStorage.getItem('backrooms_stats');
+      const stats = data ? JSON.parse(data) : {};
+      const unlocked = new Set(stats.achievements?.filter(a => a.unlocked).map(a => a.id) || []);
+
+      list.innerHTML = achievements.map(a => `
+        <div class="achievement-item ${unlocked.has(a.id) ? '' : 'locked'}">
+          <span class="achievement-icon">${unlocked.has(a.id) ? '🏅' : '🔒'}</span>
+          <div>
+            <div class="achievement-name">${a.name}</div>
+            <div class="achievement-desc">${a.desc}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ════ AUDIO SYSTEM ════
+    let audioContext = null;
+    let masterGain = null;
+    let droneGain = null;
+    let windGain = null;
+    let whisperGain = null;
+    let audioStarted = false;
+
+    function initAudio() {
+      if (audioStarted) return;
+      audioStarted = true;
+
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === 'suspended') audioContext.resume();
+
+      masterGain = audioContext.createGain();
+      masterGain.gain.value = 0.5;
+      masterGain.connect(audioContext.destination);
+
+      droneGain = audioContext.createGain();
+      droneGain.gain.value = 0.4;
+      droneGain.connect(masterGain);
+
+      windGain = audioContext.createGain();
+      windGain.gain.value = 0.15;
+      windGain.connect(masterGain);
+
+      whisperGain = audioContext.createGain();
+      whisperGain.gain.value = 0.4;
+      whisperGain.connect(masterGain);
+
+      createAmbientDrone();
+      createWindNoise();
+      createCreepyWhispers();
+      
+      applyMenuAudioOptions();
+    }
+
+    function applyMenuAudioOptions() {
+      const musicVol = parseFloat(localStorage.getItem('optMusic') || '70') / 100;
+      const sfxVol = parseFloat(localStorage.getItem('optSfx') || '80') / 100;
+      if (masterGain) masterGain.gain.value = sfxVol * 0.5;
+      if (droneGain) droneGain.gain.value = musicVol * 0.4;
+      if (windGain) windGain.gain.value = sfxVol * 0.15;
+    }
+
+    function createAmbientDrone() {
+      if (!audioContext || !droneGain) return;
+
+      const osc1 = audioContext.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.value = 55;
+
+      const osc2 = audioContext.createOscillator();
+      osc2.type = 'sine';
+      osc2.frequency.value = 57;
+
+      const lfo = audioContext.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.1;
+
+      const lfoGain = audioContext.createGain();
+      lfoGain.gain.value = 5;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc1.frequency);
+      lfoGain.connect(osc2.frequency);
+
+      const filter = audioContext.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 180;
+
+      osc1.connect(filter);
+      osc2.connect(filter);
+      filter.connect(droneGain);
+
+      osc1.start();
+      osc2.start();
+      lfo.start();
+    }
+
+    function createWindNoise() {
+      if (!audioContext || !windGain) return;
+
+      const bufferSize = audioContext.sampleRate * 4;
+      const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate);
+
+      for (let channel = 0; channel < 2; channel++) {
+        const data = buffer.getChannelData(channel);
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.969 * b2 + white * 0.153852;
+          b3 = 0.8665 * b3 + white * 0.3104856;
+          b4 = 0.55 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.016898;
+          data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+          data[i] *= 0.11;
+          b6 = white * 0.115926;
         }
-
-        const effectsContainer = document.querySelector(".background-effects");
-        const rainContainer = document.querySelector(".rain-container");
-
-        function createRainDrop() {
-          const drop = document.createElement("div");
-          drop.classList.add("rain-drop");
-          drop.style.left = `${Math.random() * 100}vw`;
-          const fallDuration = Math.random() * 0.8 + 0.4;
-          drop.style.animationDuration = `${fallDuration}s`;
-          drop.style.animationDelay = `${Math.random() * 2}s`;
-          drop.style.opacity = Math.random() * 0.5 + 0.35;
-          rainContainer.appendChild(drop);
-          setTimeout(
-            () => {
-              if (drop.parentNode) drop.parentNode.removeChild(drop);
-            },
-            (fallDuration + parseFloat(drop.style.animationDelay || 0) + 0.1) *
-              1000 +
-              600,
-          );
-        }
-
-        function makeItRain() {
-          for (let i = 0; i < 3; i++) {
-            createRainDrop();
-          }
-          setTimeout(makeItRain, 45);
-        }
-        makeItRain();
-
-        const numberOfParticles = 30;
-        const particleColors = [
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--particle-color-1")
-            .trim(),
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--particle-color-2")
-            .trim(),
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--particle-color-3")
-            .trim(),
-        ];
-
-        for (let i = 0; i < numberOfParticles; i++) {
-          const particle = document.createElement("div");
-          particle.classList.add("particle");
-          const size = Math.random() * 2.5 + 0.5;
-          particle.style.width = `${size}px`;
-          particle.style.height = `${size}px`;
-          particle.style.backgroundColor =
-            particleColors[Math.floor(Math.random() * particleColors.length)];
-          const xStart = Math.random() * 100;
-          const yStart = Math.random() * 100;
-          particle.style.left = `${xStart}vw`;
-          particle.style.top = `${yStart}vh`;
-          particle.style.setProperty(
-            "--x-start",
-            `${(Math.random() - 0.5) * 10}vw`,
-          );
-          particle.style.setProperty(
-            "--y-start",
-            `${(Math.random() - 0.5) * 10}vh`,
-          );
-          particle.style.setProperty(
-            "--scale-start",
-            `${Math.random() * 0.3 + 0.2}`,
-          );
-          const xEnd = (Math.random() - 0.5) * (Math.random() * 60 + 30);
-          const yEnd = (Math.random() - 0.5) * (Math.random() * 60 + 30);
-          particle.style.setProperty("--x-end", `${xEnd}vw`);
-          particle.style.setProperty("--y-end", `${yEnd}vh`);
-          particle.style.setProperty(
-            "--scale-end",
-            `${Math.random() * 0.2 + 0.1}`,
-          );
-          particle.style.setProperty(
-            "--opacity-max",
-            `${Math.random() * 0.3 + 0.1}`,
-          );
-          const duration = Math.random() * 16 + 10;
-          particle.style.animationDuration = `${duration}s`;
-          particle.style.animationDelay = `${Math.random() * 10}s`;
-          effectsContainer.appendChild(particle);
-        }
-
-        function createLightningBolt() {
-          const bolt = document.createElement("div");
-          bolt.classList.add("lightning-bolt");
-          const length = Math.random() * 280 + 120;
-          const width = Math.random() * 2.5 + 1;
-          bolt.style.width = `${width}px`;
-          bolt.style.height = `${length}px`;
-          bolt.style.left = `${Math.random() * 98}vw`;
-          bolt.style.top = `${Math.random() * 98}vh`;
-          bolt.style.transform = `rotate(${Math.random() * 360}deg) scaleY(0.2) scaleX(0.7)`;
-          const flashDuration = Math.random() * 0.28 + 0.22;
-          const animationDelay = Math.random() * 0.08;
-          bolt.style.animationDuration = `${flashDuration}s`;
-          bolt.style.animationDelay = `${animationDelay}s`;
-          bolt.style.animationFillMode = "forwards";
-          effectsContainer.appendChild(bolt);
-          setTimeout(
-            () => {
-              if (bolt.parentNode) bolt.parentNode.removeChild(bolt);
-            },
-            (flashDuration + animationDelay + 0.1) * 1000,
-          );
-        }
-
-        function generateLightningStorm() {
-          const numFlashesInBurst = Math.floor(Math.random() * 2) + 1;
-          for (let i = 0; i < numFlashesInBurst; i++) {
-            setTimeout(createLightningBolt, Math.random() * 120);
-          }
-          const nextStormDelay = Math.random() * 5000 + 2500;
-          setTimeout(generateLightningStorm, nextStormDelay);
-        }
-        setTimeout(generateLightningStorm, 2000);
       }
-    </script>
-  </body>
+
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+
+      const filter = audioContext.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 350;
+
+      const lfo = audioContext.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.12;
+
+      const lfoGain = audioContext.createGain();
+      lfoGain.gain.value = 0.08;
+      lfo.connect(lfoGain);
+      lfoGain.connect(windGain.gain);
+
+      source.connect(filter);
+      filter.connect(windGain);
+      source.start();
+      lfo.start();
+    }
+
+    function createCreepyWhispers() {
+      if (!audioContext || !whisperGain) return;
+
+      function playWhisper() {
+        try {
+          const now = audioContext.currentTime;
+          const bufferSize = Math.floor(audioContext.sampleRate * 1.2);
+          const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * 0.5;
+          }
+          const source = audioContext.createBufferSource();
+          source.buffer = buffer;
+          const filter = audioContext.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.value = 800;
+          filter.Q.value = 8;
+          const gain = audioContext.createGain();
+          gain.gain.setValueAtTime(0.6, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+          source.connect(filter);
+          filter.connect(gain);
+          gain.connect(whisperGain);
+          source.start(now);
+          source.stop(now + 1.0);
+        } catch (e) {}
+        setTimeout(playWhisper, 4000 + Math.random() * 8000);
+      }
+      setTimeout(playWhisper, 2000);
+    }
+
+    // Iniciar audio al primer click
+    document.addEventListener('click', () => {
+      initAudio();
+    }, { once: true });
+
+    // ════ OPCIONES ════
+    const optMusic = document.getElementById('optMusic');
+    const optSfx = document.getElementById('optSfx');
+    const optFlashlight = document.getElementById('optFlashlight');
+    const optSensitivity = document.getElementById('optSensitivity');
+
+    if (optMusic) optMusic.value = localStorage.getItem('optMusic') || 70;
+    if (optSfx) optSfx.value = localStorage.getItem('optSfx') || 80;
+    if (optFlashlight) optFlashlight.value = localStorage.getItem('optFlashlight') || 60;
+    if (optSensitivity) optSensitivity.value = localStorage.getItem('optSensitivity') || 5;
+
+    if (optMusic) document.getElementById('optMusicVal').textContent = optMusic.value + '%';
+    if (optSfx) document.getElementById('optSfxVal').textContent = optSfx.value + '%';
+    if (optFlashlight) document.getElementById('optFlashlightVal').textContent = optFlashlight.value + '%';
+    if (optSensitivity) document.getElementById('optSensitivityVal').textContent = optSensitivity.value;
+
+    if (optMusic) {
+      optMusic.addEventListener('input', () => {
+        document.getElementById('optMusicVal').textContent = optMusic.value + '%';
+        localStorage.setItem('optMusic', optMusic.value);
+        if (droneGain) droneGain.gain.value = (parseFloat(optMusic.value) / 100) * 0.4;
+      });
+    }
+
+    if (optSfx) {
+      optSfx.addEventListener('input', () => {
+        document.getElementById('optSfxVal').textContent = optSfx.value + '%';
+        localStorage.setItem('optSfx', optSfx.value);
+        if (masterGain) masterGain.gain.value = (parseFloat(optSfx.value) / 100) * 0.5;
+        if (windGain) windGain.gain.value = (parseFloat(optSfx.value) / 100) * 0.15;
+      });
+    }
+
+    if (optFlashlight) {
+      optFlashlight.addEventListener('input', () => {
+        document.getElementById('optFlashlightVal').textContent = optFlashlight.value + '%';
+        localStorage.setItem('optFlashlight', optFlashlight.value);
+      });
+    }
+
+    if (optSensitivity) {
+      optSensitivity.addEventListener('input', () => {
+        document.getElementById('optSensitivityVal').textContent = optSensitivity.value;
+        localStorage.setItem('optSensitivity', optSensitivity.value);
+      });
+    }
+
+    function setupToggle(id, storageKey) {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      
+      const saved = localStorage.getItem(storageKey);
+      const val = saved === null ? true : saved === 'true';
+      
+      btn.dataset.val = val.toString();
+      btn.textContent = val ? 'ON' : 'OFF';
+      btn.className = 'toggle-btn ' + (val ? 'on' : 'off');
+      
+      btn.addEventListener('click', () => {
+        const newVal = btn.dataset.val !== 'true';
+        btn.dataset.val = newVal.toString();
+        btn.textContent = newVal ? 'ON' : 'OFF';
+        btn.className = 'toggle-btn ' + (newVal ? 'on' : 'off');
+        localStorage.setItem(storageKey, newVal.toString());
+        
+        if (storageKey === 'toggleParticles') {
+          document.querySelectorAll('.particle, .rain-container, .blood-drip').forEach(el => {
+            el.style.display = newVal ? '' : 'none';
+          });
+        }
+      });
+    }
+
+    setupToggle('toggleParticles', 'toggleParticles');
+    setupToggle('toggleScanlines', 'toggleScanlines');
+    setupToggle('toggleShadows', 'toggleShadows');
+    setupToggle('toggleCompactHUD', 'toggleCompactHUD');
+
+    if (localStorage.getItem('toggleParticles') === 'false') {
+      document.querySelectorAll('.particle, .rain-container, .blood-drip').forEach(el => {
+        el.style.display = 'none';
+      });
+    }
+  </script>
+</body>
 </html>

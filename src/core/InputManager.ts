@@ -8,19 +8,26 @@ export interface InputState {
   sprint: boolean;
   flashlight: boolean;
   hide: boolean;
+  pause: boolean;
 }
+
+export type PauseCallback = () => void;
 
 export class InputManager {
   keys: InputState;
   mouseMovement: { x: number; y: number };
   isPointerLocked: boolean;
   isTouchDevice: boolean;
+  sensitivity: number = 5;
   private touchStartX = 0;
   private touchStartY = 0;
   private moveTouchId: number | null = null;
   private lookTouchId: number | null = null;
   private moveVector = { x: 0, y: 0 };
   private lookVector = { x: 0, y: 0 };
+  private pauseCallbacks: PauseCallback[] = [];
+  private pausePressed = false;
+  private _pausedByGame = false;
 
   constructor() {
     this.keys = {
@@ -31,16 +38,38 @@ export class InputManager {
       sprint: false,
       flashlight: false,
       hide: false,
+      pause: false,
     };
     this.mouseMovement = { x: 0, y: 0 };
     this.isPointerLocked = false;
     this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    const savedSens = localStorage.getItem('optSensitivity');
+    if (savedSens) {
+      this.sensitivity = parseInt(savedSens);
+    }
 
     this.setupKeyboard();
     this.setupMouse();
     if (this.isTouchDevice) {
       this.setupTouch();
     }
+  }
+
+  onPause(callback: PauseCallback): void {
+    this.pauseCallbacks.push(callback);
+  }
+
+  setPausedByGame(paused: boolean): void {
+    this._pausedByGame = paused;
+    if (!paused) {
+      // Al despausar, solicitar pointer lock
+      this.requestPointerLock();
+    }
+  }
+
+  isGamePaused(): boolean {
+    return this._pausedByGame;
   }
 
   private setupKeyboard(): void {
@@ -72,6 +101,12 @@ export class InputManager {
         case 'ControlLeft':
         case 'ControlRight':
           this.keys.hide = true;
+          break;
+        case 'KeyP':
+          if (!this.pausePressed) {
+            this.pausePressed = true;
+            this.pauseCallbacks.forEach(cb => cb());
+          }
           break;
       }
     });
@@ -105,22 +140,31 @@ export class InputManager {
         case 'ControlRight':
           this.keys.hide = false;
           break;
+        case 'KeyP':
+          this.pausePressed = false;
+          break;
       }
     });
   }
 
   private setupMouse(): void {
     document.addEventListener('pointerlockchange', () => {
+      const wasLocked = this.isPointerLocked;
       this.isPointerLocked = document.pointerLockElement === document.body;
-      // Si se pierde el lock (resize, ESC, alt-tab) limpiar teclas para evitar movimiento fantasma
-      if (!this.isPointerLocked) {
-        this.reset();
+      
+      // Si perdemos el lock (ESC, alt-tab), NO limpiar teclas automáticamente
+      // El juego maneja la pausa con P, así que el jugador decide cuándo reanudar
+      if (!this.isPointerLocked && wasLocked) {
+        // Solo limpiar si no es porque ourselves pusimos la pausa
+        if (!this._pausedByGame) {
+          // No hacer reset aquí - el jugador puede querer volver al juego
+        }
       }
     });
 
     document.addEventListener('pointerlockerror', () => {
-      this.isPointerLocked = false;
-      this.reset();
+      // Intentar recuperar el lock
+      setTimeout(() => this.requestPointerLock(), 100);
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -213,6 +257,7 @@ export class InputManager {
       sprint: false,
       flashlight: false,
       hide: false,
+      pause: false,
     };
     this.mouseMovement = { x: 0, y: 0 };
   }

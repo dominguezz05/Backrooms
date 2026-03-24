@@ -7,6 +7,7 @@ export class SceneManager {
   renderer: THREE.WebGLRenderer;
   ambientLight: THREE.AmbientLight;
   flashlight: THREE.SpotLight;
+  shadowsEnabled: boolean = true;
 
   constructor() {
     this.scene = new THREE.Scene();
@@ -38,6 +39,24 @@ export class SceneManager {
 
     this.flashlight = this.createFlashlight();
     this.addResizeListener();
+  }
+
+  setShadows(enabled: boolean): void {
+    this.shadowsEnabled = enabled;
+    this.renderer.shadowMap.enabled = enabled;
+    if (!enabled) {
+      this.scene.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh) {
+          const mesh = obj as THREE.Mesh;
+          if (mesh.castShadow) mesh.castShadow = false;
+          if (mesh.receiveShadow) mesh.receiveShadow = false;
+        }
+      });
+    }
+  }
+
+  isShadowsEnabled(): boolean {
+    return this.shadowsEnabled;
   }
 
   private createFlashlight(): THREE.SpotLight {

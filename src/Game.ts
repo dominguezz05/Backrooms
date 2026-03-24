@@ -5,6 +5,7 @@ import { MazeGenerator } from './systems/MazeGenerator';
 import { AudioManager } from './systems/AudioManager';
 import { HorrorEffects } from './systems/HorrorEffects';
 import { UIManager } from './systems/UIManager';
+import { ScoreManager } from './systems/ScoreManager';
 import { Player } from './entities/Player';
 import { Enemy } from './entities/Enemy';
 import { CONFIG } from './constants';
@@ -26,6 +27,7 @@ export class Game {
 
   private clock: THREE.Clock;
   private isActive = false;
+  private isPaused = false;
   private monsterSpawned = false;
   private monsterSpawnTimer = 0;
   private gameOver = false;
@@ -97,6 +99,8 @@ export class Game {
     this.inputManager = new InputManager();
     this.player = new Player(this.sceneManager, this.inputManager);
     
+    this.inputManager.onPause(() => this.togglePause());
+    
     const urlParams = new URLSearchParams(window.location.search);
     const level = urlParams.get('level') || 'level1';
     this.currentLevel = this.getLevelType(level);
@@ -107,6 +111,9 @@ export class Game {
     this.horrorEffects = new HorrorEffects(this.sceneManager.scene, this.sceneManager.camera);
     this.uiManager = new UIManager();
     this.clock = new THREE.Clock();
+    
+    const win = window as Window & { gameAudioManager?: AudioManager };
+    win.gameAudioManager = this.audioManager;
 
     this.init();
   }
@@ -154,6 +161,22 @@ export class Game {
 
     this.uiManager.showLoading(false);
     console.log('[Game] Initialization complete - Level:', this.currentLevel);
+  }
+
+  togglePause(): void {
+    this.isPaused = !this.isPaused;
+    
+    const win = window as Window & { showPauseMenu?: () => void; hidePauseMenu?: () => void };
+    
+    if (this.isPaused) {
+      this.inputManager.setPausedByGame(true);
+      document.exitPointerLock();
+      win.showPauseMenu?.();
+    } else {
+      this.inputManager.setPausedByGame(false);
+      win.hidePauseMenu?.();
+      this.inputManager.requestPointerLock();
+    }
   }
 
   private configureLevel(): void {
@@ -216,24 +239,26 @@ export class Game {
 
   private setupStartButton(): void {
     const startOverlay = document.getElementById('startOverlay');
+    const self = this;
     if (startOverlay) {
       startOverlay.addEventListener('click', async () => {
         startOverlay.style.display = 'none';
-        this.inputManager.requestPointerLock();
-        await this.audioManager.init(this.sceneManager.camera);
-        this.audioManager.startAmbientMusic();
-        this.audioManager.startFluorescentHum();
-        this.audioManager.startLevelAmbience(this.currentLevel);
+        self.inputManager.requestPointerLock();
+        await self.audioManager.init(self.sceneManager.camera);
+        self.audioManager.startAmbientMusic();
+        self.audioManager.startFluorescentHum();
+        self.audioManager.startLevelAmbience(self.currentLevel);
+        (window as Window & { togglePause?: () => void }).togglePause = () => self.togglePause();
         // Nivel 4: linterna encendida desde el inicio con batería reducida
-        if (this.currentLevel === 'level4') {
-          this.player.battery = 55;
-          this.player.isFlashlightOn = true;
-          this.sceneManager.toggleFlashlight(true);
+        if (self.currentLevel === 'level4') {
+          self.player.battery = 55;
+          self.player.isFlashlightOn = true;
+          self.sceneManager.toggleFlashlight(true);
         }
-        this.gameStartTime = Date.now();
-        this.statsLastPos.copy(this.player.position);
-        this.isActive = true;
-        this.animate();
+        self.gameStartTime = Date.now();
+        self.statsLastPos.copy(self.player.position);
+        self.isActive = true;
+        self.animate();
       });
     }
   }
@@ -798,6 +823,28 @@ export class Game {
     document.exitPointerLock();
     this.audioManager.playItemPickup();
 
+    const elapsed = (Date.now() - this.gameStartTime) / 1000;
+    const mins = Math.floor(elapsed / 60);
+    const secs = Math.floor(elapsed % 60);
+    
+    const score = this.currentLevel === 'level2' ? this.score : Math.max(0, 1000 - Math.floor(elapsed * 10));
+    const isTop3 = ScoreManager.saveHighscore(this.currentLevel, score, elapsed);
+    
+    const stats = ScoreManager.getStats();
+    stats.totalVictories++;
+    stats.totalCoins += this.statsCoinsCollected;
+    stats.totalBatteries += this.statsBatteriesCollected;
+    if (!stats.levelsCompleted[this.currentLevel]) {
+      stats.levelsCompleted[this.currentLevel] = 0;
+    }
+    stats.levelsCompleted[this.currentLevel]++;
+    ScoreManager.saveStats(stats);
+    
+    if (mins < 2 && this.currentLevel === 'level1') {
+      ScoreManager.unlockAchievement('speedrunner');
+    }
+    ScoreManager.unlockAchievement('first_escape');
+
     const subtexts: Partial<Record<LevelType, string>> = {
       level2: '¡Recogiste todas las monedas! Conseguiste escapar.',
     };
@@ -810,7 +857,13 @@ export class Game {
       const btn = document.getElementById('restartButton') as HTMLAnchorElement | null;
 
       if (title) { title.textContent = message; title.style.color = '#00ff88'; }
-      if (text) text.textContent = subtext;
+      if (text) {
+        let finalText = subtext;
+        if (isTop3) {
+          finalText += ` ¡NUEVO RÉCORD #${score}!`;
+        }
+        text.textContent = finalText;
+      }
       if (btn) {
         btn.textContent = 'VOLVER AL MENÚ';
         btn.href = 'index.html';
@@ -835,6 +888,14 @@ export class Game {
 
     this.audioManager.playJumpscareSound();
 
+    const stats = ScoreManager.getStats();
+    stats.totalDeaths++;
+    stats.totalCoins += this.statsCoinsCollected;
+    stats.totalBatteries += this.statsBatteriesCollected;
+    ScoreManager.saveStats(stats);
+    
+    ScoreManager.unlockAchievement('first_death');
+
     setTimeout(() => {
       if (jumpscareOverlay) jumpscareOverlay.classList.remove('active');
       this.showStats(false);
@@ -850,6 +911,14 @@ export class Game {
 
     if (gameOverTitle) gameOverTitle.textContent = '¡HAS PERDIDO LA CORDURA!';
     if (gameOverText)  gameOverText.textContent  = 'La oscuridad te consumió...';
+
+    const stats = ScoreManager.getStats();
+    stats.totalDeaths++;
+    stats.totalCoins += this.statsCoinsCollected;
+    stats.totalBatteries += this.statsBatteriesCollected;
+    ScoreManager.saveStats(stats);
+    
+    ScoreManager.unlockAchievement('first_death');
 
     this.showStats(false);
     if (gameOverOverlay) {
@@ -1435,6 +1504,11 @@ export class Game {
 
   private animate = (): void => {
     if (!this.isActive || this.gameOver || this.hasWon) return;
+
+    if (this.isPaused) {
+      requestAnimationFrame(this.animate);
+      return;
+    }
 
     requestAnimationFrame(this.animate);
 
