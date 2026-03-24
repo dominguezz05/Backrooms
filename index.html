@@ -260,28 +260,27 @@
       const hpModal = document.getElementById('headphonesModal');
       const hpBtnYes = document.getElementById('hpBtnYes');
       const hpBtnNo = document.getElementById('hpBtnNo');
-      const nameModal = document.getElementById('nameModal');
       
       function dismissHeadphones() {
         if (hpModal) hpModal.style.display = 'none';
       }
       
-      if (hpBtnYes) hpBtnYes.addEventListener('click', dismissHeadphones);
-      if (hpBtnNo) hpBtnNo.addEventListener('click', dismissHeadphones);
+      function handleChoice(hasHeadphones) {
+        localStorage.setItem('headphonesChoice', hasHeadphones ? 'yes' : 'no');
+        dismissHeadphones();
+        // Iniciar audio siempre
+        initAudio();
+      }
       
-      // Si ya eligió antes, ocultar modal
+      if (hpBtnYes) hpBtnYes.addEventListener('click', () => handleChoice(true));
+      if (hpBtnNo) hpBtnNo.addEventListener('click', () => handleChoice(false));
+      
+      // Si ya eligió antes, ocultar modal e iniciar audio automáticamente
       const hpChoice = localStorage.getItem('headphonesChoice');
       if (hpChoice) {
         dismissHeadphones();
-      } else {
-        // Primera vez: escuchar elección y guardar
-        if (hpBtnYes) hpBtnYes.addEventListener('click', () => {
-          localStorage.setItem('headphonesChoice', 'yes');
-          initAudio(); // Iniciar audio con cascos
-        });
-        if (hpBtnNo) hpBtnNo.addEventListener('click', () => {
-          localStorage.setItem('headphonesChoice', 'no');
-        });
+        // Pequeño delay para asegurar que DOM está listo
+        setTimeout(() => initAudio(), 100);
       }
     })();
 
@@ -290,14 +289,94 @@
       const overlay = document.getElementById('lightningOverlay');
       if (!overlay) return;
       
-      // Usa el audioContext global si existe, si no lo crea
-      function getAudioContext() {
+      let thunderAudioContext = null;
+      let thunderMasterGain = null;
+      
+      function getOrCreateAudioContext() {
         if (window.menuAudioContext) return window.menuAudioContext;
-        return null;
+        
+        // Crear contexto propio si no existe
+        if (!thunderAudioContext) {
+          thunderAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+          thunderMasterGain = thunderAudioContext.createGain();
+          thunderMasterGain.gain.value = 1.5;
+          thunderMasterGain.connect(thunderAudioContext.destination);
+          
+          // Crear lluvia ambiente
+          createThunderAmbience();
+        }
+        return thunderAudioContext;
+      }
+      
+      function getMasterGain() {
+        return window.menuMasterGain || thunderMasterGain;
+      }
+      
+      function createThunderAmbience() {
+        if (!thunderAudioContext || !thunderMasterGain) return;
+        
+        // Lluvia continua
+        const bufferSize = thunderAudioContext.sampleRate * 3;
+        const rainBuffer = thunderAudioContext.createBuffer(2, bufferSize, thunderAudioContext.sampleRate);
+        
+        for (let channel = 0; channel < 2; channel++) {
+          const data = rainBuffer.getChannelData(channel);
+          for (let i = 0; i < bufferSize; i++) {
+            // Gotas de lluvia
+            if (Math.random() > 0.997) {
+              data[i] = (Math.random() - 0.5) * 0.4;
+            }
+          }
+        }
+        
+        const rainSource = thunderAudioContext.createBufferSource();
+        rainSource.buffer = rainBuffer;
+        rainSource.loop = true;
+        
+        const rainFilter = thunderAudioContext.createBiquadFilter();
+        rainFilter.type = 'bandpass';
+        rainFilter.frequency.value = 4000;
+        rainFilter.Q.value = 0.5;
+        
+        const rainGain = thunderAudioContext.createGain();
+        rainGain.gain.value = 0.8;
+        
+        rainSource.connect(rainFilter);
+        rainFilter.connect(rainGain);
+        rainGain.connect(thunderMasterGain);
+        rainSource.start();
+        
+        // Viento grave
+        const windBuffer = thunderAudioContext.createBuffer(1, bufferSize, thunderAudioContext.sampleRate);
+        const windData = windBuffer.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99765 * b0 + white * 0.0990465;
+          b1 = 0.96300 * b1 + white * 0.2965164;
+          b2 = 0.57000 * b2 + white * 1.0526913;
+          windData[i] = (b0 + b1 + b2 + white * 0.1848) * 0.15;
+        }
+        
+        const windSource = thunderAudioContext.createBufferSource();
+        windSource.buffer = windBuffer;
+        windSource.loop = true;
+        
+        const windFilter = thunderAudioContext.createBiquadFilter();
+        windFilter.type = 'lowpass';
+        windFilter.frequency.value = 500;
+        
+        const windGain = thunderAudioContext.createGain();
+        windGain.gain.value = 1.2;
+        
+        windSource.connect(windFilter);
+        windFilter.connect(windGain);
+        windGain.connect(thunderMasterGain);
+        windSource.start();
       }
       
       function playThunder() {
-        const ctx = getAudioContext();
+        const ctx = getOrCreateAudioContext();
         if (!ctx || ctx.state === 'suspended') return;
         
         const now = ctx.currentTime;
@@ -328,7 +407,7 @@
         
         crackSource.connect(crackFilter);
         crackFilter.connect(crackGain);
-        crackGain.connect(window.menuMasterGain);
+        crackGain.connect(getMasterGain());
         crackSource.start(now);
         
         // ===== CAPA 2: RUMBLE GRAVE (retumbo del trueno) =====
@@ -360,7 +439,7 @@
         
         rumbleSource.connect(rumbleFilter);
         rumbleFilter.connect(rumbleGain);
-        rumbleGain.connect(window.menuMasterGain);
+        rumbleGain.connect(getMasterGain());
         rumbleSource.start(now + 0.05);
         
         // ===== CAPA 3: LLUVIA DEL RAYO (sonido de lluvia cerca) =====
@@ -393,7 +472,7 @@
         
         rainSource.connect(rainFilter);
         rainFilter.connect(rainGain);
-        rainGain.connect(window.menuMasterGain);
+        rainGain.connect(getMasterGain());
         rainSource.start(now + 0.1);
       }
       
