@@ -360,6 +360,59 @@ export class AudioManager {
     src.onended = () => { src.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect(); };
   }
 
+  /** Sonido de puerta cerrándose/abriéndose (público) */
+  playDoorCreak(): void {
+    if (!this.context || !this.ambientGain) return;
+    const now = this.context.currentTime;
+    this.playDoorCreakInternal(now);
+  }
+
+  /** Sonido de click para UI */
+  playUIClick(): void {
+    if (!this.context || !this.sfxGain) return;
+    try {
+      const now = this.context.currentTime;
+      const osc = this.context.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+      
+      const gain = this.context.createGain();
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } catch (e) {
+      console.warn('[AudioManager] Error playing UI click:', e);
+    }
+  }
+
+  /** Sonido de hover para UI */
+  playUIHover(): void {
+    if (!this.context || !this.sfxGain) return;
+    try {
+      const now = this.context.currentTime;
+      const osc = this.context.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.setValueAtTime(700, now + 0.03);
+      
+      const gain = this.context.createGain();
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } catch (e) {
+      console.warn('[AudioManager] Error playing UI hover:', e);
+    }
+  }
+
   // Llamar cada frame desde Game.ts con la distancia al enemigo más cercano
   updateEnemyProximity(closestDist: number): void {
     if (!this.context || !this.proximityGain || !this.proximityLfo) return;
@@ -1158,7 +1211,7 @@ export class AudioManager {
         this.playDrip(now);
         break;
       case 1:
-        this.playDoorCreak(now);
+        this.playDoorCreakInternal(now);
         break;
       case 2:
         this.playMurmur(now);
@@ -1188,7 +1241,7 @@ export class AudioManager {
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
 
-  private playDoorCreak(now: number): void {
+  private playDoorCreakInternal(now: number): void {
     if (!this.context || !this.ambientGain) return;
 
     const osc = this.context.createOscillator();

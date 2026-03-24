@@ -423,15 +423,19 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  display: none;
+  display: flex;
   justify-content: center;
   align-items: center;
   background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(4px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 .modal.active {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
 }
 
 .modal-content {
@@ -447,6 +451,12 @@
   box-shadow: 0 0 60px rgba(150, 0, 0, 0.3);
   mask-image: linear-gradient(to bottom, transparent 0%, black 3%, black 95%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 3%, black 95%, transparent 100%);
+  transform: scale(0.95) translateY(20px);
+  transition: transform 0.3s ease;
+}
+
+.modal.active .modal-content {
+  transform: scale(1) translateY(0);
 }
 
 .modal-content::-webkit-scrollbar {

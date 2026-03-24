@@ -24,8 +24,8 @@
 |--------|-------------|-----------|
 | Power-ups | Velocidad, Invisibilidad, Stun, Cordura | ✅ Completado |
 | Notas/historia | Notas创伤adas con texto sobre los Backrooms | ✅ Ya existe |
-| Telarañas | Obstáculos que reducen velocidad 30% | Baja |
-| Puertas dinámicas | Se cierran aleatoriamente creando presión | Media |
+| Telarañas | Obstáculos que reducen velocidad 30% | ✅ Completado |
+| Puertas dinámicas | Se cierran aleatoriamente creando presión | ✅ Completado |
 | Sistema de checkpoints | Guardar progreso en niveles largos | Media |
 | Inventario rápido | Acceso rápido a objetos collected | Baja |
 
@@ -36,7 +36,7 @@
 | Música adaptativa 2.0 | Más capas: exploración, tensión, peligro, calma | Alta |
 | Radio/estática | Intensidad aumenta cerca de la salida | Media |
 | Nuevos sonidos | Crujidos, susurros, pasos lejanos | ✅ Parcialmente implementado |
-| Sonidos de UI | Click, hover en botones del menú | Baja |
+| Sonidos de UI | Click, hover en botones del menú | ✅ Completado |
 | Audio 3D mejorado | Mejor posicionamiento de sonidos | Media |
 
 ## 4. Contenido
@@ -98,6 +98,7 @@
 | Indicador de dirección | Flecha hacia la salida cuando no la ves | ✅ Implementado |
 | Vibration móvil | Feedback háptico en dispositivos móviles | Baja |
 | Transiciones suaves | Fade entre pantallas (menú→juego→muerte) | ✅ Completado |
+| Transiciones suaves menú | Fade entre modales del menú | ✅ Completado |
 
 ## 8. Efectos Visuales
 

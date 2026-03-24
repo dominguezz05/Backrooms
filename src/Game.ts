@@ -8,7 +8,7 @@ import { UIManager } from './systems/UIManager';
 import { ScoreManager } from './systems/ScoreManager';
 import { Player } from './entities/Player';
 import { Enemy } from './entities/Enemy';
-import { CONFIG, POWERUP_STUN_DURATION } from './constants';
+import { CONFIG, POWERUP_STUN_DURATION, DOOR_SPAWN_CHANCE, DOOR_CLOSE_INTERVAL_MIN, DOOR_CLOSE_INTERVAL_MAX, DOOR_CLOSE_DURATION, DOOR_SPEED, COBWEB_SPAWN_CHANCE, COBWEB_SLOW_FACTOR } from './constants';
 import { CellType, EnemyType } from './types';
 import { createFloorTexture, createWallTexture, createCeilingTexture } from './utils/textures';
 
@@ -113,6 +113,29 @@ export class Game {
 
   // ── Sistema de Transiciones Suaves ──────────────────────────────────────────
   private transitionOverlay: HTMLElement | null = null;
+
+  // ── Sistema de Puertas Dinámicas ────────────────────────────────────────────
+  private dynamicDoors: Array<{
+    mesh: THREE.Group;
+    cellX: number;
+    cellZ: number;
+    isClosed: boolean;
+    isClosing: boolean;
+    isOpening: boolean;
+    closeTimer: number;
+    openTimer: number;
+  }> = [];
+  private doorCloseInterval = 0;
+  private doorTimer = 0;
+
+  // ── Sistema de Telarañas ─────────────────────────────────────────────────────
+  private cobwebs: Array<{
+    mesh: THREE.Mesh;
+    cellX: number;
+    cellZ: number;
+    isActive: boolean;
+  }> = [];
+  private cobwebSlowFactor = 1.0;
 
 
 
@@ -913,6 +936,16 @@ export class Game {
             new THREE.Vector3(posX, wallHeight - 0.5, posZ)
           );
         }
+
+        // Puertas dinámicas
+        if (cell === CellType.DOOR) {
+          this.createDoorMesh(x, z, posX, posZ, unitSize, wallHeight);
+        }
+
+        // Telarañas
+        if (cell === CellType.COBWEB) {
+          this.createCobwebMesh(x, z, posX, posZ);
+        }
       }
     }
 
@@ -921,6 +954,267 @@ export class Game {
 
     // Flechas de pista pintadas en las paredes (solo visibles con linterna)
     this.addExitArrows();
+
+    // Inicializar timers de puertas dinámicas
+    this.doorCloseInterval = DOOR_CLOSE_INTERVAL_MIN + Math.random() * (DOOR_CLOSE_INTERVAL_MAX - DOOR_CLOSE_INTERVAL_MIN);
+    this.doorTimer = 0;
+  }
+
+  private createDoorMesh(cellX: number, cellZ: number, posX: number, posZ: number, unitSize: number, wallHeight: number): void {
+    // Determinar orientación de la puerta
+    const hasWallNorth = cellZ > 0 && this.maze[cellZ - 1]?.[cellX] === CellType.WALL;
+    const hasWallSouth = cellZ < this.maze.length - 1 && this.maze[cellZ + 1]?.[cellX] === CellType.WALL;
+    const isHorizontal = hasWallNorth || hasWallSouth;
+
+    const doorGroup = new THREE.Group();
+    
+    // Puerta de madera
+    const doorMat = new THREE.MeshStandardMaterial({
+      color: 0x3d2817,
+      roughness: 0.85,
+      metalness: 0.1,
+      emissive: new THREE.Color(0x1a0a00),
+      emissiveIntensity: 0.2
+    });
+
+    const doorWidth = isHorizontal ? unitSize * 0.15 : unitSize * 0.7;
+    const doorDepth = isHorizontal ? unitSize * 0.7 : unitSize * 0.15;
+    const doorHeight = wallHeight * 0.85;
+
+    const doorMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth),
+      doorMat
+    );
+    
+    doorMesh.position.set(posX, doorHeight / 2, posZ);
+    doorMesh.castShadow = true;
+    doorMesh.receiveShadow = true;
+    doorGroup.add(doorMesh);
+
+    // Marco de la puerta
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: 0x2a1a0a,
+      roughness: 0.9,
+      metalness: 0.05
+    });
+
+    const frameThickness = 0.1;
+    const frameWidth = isHorizontal ? unitSize * 0.05 : unitSize * 0.8;
+    const frameDepth = isHorizontal ? unitSize * 0.8 : unitSize * 0.05;
+
+    // Marco superior
+    const topFrame = new THREE.Mesh(
+      new THREE.BoxGeometry(unitSize, frameThickness, unitSize),
+      frameMat
+    );
+    topFrame.position.set(posX, wallHeight - frameThickness / 2, posZ);
+    doorGroup.add(topFrame);
+
+    // Luz indicadora (roja = cerrada, verde = abierta)
+    const indicatorLight = new THREE.PointLight(0xff0000, 0.5, 3);
+    indicatorLight.position.set(posX, wallHeight - 0.3, posZ);
+    doorGroup.add(indicatorLight);
+
+    this.sceneManager.scene.add(doorGroup);
+
+    this.dynamicDoors.push({
+      mesh: doorGroup,
+      cellX,
+      cellZ,
+      isClosed: false,
+      isClosing: false,
+      isOpening: false,
+      closeTimer: 0,
+      openTimer: 0
+    });
+
+    // Añadir a objetos colisionables si está cerrada
+    this.collidableObjects.push(doorMesh);
+  }
+
+  private createCobwebMesh(cellX: number, cellZ: number, posX: number, posZ: number): void {
+    const cobwebCanvas = document.createElement('canvas');
+    cobwebCanvas.width = 128;
+    cobwebCanvas.height = 128;
+    const ctx = cobwebCanvas.getContext('2d')!;
+
+    ctx.fillStyle = 'transparent';
+    ctx.clearRect(0, 0, 128, 128);
+
+    ctx.strokeStyle = 'rgba(200, 200, 200, 0.6)';
+    ctx.lineWidth = 1;
+
+    // Líneas radiales
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(64, 64);
+      ctx.lineTo(64 + Math.cos(angle) * 55, 64 + Math.sin(angle) * 55);
+      ctx.stroke();
+    }
+
+    // Círculos concéntricos
+    for (let r = 10; r <= 50; r += 12) {
+      ctx.beginPath();
+      ctx.arc(64, 64, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Destellos adicionales
+    ctx.strokeStyle = 'rgba(180, 180, 180, 0.4)';
+    for (let i = 0; i < 8; i++) {
+      const angle1 = Math.random() * Math.PI * 2;
+      const angle2 = angle1 + Math.random() * 0.5;
+      const r1 = 20 + Math.random() * 30;
+      const r2 = r1 + 10 + Math.random() * 20;
+      ctx.beginPath();
+      ctx.moveTo(64 + Math.cos(angle1) * r1, 64 + Math.sin(angle1) * r1);
+      ctx.quadraticCurveTo(
+        64 + Math.cos((angle1 + angle2) / 2) * (r1 + r2) / 2 + (Math.random() - 0.5) * 20,
+        64 + Math.sin((angle1 + angle2) / 2) * (r1 + r2) / 2 + (Math.random() - 0.5) * 20,
+        64 + Math.cos(angle2) * r2,
+        64 + Math.sin(angle2) * r2
+      );
+      ctx.stroke();
+    }
+
+    const cobwebTexture = new THREE.CanvasTexture(cobwebCanvas);
+    const cobwebMaterial = new THREE.MeshBasicMaterial({
+      map: cobwebTexture,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+
+    const cobwebGeo = new THREE.PlaneGeometry(CONFIG.UNIT_SIZE * 0.9, CONFIG.UNIT_SIZE * 0.9);
+    const cobwebMesh = new THREE.Mesh(cobwebGeo, cobwebMaterial);
+    cobwebMesh.rotation.x = -Math.PI / 2;
+    cobwebMesh.position.set(posX, CONFIG.WALL_HEIGHT * 0.7 + Math.random() * 0.5, posZ);
+
+    this.sceneManager.scene.add(cobwebMesh);
+
+    this.cobwebs.push({
+      mesh: cobwebMesh,
+      cellX,
+      cellZ,
+      isActive: true
+    });
+  }
+
+  private updateDynamicDoors(delta: number): void {
+    if (this.dynamicDoors.length === 0) return;
+
+    // Timer para cierre aleatorio de puertas
+    this.doorTimer += delta * 1000;
+
+    if (this.doorTimer >= this.doorCloseInterval) {
+      this.doorTimer = 0;
+      this.doorCloseInterval = DOOR_CLOSE_INTERVAL_MIN + Math.random() * (DOOR_CLOSE_INTERVAL_MAX - DOOR_CLOSE_INTERVAL_MIN);
+
+      // Elegir una puerta aleatoria que esté abierta
+      const openDoors = this.dynamicDoors.filter(d => !d.isClosed && !d.isClosing);
+      if (openDoors.length > 0) {
+        const door = openDoors[Math.floor(Math.random() * openDoors.length)];
+        door.isClosing = true;
+        door.closeTimer = 0;
+        
+        // Sonido de puerta cerrándose
+        this.audioManager.playDoorCreak();
+        
+        console.log('[Game] Door closing at cell:', door.cellX, door.cellZ);
+      }
+    }
+
+    // Actualizar estado de cada puerta
+    for (const door of this.dynamicDoors) {
+      if (door.isClosing) {
+        door.closeTimer += delta * 1000;
+        
+        // Animación de cierre
+        const closeProgress = Math.min(door.closeTimer / 800, 1);
+        door.mesh.children[0].position.x = door.mesh.children[0].position.x;
+        
+        if (door.closeTimer >= 800) {
+          door.isClosing = false;
+          door.isClosed = true;
+          
+          // Cambiar luz indicadora a rojo
+          const light = door.mesh.children.find(c => c instanceof THREE.PointLight) as THREE.PointLight | undefined;
+          if (light) light.color.setHex(0xff0000);
+          
+          // Añadir collider
+          this.addDoorCollider(door);
+        }
+      }
+
+      if (door.isOpening) {
+        door.openTimer += delta * 1000;
+        
+        if (door.openTimer >= 800) {
+          door.isOpening = false;
+          door.isClosed = false;
+          
+          // Cambiar luz indicadora a verde
+          const light = door.mesh.children.find(c => c instanceof THREE.PointLight) as THREE.PointLight | undefined;
+          if (light) light.color.setHex(0x00ff00);
+          
+          // Quitar collider
+          this.removeDoorCollider(door);
+        }
+      }
+
+      // Las puertas se abren automáticamente después de un tiempo
+      if (door.isClosed && !door.isOpening) {
+        door.closeTimer += delta * 1000;
+        if (door.closeTimer >= DOOR_CLOSE_DURATION) {
+          door.isOpening = true;
+          door.openTimer = 0;
+          door.closeTimer = 0;
+          this.audioManager.playDoorCreak();
+        }
+      }
+    }
+  }
+
+  private addDoorCollider(door: { mesh: THREE.Group; cellX: number; cellZ: number }): void {
+    // El collider ya está en collidableObjects, no hace falta añadirlo de nuevo
+    // La puerta se marca como cerrada y el collision check la detectará
+  }
+
+  private removeDoorCollider(door: { mesh: THREE.Group; cellX: number; cellZ: number }): void {
+    // Cuando la puerta está abierta, no debe bloquear
+    // Esto se maneja en checkWallCollision
+  }
+
+  private checkDoorCollision(pos: THREE.Vector3): boolean {
+    return this.player.checkDoorCollision(pos, this.dynamicDoors);
+  }
+
+  private updateCobwebs(): void {
+    this.cobwebSlowFactor = 1.0;
+    
+    for (const cobweb of this.cobwebs) {
+      if (!cobweb.isActive) continue;
+      
+      const cobwebWorldX = cobweb.cellX * CONFIG.UNIT_SIZE;
+      const cobwebWorldZ = cobweb.cellZ * CONFIG.UNIT_SIZE;
+      
+      const dx = this.player.position.x - cobwebWorldX;
+      const dz = this.player.position.z - cobwebWorldZ;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      
+      if (dist < CONFIG.UNIT_SIZE * 0.5) {
+        this.cobwebSlowFactor = COBWEB_SLOW_FACTOR;
+        
+        // Efecto visual: oscurecer la telaraña
+        const material = cobweb.mesh.material as THREE.MeshBasicMaterial;
+        material.opacity = 0.9;
+      } else {
+        const material = cobweb.mesh.material as THREE.MeshBasicMaterial;
+        material.opacity = 0.7;
+      }
+    }
   }
 
   /** BFS desde la salida → mapa de distancias mínimas por celda caminable. */
@@ -2166,6 +2460,8 @@ export class Game {
       this.doSpawnEnemies();
     }
 
+    // Aplicar ralentización de telarañas al jugador
+    this.player.cobwebSlowFactor = this.cobwebSlowFactor;
     this.player.update(delta);
     this.checkBatteryCollection();
     this.updatePowerUpVisuals(delta);
@@ -2237,6 +2533,12 @@ export class Game {
       this.footprintTimer = 0;
     }
     this.updateFootprints(delta);
+
+    // ── Puertas Dinámicas ─────────────────────────────────────────────────────
+    this.updateDynamicDoors(delta);
+
+    // ── Telarañas ──────────────────────────────────────────────────────────────
+    this.updateCobwebs();
 
     // ── Trail del Jugador ─────────────────────────────────────────────────────
     if (isMoving) {

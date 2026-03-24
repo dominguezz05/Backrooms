@@ -312,6 +312,62 @@ function applyMenuAudioOptions() {
   if (windGain) windGain.gain.value = sfxVol * 0.4;
 }
 
+// ════ SONIDOS DE UI ════
+function playUIClick() {
+  if (!audioContext || !masterGain) return;
+  try {
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+    
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } catch (e) {}
+}
+
+function playUIHover() {
+  if (!audioContext || !masterGain) return;
+  try {
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.setValueAtTime(700, now + 0.03);
+    
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  } catch (e) {}
+}
+
+function initUISounds() {
+  // Añadir sonidos a todos los botones interactivos
+  const interactiveElements = 'button, .btn, .menu-btn, .level-btn, .diff-btn, .tab-btn, .hp-btn, .toggle-btn, .slider-btn';
+  
+  document.querySelectorAll(interactiveElements).forEach(el => {
+    el.addEventListener('click', () => playUIClick(), { once: false });
+    el.addEventListener('mouseenter', () => playUIHover(), { once: false });
+  });
+  
+  // Añadir sonido a los sliders
+  document.querySelectorAll('input[type="range"]').forEach(el => {
+    el.addEventListener('input', () => playUIHover(), { once: false });
+  });
+}
+
 function createAmbientDrone() {
   if (!audioContext || !droneGain) return;
   
@@ -778,6 +834,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initDifficulty();
   initScores();
   initOptions();
+  
+  // Inicializar sonidos de UI (después de initOptions para capturar todos los elementos)
+  setTimeout(initUISounds, 100);
   
   // Audio lazy load - solo al primer click
   if (CONFIG.audioLazyInit) {

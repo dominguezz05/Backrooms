@@ -51,3 +51,12 @@ export const POWERUP_SPEED_MULTIPLIER = 1.5;
 export const POWERUP_INVISIBLE_DURATION = 8;
 export const POWERUP_STUN_DURATION = 3;
 export const POWERUP_SANITY_AMOUNT = 50;
+
+export const DOOR_SPAWN_CHANCE = 0.15;
+export const DOOR_CLOSE_INTERVAL_MIN = 8000;
+export const DOOR_CLOSE_INTERVAL_MAX = 15000;
+export const DOOR_CLOSE_DURATION = 5000;
+export const DOOR_SPEED = 2.5;
+
+export const COBWEB_SPAWN_CHANCE = 0.12;
+export const COBWEB_SLOW_FACTOR = 0.7;

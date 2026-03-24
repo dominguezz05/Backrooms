@@ -1,5 +1,5 @@
 import { CellType } from '../types';
-import { CONFIG } from '../constants';
+import { CONFIG, DOOR_SPAWN_CHANCE, COBWEB_SPAWN_CHANCE } from '../constants';
 
 export interface MazeOptions {
   openRooms?: boolean;
@@ -248,6 +248,40 @@ export class MazeGenerator {
       if (this.maze[z][x] === CellType.EMPTY) {
         this.maze[z][x] = CellType.CEILING_LIGHT;
         lightsPlaced++;
+      }
+    }
+
+    // ── Puertas dinámicas (Nivel 3, 4 y Ultimate) ────────────────────────────
+    if (this.options.openRooms || this.width >= 20) {
+      let doorsPlaced = 0;
+      const maxDoors = 6;
+      
+      while (doorsPlaced < maxDoors) {
+        const x = Math.floor(Math.random() * (this.width - 4)) + 2;
+        const z = Math.floor(Math.random() * (this.height - 4)) + 2;
+        
+        if (this.maze[z][x] === CellType.EMPTY && (x > 4 || z > 4)) {
+          if (Math.random() < DOOR_SPAWN_CHANCE) {
+            this.maze[z][x] = CellType.DOOR;
+            doorsPlaced++;
+          }
+        }
+      }
+    }
+
+    // ── Telarañas ────────────────────────────────────────────────────────────
+    let cobwebsPlaced = 0;
+    const maxCobwebs = 8;
+
+    while (cobwebsPlaced < maxCobwebs) {
+      const x = Math.floor(Math.random() * (this.width - 4)) + 2;
+      const z = Math.floor(Math.random() * (this.height - 4)) + 2;
+
+      if (this.maze[z][x] === CellType.EMPTY && (x > 3 || z > 3)) {
+        if (Math.random() < COBWEB_SPAWN_CHANCE) {
+          this.maze[z][x] = CellType.COBWEB;
+          cobwebsPlaced++;
+        }
       }
     }
   }
