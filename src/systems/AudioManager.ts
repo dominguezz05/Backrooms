@@ -889,7 +889,7 @@ export class AudioManager {
 
       const gain = this.context.createGain();
       gain.gain.setValueAtTime(0, now + delay);
-      gain.gain.linearRampToValueAtTime(0.2, now + delay + 0.02);
+      gain.gain.linearRampToValueAtTime(0.55, now + delay + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.15);
 
       const panner = this.context.createStereoPanner();
@@ -1606,6 +1606,101 @@ export class AudioManager {
     gain.connect(this.ambientGain);
     osc.start();
     lfo.start();
+  }
+
+  // ── Mini-sustos: sonidos fuertes ambientales ───────────────────────────────
+
+  /** Golpe seco MUY fuerte: puerta que se cierra de golpe, algo que cae */
+  playLoudBang(): void {
+    if (!this.context || !this.sfxGain) return;
+    const now = this.context.currentTime;
+
+    // Sub-golpe de impacto grave
+    const subOsc = this.context.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(110, now);
+    subOsc.frequency.exponentialRampToValueAtTime(28, now + 0.35);
+    const subGain = this.context.createGain();
+    subGain.gain.setValueAtTime(0.92, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    subOsc.connect(subGain); subGain.connect(this.sfxGain);
+    subOsc.start(now); subOsc.stop(now + 0.6);
+    subOsc.onended = () => { subOsc.disconnect(); subGain.disconnect(); };
+
+    // Ruido blanco de impacto (la "madera" del golpe)
+    const bufSize = Math.ceil(this.context.sampleRate * 0.25);
+    const buf = this.context.createBuffer(1, bufSize, this.context.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      const t = i / bufSize;
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 18) * 0.85;
+    }
+    const noise = this.context.createBufferSource();
+    noise.buffer = buf;
+    const nFilter = this.context.createBiquadFilter();
+    nFilter.type = 'lowpass';
+    nFilter.frequency.value = 2000;
+    const nGain = this.context.createGain();
+    nGain.gain.setValueAtTime(0.85, now);
+    nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    const nPan = this.context.createStereoPanner();
+    nPan.pan.value = (Math.random() - 0.5) * 1.6;
+    noise.connect(nFilter); nFilter.connect(nGain); nGain.connect(nPan); nPan.connect(this.sfxGain);
+    noise.start(now); noise.stop(now + 0.3);
+    noise.onended = () => { noise.disconnect(); nFilter.disconnect(); nGain.disconnect(); nPan.disconnect(); };
+
+    // Reverb corto: eco del pasillo
+    const revBufSize = Math.ceil(this.context.sampleRate * 0.5);
+    const revBuf = this.context.createBuffer(1, revBufSize, this.context.sampleRate);
+    const revData = revBuf.getChannelData(0);
+    for (let i = 0; i < revBufSize; i++) {
+      const t = i / revBufSize;
+      revData[i] = (Math.random() * 2 - 1) * Math.exp(-t * 8) * 0.3;
+    }
+    const rev = this.context.createBufferSource();
+    rev.buffer = revBuf;
+    const revGain = this.context.createGain();
+    revGain.gain.value = 0.45;
+    rev.connect(revGain); revGain.connect(this.sfxGain);
+    rev.start(now + 0.05); rev.stop(now + 0.6);
+    rev.onended = () => { rev.disconnect(); revGain.disconnect(); };
+  }
+
+  /** Zumbido eléctrico cuando una luz se apaga/enciende de golpe */
+  playLightBuzz(): void {
+    if (!this.context || !this.sfxGain) return;
+    const now = this.context.currentTime;
+    const duration = 0.5 + Math.random() * 0.4;
+
+    // Ruido blanco pulsante tipo tubo fluorescente
+    const bufSize = Math.ceil(this.context.sampleRate * duration);
+    const buf = this.context.createBuffer(1, bufSize, this.context.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      const t   = i / this.context.sampleRate;
+      const env = Math.abs(Math.sin(t * Math.PI * 40)) > 0.25 ? 1 : 0.08;
+      d[i] = (Math.random() * 2 - 1) * env;
+    }
+    const noise = this.context.createBufferSource();
+    noise.buffer = buf;
+
+    const hiFilter = this.context.createBiquadFilter();
+    hiFilter.type = 'bandpass';
+    hiFilter.frequency.value = 4000 + Math.random() * 2000;
+    hiFilter.Q.value = 1.5;
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.7, now + 0.015);
+    gain.gain.setValueAtTime(0.65, now + duration - 0.05);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+
+    const panner = this.context.createStereoPanner();
+    panner.pan.value = (Math.random() - 0.5) * 1.8;
+
+    noise.connect(hiFilter); hiFilter.connect(gain); gain.connect(panner); panner.connect(this.sfxGain);
+    noise.start(now);
+    noise.onended = () => { noise.disconnect(); hiFilter.disconnect(); gain.disconnect(); panner.disconnect(); };
   }
 
   /** Rumble grave continuo — sensación de que las paredes vibran */

@@ -59,6 +59,24 @@ export class SceneManager {
     return this.shadowsEnabled;
   }
 
+  // ── Camera Shake ──────────────────────────────────────────────────────────
+  private _shakeIntensity = 0;
+  private _shakeDuration  = 0;
+  private _shakeTimer     = 0;
+
+  /** Arranca un temblor de cámara. intensity en unidades Three.js (ej. 0.12). */
+  startCameraShake(intensity: number, duration: number): void {
+    this._shakeIntensity = intensity;
+    this._shakeDuration  = duration;
+    this._shakeTimer     = duration;
+  }
+
+  updateShake(delta: number): void {
+    if (this._shakeTimer > 0) {
+      this._shakeTimer = Math.max(0, this._shakeTimer - delta);
+    }
+  }
+
   private createFlashlight(): THREE.SpotLight {
     // Intensity starts at 0 (off). We never toggle `visible` because that forces
     // Three.js to recompile all shaders → noticeable frame hitch. Instead we
@@ -93,7 +111,19 @@ export class SceneManager {
   }
 
   render(): void {
+    let ox = 0, oy = 0;
+    if (this._shakeTimer > 0) {
+      const t   = this._shakeTimer / Math.max(0.001, this._shakeDuration);
+      const mag = this._shakeIntensity * t;
+      ox = (Math.random() - 0.5) * 2 * mag;
+      oy = (Math.random() - 0.5) * 2 * mag;
+      this.camera.position.x += ox;
+      this.camera.position.y += oy;
+    }
     this.renderer.render(this.scene, this.camera);
+    // Deshacer offset para no contaminar la posición del jugador
+    this.camera.position.x -= ox;
+    this.camera.position.y -= oy;
   }
 
   getClock(): THREE.Clock {

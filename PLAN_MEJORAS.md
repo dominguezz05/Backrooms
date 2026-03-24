@@ -92,7 +92,7 @@
 | Mejora | Descripción | Prioridad |
 |--------|-------------|-----------|
 | Tutorial/Hints | Instrucciones contextuales al inicio de cada nivel | Media |
-| Screen shake mejorado | Efecto de temblor al estar cerca de enemigos | Media |
+| ~~Screen shake mejorado~~ | ~~Efecto de temblor al estar cerca de enemigos~~ | ✅ Implementado |
 | Trail del jugador | Línea sutil de por dónde has pasado | Baja |
 | Partículas de polvo | Pequeñas partículas flotando en el aire | Baja |
 | Indicador de dirección | Flecha hacia la salida cuando no la ves | Media |
@@ -106,6 +106,7 @@
 | Partículas flotantes | Polvo/flocos en el fondo del menú | Baja |
 | Niebla dinámica | Niebla que se mueve lentamente | Baja |
 | Escuchas | Manos en las paredes como decoración | Baja |
+| Cuadros de miedo | Pinturas perturbadoras en las paredes del laberinto | Media |
 
 ## 9. Gameplay Avanzado
 
@@ -122,19 +123,52 @@
 
 1. ~~**Pantalla de pausa**~~ - ✅ COMPLETADO
 2. ~~**Power-ups**~~ - ✅ COMPLETADO
-3. **Sistema de desbloqueo progresivo** - Progresión del jugador ← SIGUIENTE
-4. **Tutorial/Hints** - Ayudar a nuevos jugadores
-5. **Música adaptativa mejorada** - Más atmósfera
-6. **Modo Endless** - Supervivencia infinita
-7. **Indicador de dirección** - Facilitar navegación
-8. **Screen shake mejorado** - Más inmersión
-9. **Puertas dinámicas** - Presión adicional
-10. ~~**CSS externalizado**~~ - ✅ COMPLETADO
-11. ~~**Cara del malo 45° + mano**~~ - ✅ COMPLETADO
-12. ~~**Relámpagos + trueno procedural**~~ - ✅ COMPLETADO
-13. ~~**Modal auriculares en index**~~ - ✅ COMPLETADO
-14. ~~**Loading screen mejorado**~~ - ✅ COMPLETADO
-15. ~~**Power-ups en minimapa**~~ - ✅ COMPLETADO
+3. ~~**Jumpscares mejorados + mini-sustos ambientales**~~ - ✅ COMPLETADO
+4. **Sistema de desbloqueo progresivo** - Progresión del jugador ← SIGUIENTE
+5. **Tutorial/Hints** - Ayudar a nuevos jugadores
+6. **Música adaptativa mejorada** - Más atmósfera
+7. **Modo Endless** - Supervivencia infinita
+8. **Indicador de dirección** - Facilitar navegación
+9. **Cuadros de miedo** - Pinturas perturbadoras interactivas
+10. **Puertas dinámicas** - Presión adicional
+11. ~~**CSS externalizado**~~ - ✅ COMPLETADO
+12. ~~**Cara del malo 45° + mano**~~ - ✅ COMPLETADO
+13. ~~**Relámpagos + trueno procedural**~~ - ✅ COMPLETADO
+14. ~~**Modal auriculares en index**~~ - ✅ COMPLETADO
+15. ~~**Loading screen mejorado**~~ - ✅ COMPLETADO
+16. ~~**Power-ups en minimapa**~~ - ✅ COMPLETADO
+17. ~~**Screen shake de cámara**~~ - ✅ COMPLETADO
+
+---
+
+---
+
+## Jumpscares + Mini-sustos Ambientales - ✅ COMPLETADO
+
+### Jumpscares mejorados
+
+| Mejora | Implementación |
+|--------|---------------|
+| Pre-flash rojo | `triggerScreenFlash('#ff0000', 60ms)` inmediato al morir |
+| Camera shake violento | `SceneManager.startCameraShake(0.22, 0.55s)` antes de la cara |
+| Cara con delay | La cara aparece 220ms después del sonido/flash (más impacto) |
+| Body shake CSS | Animación `jumpscareShake 0.6s` en `document.body` |
+
+### Mini-sustos ambientales (cada 30-60 s)
+
+| Tipo | Descripción | Condición |
+|------|-------------|-----------|
+| **Figura fantasma** | Silueta azul semitransparente a 10-22 u. del jugador. Desaparece al acercarse 4.5 u. o tras ~12 s | Solo si enemigo >9 u. |
+| **Luz que falla** | Bombilla cercana apaga/enciende 3 veces con zumbido eléctrico fuerte | Solo si enemigo >9 u. |
+| **Golpe fuerte** | Bang (gain 0.9) + camera shake (0.45s) + flash pantalla + pasos falsos 0.6s después | Solo si enemigo >9 u. |
+
+### Archivos modificados
+
+- `src/core/SceneManager.ts` — sistema de camera shake (`startCameraShake`, `updateShake`, offset en `render`)
+- `src/systems/AudioManager.ts` — `playLoudBang()`, `playLightBuzz()`, volumen `playFootstepsBehind` x2.75
+- `src/systems/HorrorEffects.ts` — `spawnGhostFigure()`, `updateGhosts()`
+- `src/Game.ts` — `triggerAmbientScare()`, `triggerGhostScare()`, `triggerLightScare()`, `triggerBangScare()`, jumpscare mejorado
+- `game.html` — `triggerScreenFlash()`, `#screenFlash` div
 
 ---
 

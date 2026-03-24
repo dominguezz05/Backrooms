@@ -63,6 +63,13 @@ export class Game {
   private tvStaticTimer = 0;
   private ventGustTimer = 0;
 
+  // ── Mini-sustos ambientales ────────────────────────────────────────────────
+  private ambientScareTimer  = 0;
+  private ambientScareInterval = 35 + Math.random() * 25;   // 35–60 s entre sustos
+  private lastClosestEnemyDist = Infinity;
+  private ceilingLightMeshes: THREE.PointLight[] = [];
+  private emptyWalkablePositions: THREE.Vector3[] = [];
+
   // Minimap
   private minimapCanvas: HTMLCanvasElement | null = null;
   private minimapCtx: CanvasRenderingContext2D | null = null;
@@ -667,6 +674,13 @@ export class Game {
           ceilingLight.castShadow = false;
           this.sceneManager.scene.add(ceilingLight);
           this.ceilingLights.push(new THREE.Vector3(posX, 0, posZ));
+          this.ceilingLightMeshes.push(ceilingLight);
+        }
+
+        // Guardar posiciones caminables para spawn de fantasmas
+        if (cell !== CellType.WALL && cell !== CellType.EXIT && x > 2 && z > 2 &&
+            x < this.maze[z].length - 2 && z < this.maze.length - 2) {
+          this.emptyWalkablePositions.push(new THREE.Vector3(posX, 0, posZ));
         }
 
         if (this.currentLevel === 'level2' && cell === CellType.EMPTY && (x > 3 || z > 3)) {
@@ -995,15 +1009,24 @@ export class Game {
     const jumpscareOverlay = document.getElementById('jumpscareOverlay');
     const gameOverOverlay = document.getElementById('gameOverOverlay');
 
-    const drawFn = (window as unknown as { triggerEnhancedJumpscare?: (type: string) => void }).triggerEnhancedJumpscare;
-    if (drawFn) {
-      drawFn(enemyType);
-    } else {
-      (window as unknown as { drawJumpscareFace?: () => void }).drawJumpscareFace?.();
-      if (jumpscareOverlay) jumpscareOverlay.classList.add('active');
-    }
+    // 1) Flash rojo inmediato + shake fuerte de cámara
+    const flashFn = (window as unknown as { triggerScreenFlash?: (color: string, ms: number) => void }).triggerScreenFlash;
+    if (flashFn) flashFn('#ff0000', 60);
+    this.sceneManager.startCameraShake(0.22, 0.55);
 
+    // 2) Sonido de jumpscare inmediato (lo más importante)
     this.audioManager.playJumpscareSound();
+
+    // 3) Cara aparece 220 ms después para que el flash/shake preceda a la imagen
+    setTimeout(() => {
+      const drawFn = (window as unknown as { triggerEnhancedJumpscare?: (type: string) => void }).triggerEnhancedJumpscare;
+      if (drawFn) {
+        drawFn(enemyType);
+      } else {
+        (window as unknown as { drawJumpscareFace?: () => void }).drawJumpscareFace?.();
+        if (jumpscareOverlay) jumpscareOverlay.classList.add('active');
+      }
+    }, 220);
 
     const stats = ScoreManager.getStats();
     stats.totalDeaths++;
@@ -1718,6 +1741,88 @@ export class Game {
     }
   }
 
+  // ── Sistema de mini-sustos ambientales ────────────────────────────────────
+
+  /** Elige un susto aleatorio y lo ejecuta (solo si el enemigo no está ya encima). */
+  private triggerAmbientScare(): void {
+    if (this.lastClosestEnemyDist < 9) return;   // el enemigo ya da miedo solo
+
+    const roll = Math.random();
+    if (roll < 0.34) {
+      this.triggerGhostScare();
+    } else if (roll < 0.67) {
+      this.triggerLightScare();
+    } else {
+      this.triggerBangScare();
+    }
+
+    // Reiniciar interval con variedad
+    this.ambientScareInterval = 30 + Math.random() * 30;
+    this.ambientScareTimer = 0;
+  }
+
+  /** Susto 1: aparece una figura fantasma al fondo del pasillo */
+  private triggerGhostScare(): void {
+    if (this.emptyWalkablePositions.length === 0) return;
+
+    // Buscar posición que esté 10-20 unidades del jugador
+    const candidates = this.emptyWalkablePositions.filter(p => {
+      const d = this.player.position.distanceTo(p);
+      return d >= 10 && d <= 22;
+    });
+    if (candidates.length === 0) return;
+
+    const spawnPos = candidates[Math.floor(Math.random() * candidates.length)];
+    this.horrorEffects.spawnGhostFigure(spawnPos, this.player.position);
+    // Sin sonido propio — el silencio es el susto
+  }
+
+  /** Susto 2: una luz del techo se apaga y vuelve con zumbido */
+  private triggerLightScare(): void {
+    if (this.ceilingLightMeshes.length === 0) return;
+
+    // Elegir luz más cercana al jugador (entre 3 y 14 unidades)
+    let chosen: THREE.PointLight | null = null;
+    let bestDist = Infinity;
+    for (const light of this.ceilingLightMeshes) {
+      const d = this.player.position.distanceTo(light.position);
+      if (d >= 3 && d <= 14 && d < bestDist) { bestDist = d; chosen = light; }
+    }
+    if (!chosen) return;
+
+    const originalIntensity = chosen.intensity;
+    this.audioManager.playLightBuzz();
+    chosen.intensity = 0;
+
+    // Apagado total 0.4 s — luego zumbido y vuelta
+    setTimeout(() => {
+      this.audioManager.playLightBuzz();
+      if (chosen) chosen.intensity = originalIntensity * 0.3;
+      setTimeout(() => {
+        this.audioManager.playLightBuzz();
+        if (chosen) chosen.intensity = 0;
+        setTimeout(() => {
+          if (chosen) chosen.intensity = originalIntensity;
+        }, 180);
+      }, 220);
+    }, 400);
+  }
+
+  /** Susto 3: golpe fuerte + camera shake + pasos falsos */
+  private triggerBangScare(): void {
+    this.audioManager.playLoudBang();
+    this.sceneManager.startCameraShake(0.14, 0.45);
+
+    // Pasos falsos 0.6 s después del golpe
+    setTimeout(() => {
+      this.audioManager.playFootstepsBehind();
+    }, 600);
+
+    // Flash de pantalla rojo en HTML
+    const flashFn = (window as unknown as { triggerScreenFlash?: (color: string, ms: number) => void }).triggerScreenFlash;
+    if (flashFn) flashFn('#ff0000', 80);
+  }
+
   private animate = (): void => {
     if (!this.isActive || this.gameOver || this.hasWon) return;
 
@@ -1807,6 +1912,9 @@ export class Game {
     }
     this.updateFootprints(delta);
 
+    // Guardar distancia para los mini-sustos
+    this.lastClosestEnemyDist = closestEnemyDist;
+
     // Audio y luces reactivos: siempre actualizar para que el efecto se disipe suavemente
     this.audioManager.updateEnemyProximity(closestEnemyDist);
     this.horrorEffects.setEnemyProximity(closestEnemyDist);
@@ -1886,6 +1994,14 @@ export class Game {
     }
 
     this.horrorEffects.update(delta);
+    this.horrorEffects.updateGhosts(this.player.position, delta);
+    this.sceneManager.updateShake(delta);
+
+    // ── Mini-sustos ambientales ────────────────────────────────────────────
+    this.ambientScareTimer += delta;
+    if (this.ambientScareTimer >= this.ambientScareInterval) {
+      this.triggerAmbientScare();
+    }
 
     this.playerStepTimer += delta;
     const isPlayerMoving = this.inputManager.keys.forward || this.inputManager.keys.backward || 

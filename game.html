@@ -79,6 +79,9 @@
       P - Pausa
     </div>
 
+    <!-- Flash de pantalla para mini-sustos (pointer-events:none para no bloquear input) -->
+    <div id="screenFlash" style="position:fixed;inset:0;opacity:0;pointer-events:none;z-index:9999;"></div>
+
     <div id="messageOverlay"></div>
     <div id="sanityOverlay"></div>
     <div id="sanityDistortion"></div>
@@ -448,22 +451,40 @@
       
       function triggerEnhancedJumpscare(enemyType) {
         currentEnemyType = enemyType;
-        
+
         const jumpscareOverlay = document.getElementById('jumpscareOverlay');
         if (!jumpscareOverlay) return;
-        
+
         drawJumpscareFace();
         jumpscareOverlay.classList.add('active');
-        
+
+        // Shake violento del body
         document.body.style.animation = 'none';
-        setTimeout(() => {
-          document.body.style.animation = 'jumpscareShake 0.5s ease-out';
-        }, 10);
-        
+        void document.body.offsetWidth; // force reflow
+        document.body.style.animation = 'jumpscareShake 0.6s ease-out';
+
         setTimeout(() => {
           jumpscareOverlay.classList.remove('active');
         }, 2500);
       }
+
+      /**
+       * Flash de pantalla rápido para mini-sustos ambientales.
+       * @param {string} color  color CSS (ej. '#ff0000')
+       * @param {number} ms     duración del flash en ms
+       */
+      function triggerScreenFlash(color, ms) {
+        const flash = document.getElementById('screenFlash');
+        if (!flash) return;
+        flash.style.background = color;
+        flash.style.opacity = '0.55';
+        flash.style.transition = 'none';
+        void flash.offsetWidth;
+        flash.style.transition = `opacity ${ms}ms ease-out`;
+        flash.style.opacity = '0';
+      }
+
+      window.triggerScreenFlash = triggerScreenFlash;
       
       window.addEventListener('resize', drawJumpscareFace);
 
