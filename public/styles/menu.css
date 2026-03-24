@@ -57,6 +57,7 @@
   transform: rotate(45deg);
   transform-origin: bottom right;
   animation: facePeekDiagonal 20s ease-in-out infinite 3s;
+  filter: drop-shadow(0 0 20px rgba(180, 0, 0, 0.6));
 }
 
 .face-container {
@@ -72,38 +73,43 @@
   transform: translateX(-50%);
   width: 70px;
   height: 90px;
-  background: #0a0505;
+  background: #1a0808;
   border-radius: 35% 35% 45% 45%;
-  box-shadow: 0 0 30px rgba(150, 0, 0, 0.3);
+  box-shadow: 
+    0 0 40px rgba(200, 0, 0, 0.5),
+    inset 0 0 20px rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(100, 0, 0, 0.4);
 }
 
 .face-eye {
   position: absolute;
   top: 30px;
-  width: 18px;
-  height: 10px;
-  background: #ff0000;
+  width: 20px;
+  height: 14px;
+  background: radial-gradient(circle, #ff3333 0%, #cc0000 70%, #880000 100%);
   border-radius: 50%;
   box-shadow: 
-    0 0 10px #ff0000,
-    0 0 20px rgba(255, 0, 0, 0.7),
-    0 0 40px rgba(255, 0, 0, 0.4);
-  animation: eyeGlow 2s ease-in-out infinite;
+    0 0 15px #ff0000,
+    0 0 30px rgba(255, 0, 0, 0.9),
+    0 0 60px rgba(255, 0, 0, 0.5),
+    0 0 80px rgba(255, 0, 0, 0.3);
+  animation: eyeGlow 1.5s ease-in-out infinite;
 }
 
-.face-eye.left { left: 12px; }
-.face-eye.right { right: 12px; }
+.face-eye.left { left: 10px; }
+.face-eye.right { right: 10px; }
 
 .face-mouth {
   position: absolute;
-  bottom: 15px;
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
-  width: 40px;
-  height: 25px;
+  width: 45px;
+  height: 30px;
   background: #000;
   border-radius: 0 0 50% 50%;
   overflow: hidden;
+  box-shadow: inset 0 5px 15px rgba(50, 0, 0, 0.8);
 }
 
 .face-teeth {
@@ -112,14 +118,15 @@
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 3px;
+  gap: 4px;
 }
 
 .face-tooth {
-  width: 6px;
-  height: 12px;
-  background: #2a1a1a;
+  width: 7px;
+  height: 14px;
+  background: linear-gradient(to bottom, #3a2020, #1a0a0a);
   border-radius: 0 0 2px 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* Mano sorpresa */
@@ -130,41 +137,49 @@
   width: 100px;
   height: 40px;
   pointer-events: none;
+  filter: drop-shadow(0 0 15px rgba(150, 0, 0, 0.5));
 }
 
 .shadow-hand::before {
   content: '';
   position: absolute;
-  width: 35px;
-  height: 35px;
-  background: #0a0505;
+  width: 40px;
+  height: 40px;
+  background: radial-gradient(circle, #1a0808, #0a0505);
   border-radius: 50% 50% 40% 40%;
-  box-shadow: 0 0 15px rgba(100, 0, 0, 0.3);
+  border: 2px solid rgba(80, 0, 0, 0.5);
 }
 
 .finger {
   position: absolute;
-  bottom: 30px;
-  background: #0a0505;
+  bottom: 35px;
+  background: linear-gradient(to bottom, #1a0808, #0a0505);
   border-radius: 5px 5px 3px 3px;
+  border: 1px solid rgba(60, 0, 0, 0.4);
 }
 
-.finger:nth-child(1) { left: 5px; width: 8px; height: 35px; }
-.finger:nth-child(2) { left: 17px; width: 7px; height: 42px; }
-.finger:nth-child(3) { left: 27px; width: 7px; height: 38px; }
-.finger:nth-child(4) { left: 37px; width: 6px; height: 30px; }
-.finger:nth-child(5) { left: 47px; width: 5px; height: 22px; transform: rotate(15deg); }
+.finger:nth-child(1) { left: 3px; width: 9px; height: 38px; }
+.finger:nth-child(2) { left: 16px; width: 8px; height: 45px; }
+.finger:nth-child(3) { left: 27px; width: 8px; height: 40px; }
+.finger:nth-child(4) { left: 38px; width: 7px; height: 32px; }
+.finger:nth-child(5) { left: 48px; width: 6px; height: 24px; transform: rotate(15deg); }
 
 @keyframes facePeekDiagonal {
-  0%, 75%, 100% { right: -150px; opacity: 0.3; }
-  10%, 65% { right: -60px; opacity: 1; }
-  20%, 55% { right: -30px; opacity: 1; }
-  30%, 45% { right: -15px; opacity: 1; }
+  0%, 78%, 100% { right: -180px; opacity: 0; transform: rotate(45deg) scale(0.8); }
+  8%, 70% { right: -80px; opacity: 1; transform: rotate(45deg) scale(1); }
+  18%, 60% { right: -50px; opacity: 1; transform: rotate(45deg) scale(1.05); }
+  28%, 48% { right: -25px; opacity: 1; transform: rotate(45deg) scale(1.1); }
 }
 
 @keyframes eyeGlow {
-  0%, 100% { box-shadow: 0 0 10px #ff0000, 0 0 20px rgba(255, 0, 0, 0.7); }
-  50% { box-shadow: 0 0 15px #ff0000, 0 0 30px rgba(255, 0, 0, 0.9), 0 0 50px rgba(255, 0, 0, 0.5); }
+  0%, 100% { 
+    box-shadow: 0 0 15px #ff0000, 0 0 30px rgba(255, 0, 0, 0.9), 0 0 60px rgba(255, 0, 0, 0.5);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 25px #ff0000, 0 0 50px rgba(255, 0, 0, 1), 0 0 80px rgba(255, 0, 0, 0.7);
+    transform: scale(1.2);
+  }
 }
 
 /* ════ RELÁMPAGOS ════ */
