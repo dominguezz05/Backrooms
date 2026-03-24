@@ -44,3 +44,10 @@ export const HIDING_SPOT_DISTANCE = 2.4;
 export const FLASHLIGHT_ANGLE = Math.PI / 6;
 export const FLASHLIGHT_INTENSITY = 2;
 export const FLASHLIGHT_DISTANCE = 12;
+
+export const POWERUP_SPAWN_CHANCE = 0.08;
+export const POWERUP_SPEED_DURATION = 10;
+export const POWERUP_SPEED_MULTIPLIER = 1.5;
+export const POWERUP_INVISIBLE_DURATION = 8;
+export const POWERUP_STUN_DURATION = 3;
+export const POWERUP_SANITY_AMOUNT = 50;
