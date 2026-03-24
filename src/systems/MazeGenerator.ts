@@ -1,5 +1,5 @@
 import { CellType } from '../types';
-import { CONFIG, DOOR_SPAWN_CHANCE, COBWEB_SPAWN_CHANCE } from '../constants';
+import { CONFIG, DOOR_SPAWN_CHANCE } from '../constants';
 
 export interface MazeOptions {
   openRooms?: boolean;
@@ -265,22 +265,6 @@ export class MazeGenerator {
             this.maze[z][x] = CellType.DOOR;
             doorsPlaced++;
           }
-        }
-      }
-    }
-
-    // ── Telarañas ────────────────────────────────────────────────────────────
-    let cobwebsPlaced = 0;
-    const maxCobwebs = 8;
-
-    while (cobwebsPlaced < maxCobwebs) {
-      const x = Math.floor(Math.random() * (this.width - 4)) + 2;
-      const z = Math.floor(Math.random() * (this.height - 4)) + 2;
-
-      if (this.maze[z][x] === CellType.EMPTY && (x > 3 || z > 3)) {
-        if (Math.random() < COBWEB_SPAWN_CHANCE) {
-          this.maze[z][x] = CellType.COBWEB;
-          cobwebsPlaced++;
         }
       }
     }

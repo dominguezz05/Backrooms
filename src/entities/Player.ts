@@ -20,7 +20,6 @@ export class Player {
   speedBoostTimer: number = 0;
   invisibilityTimer: number = 0;
   isInvisible: boolean = false;
-  cobwebSlowFactor: number = 1.0; // Factor de ralentización por telarañas
   closedDoors: Array<{ cellX: number; cellZ: number; isClosed: boolean }> = []; // Puertas cerradas
   private sceneManager: SceneManager;
   private inputManager: InputManager;
@@ -147,7 +146,7 @@ export class Player {
       }
 
       const baseSpeed = this.isSprinting ? CONFIG.SPRINT_SPEED : CONFIG.WALK_SPEED;
-      const speed = baseSpeed * this.getSpeedMultiplier() * this.cobwebSlowFactor;
+      const speed = baseSpeed * this.getSpeedMultiplier();
 
       const forward = new THREE.Vector3(
         -Math.sin(this.yaw),

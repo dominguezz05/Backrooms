@@ -8,7 +8,7 @@ import { UIManager } from './systems/UIManager';
 import { ScoreManager } from './systems/ScoreManager';
 import { Player } from './entities/Player';
 import { Enemy } from './entities/Enemy';
-import { CONFIG, POWERUP_STUN_DURATION, DOOR_SPAWN_CHANCE, DOOR_CLOSE_INTERVAL_MIN, DOOR_CLOSE_INTERVAL_MAX, DOOR_CLOSE_DURATION, DOOR_SPEED, COBWEB_SPAWN_CHANCE, COBWEB_SLOW_FACTOR } from './constants';
+import { CONFIG, POWERUP_STUN_DURATION, DOOR_SPAWN_CHANCE, DOOR_CLOSE_INTERVAL_MIN, DOOR_CLOSE_INTERVAL_MAX, DOOR_CLOSE_DURATION, DOOR_SPEED } from './constants';
 import { CellType, EnemyType } from './types';
 import { createFloorTexture, createWallTexture, createCeilingTexture } from './utils/textures';
 
@@ -123,20 +123,14 @@ export class Game {
     isClosed: boolean;
     isClosing: boolean;
     isOpening: boolean;
+    doorY: number;
+    doorClosedY: number;
+    light: THREE.PointLight;
     closeTimer: number;
     openTimer: number;
   }> = [];
   private doorCloseInterval = 0;
   private doorTimer = 0;
-
-  // ── Sistema de Telarañas ─────────────────────────────────────────────────────
-  private cobwebs: Array<{
-    mesh: THREE.Mesh;
-    cellX: number;
-    cellZ: number;
-    isActive: boolean;
-  }> = [];
-  private cobwebSlowFactor = 1.0;
 
 
 
@@ -942,11 +936,6 @@ export class Game {
         if (cell === CellType.DOOR) {
           this.createDoorMesh(x, z, posX, posZ, unitSize, wallHeight);
         }
-
-        // Telarañas
-        if (cell === CellType.COBWEB) {
-          this.createCobwebMesh(x, z, posX, posZ);
-        }
       }
     }
 
@@ -962,59 +951,73 @@ export class Game {
   }
 
   private createDoorMesh(cellX: number, cellZ: number, posX: number, posZ: number, unitSize: number, wallHeight: number): void {
-    // Determinar orientación de la puerta
-    const hasWallNorth = cellZ > 0 && this.maze[cellZ - 1]?.[cellX] === CellType.WALL;
-    const hasWallSouth = cellZ < this.maze.length - 1 && this.maze[cellZ + 1]?.[cellX] === CellType.WALL;
-    const isHorizontal = hasWallNorth || hasWallSouth;
-
     const doorGroup = new THREE.Group();
     
-    // Puerta de madera
+    // Puerta corredera metálica (panel horizontal que baja desde el techo)
     const doorMat = new THREE.MeshStandardMaterial({
-      color: 0x3d2817,
-      roughness: 0.85,
-      metalness: 0.1,
-      emissive: new THREE.Color(0x1a0a00),
-      emissiveIntensity: 0.2
+      color: 0x4a4a4a,
+      roughness: 0.6,
+      metalness: 0.8,
+      emissive: new THREE.Color(0x1a1a1a),
+      emissiveIntensity: 0.3
     });
 
-    const doorWidth = isHorizontal ? unitSize * 0.15 : unitSize * 0.7;
-    const doorDepth = isHorizontal ? unitSize * 0.7 : unitSize * 0.15;
-    const doorHeight = wallHeight * 0.85;
+    const doorWidth = unitSize * 0.95;
+    const doorDepth = unitSize * 0.15;
+    const doorHeight = wallHeight * 0.95;
+    const doorY = wallHeight + doorHeight / 2; // Empieza ARRIBA del todo (abierta)
 
     const doorMesh = new THREE.Mesh(
       new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth),
       doorMat
     );
     
-    doorMesh.position.set(posX, doorHeight / 2, posZ);
+    doorMesh.position.set(posX, doorY, posZ);
     doorMesh.castShadow = true;
     doorMesh.receiveShadow = true;
     doorGroup.add(doorMesh);
 
-    // Marco de la puerta
+    // Marco metálico en el techo
     const frameMat = new THREE.MeshStandardMaterial({
-      color: 0x2a1a0a,
-      roughness: 0.9,
-      metalness: 0.05
+      color: 0x2a2a2a,
+      roughness: 0.5,
+      metalness: 0.9
     });
 
-    const frameThickness = 0.1;
-    const frameWidth = isHorizontal ? unitSize * 0.05 : unitSize * 0.8;
-    const frameDepth = isHorizontal ? unitSize * 0.8 : unitSize * 0.05;
-
-    // Marco superior
-    const topFrame = new THREE.Mesh(
-      new THREE.BoxGeometry(unitSize, frameThickness, unitSize),
+    // Riel superior
+    const railMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(doorWidth + 0.2, 0.15, doorDepth + 0.2),
       frameMat
     );
-    topFrame.position.set(posX, wallHeight - frameThickness / 2, posZ);
-    doorGroup.add(topFrame);
+    railMesh.position.set(posX, wallHeight - 0.05, posZ);
+    doorGroup.add(railMesh);
 
-    // Luz indicadora (verde = abierta, roja = cerrada)
-    const indicatorLight = new THREE.PointLight(0x00ff00, 0.5, 3);
-    indicatorLight.position.set(posX, wallHeight - 0.3, posZ);
+    // Soportes laterales del riel
+    const supportGeo = new THREE.BoxGeometry(0.1, 0.3, doorDepth + 0.3);
+    const supportL = new THREE.Mesh(supportGeo, frameMat);
+    supportL.position.set(posX - doorWidth / 2 - 0.05, wallHeight - 0.15, posZ);
+    doorGroup.add(supportL);
+    const supportR = new THREE.Mesh(supportGeo, frameMat);
+    supportR.position.set(posX + doorWidth / 2 + 0.05, wallHeight - 0.15, posZ);
+    doorGroup.add(supportR);
+
+    // Luz indicadora en el marco (verde = abierta/arriba, roja = cerrada/abajo)
+    const indicatorLight = new THREE.PointLight(0x00ff00, 0.6, 4);
+    indicatorLight.position.set(posX, wallHeight - 0.5, posZ);
     doorGroup.add(indicatorLight);
+
+    // Linha de advertencia en el suelo (se ve cuando está cerrada)
+    const warningLineMat = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.8
+    });
+    const warningLine = new THREE.Mesh(
+      new THREE.BoxGeometry(doorWidth - 0.2, 0.05, doorDepth + 0.1),
+      warningLineMat
+    );
+    warningLine.position.set(posX, 0.02, posZ);
+    doorGroup.add(warningLine);
 
     this.sceneManager.scene.add(doorGroup);
 
@@ -1026,79 +1029,11 @@ export class Game {
       isClosed: false,
       isClosing: false,
       isOpening: false,
+      doorY: doorY, // Posición arriba (abierta)
+      doorClosedY: doorHeight / 2, // Posición abajo (cerrada)
+      light: indicatorLight,
       closeTimer: 0,
       openTimer: 0
-    });
-    // La puerta empieza ABIERTA, no se añade collider
-  }
-
-  private createCobwebMesh(cellX: number, cellZ: number, posX: number, posZ: number): void {
-    const cobwebCanvas = document.createElement('canvas');
-    cobwebCanvas.width = 128;
-    cobwebCanvas.height = 128;
-    const ctx = cobwebCanvas.getContext('2d')!;
-
-    ctx.fillStyle = 'transparent';
-    ctx.clearRect(0, 0, 128, 128);
-
-    ctx.strokeStyle = 'rgba(200, 200, 200, 0.6)';
-    ctx.lineWidth = 1;
-
-    // Líneas radiales
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(64, 64);
-      ctx.lineTo(64 + Math.cos(angle) * 55, 64 + Math.sin(angle) * 55);
-      ctx.stroke();
-    }
-
-    // Círculos concéntricos
-    for (let r = 10; r <= 50; r += 12) {
-      ctx.beginPath();
-      ctx.arc(64, 64, r, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // Destellos adicionales
-    ctx.strokeStyle = 'rgba(180, 180, 180, 0.4)';
-    for (let i = 0; i < 8; i++) {
-      const angle1 = Math.random() * Math.PI * 2;
-      const angle2 = angle1 + Math.random() * 0.5;
-      const r1 = 20 + Math.random() * 30;
-      const r2 = r1 + 10 + Math.random() * 20;
-      ctx.beginPath();
-      ctx.moveTo(64 + Math.cos(angle1) * r1, 64 + Math.sin(angle1) * r1);
-      ctx.quadraticCurveTo(
-        64 + Math.cos((angle1 + angle2) / 2) * (r1 + r2) / 2 + (Math.random() - 0.5) * 20,
-        64 + Math.sin((angle1 + angle2) / 2) * (r1 + r2) / 2 + (Math.random() - 0.5) * 20,
-        64 + Math.cos(angle2) * r2,
-        64 + Math.sin(angle2) * r2
-      );
-      ctx.stroke();
-    }
-
-    const cobwebTexture = new THREE.CanvasTexture(cobwebCanvas);
-    const cobwebMaterial = new THREE.MeshBasicMaterial({
-      map: cobwebTexture,
-      transparent: true,
-      opacity: 0.7,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    });
-
-    const cobwebGeo = new THREE.PlaneGeometry(CONFIG.UNIT_SIZE * 0.9, CONFIG.UNIT_SIZE * 0.9);
-    const cobwebMesh = new THREE.Mesh(cobwebGeo, cobwebMaterial);
-    cobwebMesh.rotation.x = -Math.PI / 2;
-    cobwebMesh.position.set(posX, CONFIG.WALL_HEIGHT * 0.7 + Math.random() * 0.5, posZ);
-
-    this.sceneManager.scene.add(cobwebMesh);
-
-    this.cobwebs.push({
-      mesh: cobwebMesh,
-      cellX,
-      cellZ,
-      isActive: true
     });
   }
 
@@ -1131,17 +1066,18 @@ export class Game {
       if (door.isClosing) {
         door.closeTimer += delta * 1000;
         
-        // Animación de cierre
-        const closeProgress = Math.min(door.closeTimer / 800, 1);
-        door.mesh.children[0].position.x = door.mesh.children[0].position.x;
+        // Animación de cierre - la puerta baja suavemente
+        const closeProgress = Math.min(door.closeTimer / 1000, 1);
+        const easedProgress = 1 - Math.pow(1 - closeProgress, 3); // Ease out cubic
+        const newY = door.doorY - (door.doorY - door.doorClosedY) * easedProgress;
+        door.mesh.position.y = newY;
         
-        if (door.closeTimer >= 800) {
+        if (door.closeTimer >= 1000) {
           door.isClosing = false;
           door.isClosed = true;
           
           // Cambiar luz indicadora a rojo
-          const light = door.mesh.children.find(c => c instanceof THREE.PointLight) as THREE.PointLight | undefined;
-          if (light) light.color.setHex(0xff0000);
+          if (door.light) door.light.color.setHex(0xff0000);
           
           // Añadir collider
           this.addDoorCollider(door);
@@ -1151,13 +1087,18 @@ export class Game {
       if (door.isOpening) {
         door.openTimer += delta * 1000;
         
-        if (door.openTimer >= 800) {
+        // Animación de apertura - la puerta sube suavemente
+        const openProgress = Math.min(door.openTimer / 1000, 1);
+        const easedProgress = 1 - Math.pow(1 - openProgress, 3);
+        const newY = door.doorClosedY + (door.doorY - door.doorClosedY) * easedProgress;
+        door.mesh.position.y = newY;
+        
+        if (door.openTimer >= 1000) {
           door.isOpening = false;
           door.isClosed = false;
           
           // Cambiar luz indicadora a verde
-          const light = door.mesh.children.find(c => c instanceof THREE.PointLight) as THREE.PointLight | undefined;
-          if (light) light.color.setHex(0x00ff00);
+          if (door.light) door.light.color.setHex(0x00ff00);
           
           // Quitar collider
           this.removeDoorCollider(door);
@@ -1178,43 +1119,15 @@ export class Game {
   }
 
   private addDoorCollider(door: { meshCollider: THREE.Mesh }): void {
-    // Añadir el mesh de la puerta a objetos colisionables
     if (!this.collidableObjects.includes(door.meshCollider)) {
       this.collidableObjects.push(door.meshCollider);
     }
   }
 
   private removeDoorCollider(door: { meshCollider: THREE.Mesh }): void {
-    // Quitar el mesh de la puerta de objetos colisionables
     const index = this.collidableObjects.indexOf(door.meshCollider);
     if (index > -1) {
       this.collidableObjects.splice(index, 1);
-    }
-  }
-
-  private updateCobwebs(): void {
-    this.cobwebSlowFactor = 1.0;
-    
-    for (const cobweb of this.cobwebs) {
-      if (!cobweb.isActive) continue;
-      
-      const cobwebWorldX = cobweb.cellX * CONFIG.UNIT_SIZE;
-      const cobwebWorldZ = cobweb.cellZ * CONFIG.UNIT_SIZE;
-      
-      const dx = this.player.position.x - cobwebWorldX;
-      const dz = this.player.position.z - cobwebWorldZ;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      
-      if (dist < CONFIG.UNIT_SIZE * 0.5) {
-        this.cobwebSlowFactor = COBWEB_SLOW_FACTOR;
-        
-        // Efecto visual: oscurecer la telaraña
-        const material = cobweb.mesh.material as THREE.MeshBasicMaterial;
-        material.opacity = 0.9;
-      } else {
-        const material = cobweb.mesh.material as THREE.MeshBasicMaterial;
-        material.opacity = 0.7;
-      }
     }
   }
 
@@ -2461,8 +2374,7 @@ export class Game {
       this.doSpawnEnemies();
     }
 
-    // Aplicar ralentización de telarañas y puertas cerradas al jugador
-    this.player.cobwebSlowFactor = this.cobwebSlowFactor;
+    // Aplicar estado de puertas cerradas al jugador
     this.player.closedDoors = this.dynamicDoors.filter(d => d.isClosed || d.isClosing);
     this.player.update(delta);
     this.checkBatteryCollection();
@@ -2538,9 +2450,6 @@ export class Game {
 
     // ── Puertas Dinámicas ─────────────────────────────────────────────────────
     this.updateDynamicDoors(delta);
-
-    // ── Telarañas ──────────────────────────────────────────────────────────────
-    this.updateCobwebs();
 
     // ── Trail del Jugador ─────────────────────────────────────────────────────
     if (isMoving) {

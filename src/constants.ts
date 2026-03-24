@@ -57,6 +57,3 @@ export const DOOR_CLOSE_INTERVAL_MIN = 8000;
 export const DOOR_CLOSE_INTERVAL_MAX = 15000;
 export const DOOR_CLOSE_DURATION = 5000;
 export const DOOR_SPEED = 2.5;
-
-export const COBWEB_SPAWN_CHANCE = 0.12;
-export const COBWEB_SLOW_FACTOR = 0.7;

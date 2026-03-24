@@ -24,7 +24,7 @@
 |--------|-------------|-----------|
 | Power-ups | Velocidad, Invisibilidad, Stun, Cordura | ✅ Completado |
 | Notas/historia | Notas创伤adas con texto sobre los Backrooms | ✅ Ya existe |
-| Telarañas | Obstáculos que reducen velocidad 30% | ✅ Completado |
+| Telarañas | Obstáculos que reducen velocidad 30% | ❌ Eliminado |
 | Puertas dinámicas | Se cierran aleatoriamente creando presión | ✅ Completado |
 | Sistema de checkpoints | Guardar progreso en niveles largos | Media |
 | Inventario rápido | Acceso rápido a objetos collected | Baja |
