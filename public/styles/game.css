@@ -91,6 +91,112 @@
   animation: spin 1s linear infinite;
 }
 
+/* ════ TUTORIAL MODAL ════ */
+#tutorialModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.95);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 250;
+}
+
+#tutorialModal.active {
+  display: flex;
+}
+
+.tutorial-box {
+  background: linear-gradient(135deg, #1a0505, #0a0202);
+  border: 2px solid rgba(200, 80, 80, 0.5);
+  border-radius: 12px;
+  padding: 40px 50px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(180, 0, 0, 0.4);
+  animation: tutorialFadeIn 0.5s ease-out;
+}
+
+@keyframes tutorialFadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.tutorial-box h2 {
+  font-family: var(--font-title);
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  color: #ff6666;
+  text-shadow: 0 0 20px rgba(255, 100, 100, 0.5);
+  margin-bottom: 5px;
+}
+
+.tutorial-subtitle {
+  color: #888;
+  font-size: 1rem;
+  margin-bottom: 25px;
+}
+
+.tutorial-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.tutorial-item {
+  display: flex;
+  flex-direction: column;
+  background: rgba(30, 10, 10, 0.8);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(100, 40, 40, 0.3);
+}
+
+.tutorial-key {
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+  color: #ff8888;
+  margin-bottom: 5px;
+}
+
+.tutorial-desc {
+  font-size: 0.9rem;
+  color: #999;
+}
+
+.tutorial-tip {
+  color: #88aa88;
+  font-size: 1rem;
+  margin-bottom: 25px;
+  padding: 10px;
+  background: rgba(50, 100, 50, 0.2);
+  border-radius: 6px;
+}
+
+.tutorial-btn {
+  font-family: var(--font-title);
+  font-size: 1.3rem;
+  padding: 15px 40px;
+  background: linear-gradient(135deg, #4a0208, #6a030a);
+  color: #ffcccc;
+  border: 2px solid rgba(200, 80, 80, 0.6);
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 2px;
+  transition: all 0.25s ease;
+}
+
+.tutorial-btn:hover {
+  background: linear-gradient(135deg, #6a030a, #8a040c);
+  color: #fff;
+  box-shadow: 0 0 25px rgba(200, 0, 0, 0.5);
+  letter-spacing: 4px;
+}
+
 /* ════ HUD ════ */
 #hud {
   position: absolute;

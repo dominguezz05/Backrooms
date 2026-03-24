@@ -102,11 +102,7 @@ export class Game {
   private readonly MAX_FOOTPRINTS = 28;
   private readonly FOOTPRINT_LIFETIME = 18;
 
-  // Sistema de tutorial/hints
-  private tutorialHints: Array<{ key: string; text: string; time: number }> = [];
-  private currentHintIndex = 0;
-  private tutorialTimer = 0;
-  private tutorialShown = false;
+
 
   constructor() {
     this.sceneManager = new SceneManager();
@@ -191,7 +187,6 @@ export class Game {
     await delay(200);
     this.uiManager.setLoadingProgress(95, 'Listo para comenzar...');
     this.setupStartButton();
-    this.startTutorial();
 
     await delay(300);
     this.uiManager.setLoadingProgress(100, '¡Pulsa para empezar!');
@@ -319,29 +314,53 @@ export class Game {
 
   private setupStartButton(): void {
     const startOverlay = document.getElementById('startOverlay');
+    const tutorialModal = document.getElementById('tutorialModal');
+    const tutorialBtn = document.getElementById('tutorialStartBtn');
     const self = this;
+
     if (startOverlay) {
       startOverlay.addEventListener('click', async () => {
         startOverlay.style.display = 'none';
-        self.inputManager.requestPointerLock();
-        await self.audioManager.init(self.sceneManager.camera);
-        self.audioManager.startAmbientMusic();
-        self.audioManager.startFluorescentHum();
-        self.audioManager.startLevelAmbience(self.currentLevel);
-        (window as Window & { togglePause?: () => void }).togglePause = () => self.togglePause();
-        // Nivel 4: linterna encendida desde el inicio con batería reducida
-        if (self.currentLevel === 'level4') {
-          self.player.battery = 55;
-          self.player.isFlashlightOn = true;
-          self.sceneManager.toggleFlashlight(true);
+
+        // Mostrar tutorial solo en nivel 1 y primera vez
+        const isFirstTime = !localStorage.getItem('backrooms_tutorial_done');
+        if (tutorialModal && self.currentLevel === 'level1' && isFirstTime) {
+          tutorialModal.classList.add('active');
+          
+          if (tutorialBtn) {
+            tutorialBtn.addEventListener('click', () => {
+              tutorialModal.classList.remove('active');
+              localStorage.setItem('backrooms_tutorial_done', 'true');
+              self.startGame();
+            });
+          }
+        } else {
+          self.startGame();
         }
-        self.gameStartTime = Date.now();
-        self.statsLastPos.copy(self.player.position);
-        self.isActive = true;
-        self.startTutorial(); // Iniciar tutorial cuando el juego comienza
-        self.animate();
       });
     }
+  }
+
+  private startGame(): void {
+    const self = this;
+    this.inputManager.requestPointerLock();
+    this.audioManager.init(this.sceneManager.camera).then(() => {
+      this.audioManager.startAmbientMusic();
+      this.audioManager.startFluorescentHum();
+      this.audioManager.startLevelAmbience(this.currentLevel);
+    });
+    (window as Window & { togglePause?: () => void }).togglePause = () => this.togglePause();
+    
+    if (this.currentLevel === 'level4') {
+      this.player.battery = 55;
+      this.player.isFlashlightOn = true;
+      this.sceneManager.toggleFlashlight(true);
+    }
+    
+    this.gameStartTime = Date.now();
+    this.statsLastPos.copy(this.player.position);
+    this.isActive = true;
+    this.animate();
   }
 
   private buildMaze(): void {
@@ -1395,47 +1414,6 @@ export class Game {
         }
       }
     }
-  }
-
-  private startTutorial(): void {
-    const isFirstTime = !localStorage.getItem('backrooms_tutorial_done');
-    
-    this.tutorialHints = [
-      { key: 'WASD', text: 'WASD o flechas para moverte', time: 5 },
-      { key: 'MOUSE', text: 'MOUSE para mirar alrededor', time: 6 },
-      { key: 'SHIFT', text: 'SHIFT para correr (gasta stamina)', time: 7 },
-      { key: 'F', text: 'F para encender/apagar linterna', time: 8 },
-      { key: 'CTRL', text: 'CTRL para esconderte cerca de arbustos', time: 9 },
-      { key: 'P', text: 'P para pausar', time: 10 },
-    ];
-    
-    if (isFirstTime) {
-      this.tutorialShown = true;
-      this.currentHintIndex = 0;
-      this.tutorialTimer = 0;
-      this.showTutorialHint();
-    }
-  }
-
-  private showTutorialHint(): void {
-    if (this.currentHintIndex >= this.tutorialHints.length) {
-      localStorage.setItem('backrooms_tutorial_done', 'true');
-      this.tutorialShown = false;
-      return;
-    }
-
-    const hint = this.tutorialHints[this.currentHintIndex];
-    this.horrorEffects.showMessage(`${hint.key}: ${hint.text}`, 3000);
-    
-    setTimeout(() => {
-      this.currentHintIndex++;
-      if (this.currentHintIndex < this.tutorialHints.length) {
-        setTimeout(() => this.showTutorialHint(), 1000);
-      } else {
-        localStorage.setItem('backrooms_tutorial_done', 'true');
-        this.tutorialShown = false;
-      }
-    }, hint.time * 1000);
   }
 
   private stunAllEnemies(): void {
