@@ -183,7 +183,22 @@ export class Game {
     this.uiManager.setLoadingProgress(100, '¡Pulsa para empezar!');
     await delay(500);
     this.uiManager.showLoading(false);
+    
+    // Detener audio del menú para evitar conflictos
+    this.cleanupMenuAudio();
+    
     console.log('[Game] Initialization complete - Level:', this.currentLevel);
+  }
+
+  private cleanupMenuAudio(): void {
+    // Detener el AudioContext del menú si existe
+    const menuCtx = (window as any).menuAudioContext;
+    if (menuCtx) {
+      menuCtx.suspend();
+    }
+    // Limpiar variables globales del menú
+    (window as any).menuAudioContext = null;
+    (window as any).menuMasterGain = null;
   }
 
   togglePause(): void {
