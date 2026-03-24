@@ -1625,6 +1625,43 @@ export class Game {
       }
     }
 
+    // Power-ups en el mapa
+    for (const powerUp of this.powerUps) {
+      const pux = powerUp.position.x / CONFIG.UNIT_SIZE;
+      const puz = powerUp.position.z / CONFIG.UNIT_SIZE;
+      const cellType = powerUp.userData.cellType;
+      
+      // Color según tipo
+      let color = 'rgba(255, 255, 255, 0.9)'; // Default: blanco
+      if (cellType === CellType.POWER_SPEED) {
+        color = 'rgba(255, 136, 0, 0.95)'; // Naranja para velocidad
+      } else if (cellType === CellType.POWER_INVISIBLE) {
+        color = 'rgba(0, 255, 255, 0.95)'; // Cian para invisibilidad
+      } else if (cellType === CellType.POWER_STUN) {
+        color = 'rgba(255, 215, 0, 0.95)'; // Amarillo para stun
+      } else if (cellType === CellType.POWER_SANITY) {
+        color = 'rgba(200, 100, 255, 0.95)'; // Púrpura para cordura
+      }
+      
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      // Diamante en vez de círculo
+      const cx = pux * cellPx;
+      const cz = puz * cellPx;
+      const r = cellPx * 0.5;
+      ctx.moveTo(cx, cz - r);
+      ctx.lineTo(cx + r, cz);
+      ctx.lineTo(cx, cz + r);
+      ctx.lineTo(cx - r, cz);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Borde blanco
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
     // 2) Capa de niebla de guerra encima del laberinto (antes de los iconos dinámicos)
     if (this.fogCanvas) {
       ctx.drawImage(this.fogCanvas, 0, 0);
