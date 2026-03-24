@@ -1,0 +1,86 @@
+/* ═══════════════════════════════════════════════════════════════════
+   COMMON STYLES - Pesadilla en los Backrooms
+   Variables, reset, fonts, and shared animations
+═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Creepster&family=VT323&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --main-bg: #020202;
+  --text-color: #909090;
+  --text-dim: #555;
+  --accent-red: #b00000;
+  --accent-glow: #ff4444;
+  --menu-bg: rgba(8, 3, 3, 0.95);
+  --btn-bg: #3a0208;
+  --btn-hover: #5a020b;
+  --btn-text: #ddd;
+  
+  --font-title: 'Creepster', cursive;
+  --font-body: 'VT323', monospace;
+}
+
+body {
+  background-color: var(--main-bg);
+  color: var(--text-color);
+  font-family: var(--font-body);
+  overflow: hidden;
+  cursor: default;
+  position: relative;
+}
+
+canvas {
+  display: block;
+}
+
+/* ════ SHARED ANIMATIONS ════ */
+
+@keyframes titlePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes noteAppear {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ════ SCROLLBAR STYLING ════ */
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 50, 50, 0.5);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 50, 50, 0.7);
+}
