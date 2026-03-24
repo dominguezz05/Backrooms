@@ -715,15 +715,24 @@ export class Game {
             side: THREE.DoubleSide,
           });
 
-          // Plano vertical alineado con la pared
-          const crackMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(unitSize * 0.15, wallHeight * 0.92),
-            crackMat
-          );
-          crackMesh.position.set(posX, wallHeight / 2, posZ);
-          // Si pasillos a izq/dcha → la pared mira en Z → giramos 90° para que el crack mire en X
-          crackMesh.rotation.y = isHorizontal ? Math.PI / 2 : 0;
-          this.sceneManager.scene.add(crackMesh);
+          // Poner el crack en ambas caras visibles de la pared
+          // isHorizontal = pasillo corre en X (vecinos a izq/dcha) → caras visibles son las X faces → desplazar en X, rotar para mirar ±X
+          // !isHorizontal = pasillo corre en Z (vecinos arriba/abajo) → caras visibles son las Z faces → desplazar en Z, rotar para mirar ±Z
+          const halfU = unitSize * 0.501;
+          const crackGeomInst = new THREE.PlaneGeometry(unitSize * 0.18, wallHeight * 0.9);
+          for (const sign of [-1, 1]) {
+            const crackMesh = new THREE.Mesh(crackGeomInst, crackMat);
+            if (isHorizontal) {
+              // Caras que miran en ±X (el pasillo está a izquierda/derecha en X)
+              crackMesh.position.set(posX + sign * halfU, wallHeight / 2, posZ);
+              crackMesh.rotation.y = Math.PI / 2;
+            } else {
+              // Caras que miran en ±Z (el pasillo está arriba/abajo en Z)
+              crackMesh.position.set(posX, wallHeight / 2, posZ + sign * halfU);
+              crackMesh.rotation.y = 0;
+            }
+            this.sceneManager.scene.add(crackMesh);
+          }
 
           // Luz naranja tenue que delata la rendija
           const rendijaLight = new THREE.PointLight(0xff4400, 1.2, 4);
@@ -1529,50 +1538,88 @@ export class Game {
     }, 400, 600);
   }
 
-  private triggerJumpscare(enemyType: string = 'stalker'): void {
-    const jumpscareOverlay = document.getElementById('jumpscareOverlay');
+  private triggerJumpscare(killingEnemy: Enemy): void {
     const gameOverOverlay = document.getElementById('gameOverOverlay');
+    const flash = document.getElementById('screenFlash');
 
-    // 1) Flash rojo inmediato + shake fuerte de cámara
-    const flashFn = (window as unknown as { triggerScreenFlash?: (color: string, ms: number) => void }).triggerScreenFlash;
-    if (flashFn) flashFn('#ff0000', 60);
-    this.sceneManager.startCameraShake(0.22, 0.55);
+    const doFlash = (color: string, ms: number, opacity = 0.75) => {
+      if (!flash) return;
+      flash.style.background = color;
+      flash.style.transition = 'none';
+      flash.style.opacity = String(opacity);
+      void (flash as HTMLElement).offsetWidth;
+      flash.style.transition = `opacity ${ms}ms ease-out`;
+      flash.style.opacity = '0';
+    };
 
-    // 2) Sonido de jumpscare inmediato (lo más importante)
-    this.audioManager.playJumpscareSound();
-
-    // 3) Cara aparece 220 ms después para que el flash/shake preceda a la imagen
-    setTimeout(() => {
-      const drawFn = (window as unknown as { triggerEnhancedJumpscare?: (type: string) => void }).triggerEnhancedJumpscare;
-      if (drawFn) {
-        drawFn(enemyType);
-      } else {
-        (window as unknown as { drawJumpscareFace?: () => void }).drawJumpscareFace?.();
-        if (jumpscareOverlay) jumpscareOverlay.classList.add('active');
-      }
-    }, 220);
-
+    // Stats y logros
     const stats = ScoreManager.getStats();
     stats.totalDeaths++;
-    stats.totalCoins += this.statsCoinsCollected;
-    stats.totalBatteries += this.statsBatteriesCollected;
+    stats.totalCoins      += this.statsCoinsCollected;
+    stats.totalBatteries  += this.statsBatteriesCollected;
     ScoreManager.saveStats(stats);
-    
     ScoreManager.unlockAchievement('first_death');
 
-    setTimeout(() => {
-      if (jumpscareOverlay) jumpscareOverlay.classList.remove('active');
-      this.showStats(false);
-      if (gameOverOverlay) gameOverOverlay.classList.add('active');
-      document.exitPointerLock();
-      
-      // Fade-in suave del overlay de muerte
-      if (this.transitionOverlay) {
-        this.transitionOverlay.style.transition = 'opacity 0.5s ease';
-        this.transitionOverlay.style.opacity = '0';
-        this.transitionOverlay.classList.remove('active');
+    // Flash rojo inmediato + sonido
+    doFlash('#cc0000', 80);
+    this.audioManager.playJumpscareSound();
+
+    // Apagar linterna — oscuridad total
+    this.sceneManager.toggleFlashlight(false);
+    this.sceneManager.ambientLight.intensity = 0.02;
+
+    // Iniciar animación de mordida del enemigo
+    killingEnemy.startEatAnimation(this.sceneManager.camera, () => {
+      // Momento de la mordida: flash rojo fuerte + segundo sonido
+      doFlash('#ff0000', 350, 0.9);
+      this.audioManager.playJumpscareSound();
+    });
+
+    // Overlay rojo que se oscurece durante la animación
+    const eatOverlay = document.createElement('div');
+    eatOverlay.style.cssText = `
+      position:fixed;inset:0;background:rgba(120,0,0,0);
+      pointer-events:none;z-index:8000;transition:none;
+    `;
+    document.body.appendChild(eatOverlay);
+
+    // Loop de animación dedicado (el loop principal se detuvo por gameOver=true)
+    const eatClock = new THREE.Clock();
+    eatClock.getDelta(); // consumir primer delta
+    let eatElapsed = 0;
+    const EAT_DURATION = Enemy.EAT_DURATION;
+
+    const eatLoop = () => {
+      const d = Math.min(eatClock.getDelta(), 0.05);
+      eatElapsed += d;
+      const progress = Math.min(1, eatElapsed / EAT_DURATION);
+
+      // Sacudida de cámara creciente
+      this.sceneManager.startCameraShake(0.08 + progress * 0.45, 0.06);
+
+      // Overlay rojo se vuelve negro progresivamente en la última tercera parte
+      if (progress > 0.6) {
+        const fade = (progress - 0.6) / 0.4;
+        eatOverlay.style.background = `rgba(${Math.round(120 * (1 - fade))},0,0,${(0.3 + fade * 0.7).toFixed(2)})`;
       }
-    }, 2500);
+
+      const stillEating = killingEnemy.updateEatAnimation(d);
+      this.sceneManager.render();
+
+      if (stillEating) {
+        requestAnimationFrame(eatLoop);
+      } else {
+        // Pantalla negra total → modal
+        eatOverlay.style.background = 'rgba(0,0,0,1)';
+        setTimeout(() => {
+          document.body.removeChild(eatOverlay);
+          this.showStats(false);
+          if (gameOverOverlay) gameOverOverlay.classList.add('active');
+          document.exitPointerLock();
+        }, 350);
+      }
+    };
+    requestAnimationFrame(eatLoop);
   }
 
   private triggerSanityGameOver(): void {
@@ -2478,7 +2525,7 @@ export class Game {
 
       if (enemy.canKillPlayer(this.player.position)) {
         this.gameOver = true;
-        this.triggerJumpscare(enemy.type);
+        this.triggerJumpscare(enemy);
         console.log('[Game] Game Over - Player killed');
         return;
       }

@@ -1653,6 +1653,97 @@ export class Enemy {
     return distance2D < MONSTER_KILL_DISTANCE;
   }
 
+  // ── Eat / jumpscare animation ──────────────────────────────────────────────
+  private _eatActive  = false;
+  private _eatTimer   = 0;
+  private _eatBiteDone = false;
+  private _eatCamera: THREE.PerspectiveCamera | null = null;
+  private _eatOnBite: (() => void) | null = null;
+  static readonly EAT_DURATION = 1.6;
+
+  startEatAnimation(camera: THREE.PerspectiveCamera, onBite: () => void): void {
+    this._eatCamera  = camera;
+    this._eatOnBite  = onBite;
+    this._eatTimer   = 0;
+    this._eatActive  = true;
+    this._eatBiteDone = false;
+
+    // Colocar el enemigo justo delante de la cámara
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    camDir.y = 0;
+    camDir.normalize();
+
+    this.mesh.position.copy(camera.position).addScaledVector(camDir, 3.5);
+    this.mesh.position.y = 0;
+    this.position.copy(this.mesh.position);
+    this.mesh.lookAt(new THREE.Vector3(camera.position.x, 0, camera.position.z));
+
+    // Brazos extendidos hacia adelante desde el inicio
+    if (this.bodyParts) {
+      this.bodyParts.leftArm.rotation.x  = -0.8;
+      this.bodyParts.rightArm.rotation.x = -0.8;
+      this.bodyParts.leftForearm.rotation.x  = -0.4;
+      this.bodyParts.rightForearm.rotation.x = -0.4;
+      this.bodyParts.head.rotation.x = 0;
+    }
+  }
+
+  /** Llamar cada frame desde Game durante el jumpscare. Devuelve false cuando termina. */
+  updateEatAnimation(delta: number): boolean {
+    if (!this._eatActive || !this._eatCamera) return false;
+
+    this._eatTimer += delta;
+    const t = Math.min(1, this._eatTimer / Enemy.EAT_DURATION);
+
+    const camDir = new THREE.Vector3();
+    this._eatCamera.getWorldDirection(camDir);
+    camDir.y = 0;
+    camDir.normalize();
+
+    // Easing: lento al inicio, aceleración en la última mitad
+    const eased = t < 0.25 ? t * t * 0.5 : 0.03125 + (t - 0.25) * 1.29;
+    const dist = 3.5 - eased * 4.2; // 3.5 → -0.7
+
+    this.mesh.position.copy(this._eatCamera.position).addScaledVector(camDir, dist);
+    this.mesh.position.y = 0;
+    this.mesh.lookAt(new THREE.Vector3(
+      this._eatCamera.position.x, 0, this._eatCamera.position.z
+    ));
+
+    // Abrir la mandíbula progresivamente
+    if (this.bodyParts) {
+      const jawGroup = this.bodyParts.jaw.parent as THREE.Group | null;
+      if (jawGroup) {
+        jawGroup.rotation.x = Math.min(1, t * 1.8) * 1.0; // hasta ~57° abierto
+      }
+
+      // Brazos se lanzan hacia la cámara
+      const reach = Math.min(1, t * 2.2);
+      this.bodyParts.leftArm.rotation.x  = -0.8 - reach * 1.4;
+      this.bodyParts.rightArm.rotation.x = -0.8 - reach * 1.4;
+      this.bodyParts.leftForearm.rotation.x  = -0.4 - reach * 1.0;
+      this.bodyParts.rightForearm.rotation.x = -0.4 - reach * 1.0;
+
+      // Cabeza se inclina al morder
+      if (t > 0.45) {
+        this.bodyParts.head.rotation.x = ((t - 0.45) / 0.55) * 0.5;
+      }
+    }
+
+    // Disparar callback de mordida al 65%
+    if (!this._eatBiteDone && t >= 0.65) {
+      this._eatBiteDone = true;
+      this._eatOnBite?.();
+    }
+
+    if (t >= 1) {
+      this._eatActive = false;
+      return false;
+    }
+    return true;
+  }
+
   destroy(scene: THREE.Scene): void {
     scene.remove(this.mesh);
     this.mesh.traverse((child) => {
