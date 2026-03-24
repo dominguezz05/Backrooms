@@ -191,14 +191,37 @@ export class Game {
   }
 
   private cleanupMenuAudio(): void {
-    // Detener el AudioContext del menú si existe
+    // Detener TODOS los AudioContexts del menú
     const menuCtx = (window as any).menuAudioContext;
     if (menuCtx) {
-      menuCtx.suspend();
+      try {
+        if (menuCtx.state === 'running') {
+          menuCtx.suspend();
+        }
+        menuCtx.close();
+      } catch (e) {
+        // Ignore errors
+      }
     }
+    
+    // Si hay un thunderAudioContext del menú, también cerrarlo
+    const thunderCtx = (window as any).thunderAudioContext;
+    if (thunderCtx) {
+      try {
+        if (thunderCtx.state === 'running') {
+          thunderCtx.suspend();
+        }
+        thunderCtx.close();
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+    
     // Limpiar variables globales del menú
     (window as any).menuAudioContext = null;
     (window as any).menuMasterGain = null;
+    (window as any).thunderAudioContext = null;
+    (window as any).thunderMasterGain = null;
   }
 
   togglePause(): void {

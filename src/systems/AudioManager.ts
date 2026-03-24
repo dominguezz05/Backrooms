@@ -1021,45 +1021,41 @@ export class AudioManager {
 
     const now = this.context.currentTime;
     
-    const frequencies = [523.25, 659.25, 783.99, 1046.50];
+    // Usar solo 2 osciladores para reducir carga
+    const frequencies = [659.25, 1046.50];
     frequencies.forEach((freq, i) => {
       const osc = this.context!.createOscillator();
       osc.type = 'sine';
       osc.frequency.value = freq;
 
       const gain = this.context!.createGain();
-      const startTime = now + i * 0.08;
+      const startTime = now + i * 0.06;
       gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
-      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.06);
-      gain.gain.linearRampToValueAtTime(0, startTime + 0.2);
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+      gain.gain.linearRampToValueAtTime(0, startTime + 0.15);
 
       osc.connect(gain);
       gain.connect(this.sfxGain!);
 
       osc.start(startTime);
-      osc.stop(startTime + 0.25);
+      osc.stop(startTime + 0.2);
       osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     });
 
-    const bufferSize = this.context.sampleRate * 0.3;
+    // Ruido corto y simple
+    const bufferSize = this.context.sampleRate * 0.15;
     const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
       const t = i / bufferSize;
-      const envelope = Math.exp(-t * 8);
-      data[i] = (Math.random() * 2 - 1) * 0.3 * envelope;
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 12) * 0.15;
     }
     const noise = this.context.createBufferSource();
     noise.buffer = buffer;
-    const noiseGain = this.context.createGain();
-    noiseGain.gain.setValueAtTime(0.1, now);
-    noiseGain.gain.linearRampToValueAtTime(0, now + 0.3);
-    noise.connect(noiseGain);
-    noiseGain.connect(this.sfxGain);
+    noise.connect(this.sfxGain);
     noise.start(now);
-    noise.stop(now + 0.3);
-    noise.onended = () => { noise.disconnect(); noiseGain.disconnect(); };
+    noise.stop(now + 0.15);
+    noise.onended = () => { noise.disconnect(); };
   }
 
   playNoteFound(): void {
