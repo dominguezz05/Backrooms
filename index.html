@@ -1,0 +1,1493 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pesadilla en los Backrooms - Abismo</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Creepster&family=VT323&display=swap");
+
+      :root {
+        --main-bg-color: #020202;
+        --container-bg-color: rgba(6, 2, 2, 0.78);
+        --text-color: #909090;
+        --title-color: #900000;
+        --title-glow1: #b00000;
+        --title-glow2: #efa000;
+        --button-bg-color: #4d0208;
+        --button-hover-bg-color: #6a020b;
+        --button-text-color: #d0d0d0;
+        --particle-color-1: rgba(110, 0, 0, 0.3);
+        --particle-color-2: rgba(60, 60, 60, 0.2);
+        --particle-color-3: rgba(120, 60, 0, 0.1);
+        --lightning-color: rgba(180, 180, 220, 0.5);
+        --lightning-glow: rgba(160, 160, 220, 0.3);
+        --rain-color: rgba(100, 110, 120, 0.55);
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--main-bg-color);
+        color: var(--text-color);
+        font-family: "VT323", monospace;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        text-align: center;
+        cursor: default;
+        position: relative;
+        animation: bodyBackgroundPulse 25s infinite ease-in-out;
+      }
+
+      @keyframes bodyBackgroundPulse {
+        0% {
+          background-color: #010101;
+        }
+        50% {
+          background-color: #050505;
+        }
+        100% {
+          background-color: #010101;
+        }
+      }
+
+      .background-effects {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .rain-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 0;
+      }
+
+      .rain-drop {
+        position: absolute;
+        bottom: 100%;
+        width: 1.5px;
+        height: 60px;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0) 0%,
+          var(--rain-color) 100%
+        );
+        animation: fall linear infinite;
+      }
+
+      @keyframes fall {
+        to {
+          transform: translateY(100vh);
+          bottom: -60px;
+        }
+      }
+
+      .container {
+        position: relative;
+        z-index: 3;
+        padding: clamp(12px, 2vh, 24px) clamp(16px, 3vw, 35px);
+        max-width: min(680px, 92vw);
+        width: 100%;
+        background-color: var(--container-bg-color);
+        border-radius: 8px;
+        box-shadow:
+          0 0 30px rgba(0, 0, 0, 0.8),
+          inset 0 0 15px rgba(0, 0, 0, 0.95);
+        border: 1px solid rgba(70, 0, 0, 0.45);
+        animation: containerSubtleShift 23s infinite ease-in-out;
+      }
+
+      @keyframes containerSubtleShift {
+        0%,
+        100% {
+          transform: translate(0, 0) skewX(0deg);
+        }
+        25% {
+          transform: translate(0.5px, -0.5px) skewX(0.05deg);
+        }
+        50% {
+          transform: translate(-0.5px, 0.5px) skewX(-0.05deg);
+        }
+        75% {
+          transform: translate(-0.5px, -0.5px) skewX(0.02deg);
+        }
+      }
+
+      h1 {
+        font-family: "Creepster", cursive;
+        font-size: clamp(1.5rem, 7vw, 4rem);
+        color: var(--title-color);
+        text-shadow:
+          0 0 3px var(--title-color),
+          0 0 7px var(--title-glow1),
+          0 0 11px var(--title-glow1),
+          0 0 18px var(--title-glow2),
+          1px 1px 0px #000,
+          -1px -1px 0px #000;
+        margin-bottom: 20px;
+        line-height: 1.1;
+        animation:
+          titlePulsatingGlow 2.8s infinite alternate,
+          titleTextDistort 13s infinite steps(1);
+      }
+
+      @keyframes titlePulsatingGlow {
+        from {
+          text-shadow:
+            0 0 2px var(--title-color),
+            0 0 5px var(--title-glow1),
+            0 0 8px var(--title-glow1),
+            0 0 13px var(--title-glow2),
+            1px 1px 0px #000,
+            -1px -1px 0px #000;
+          opacity: 0.8;
+        }
+        to {
+          text-shadow:
+            0 0 4px var(--title-color),
+            0 0 9px var(--title-glow1),
+            0 0 16px var(--title-glow1),
+            0 0 25px var(--title-glow2),
+            1px 1px 0px #000,
+            -1px -1px 0px #000;
+          opacity: 1;
+        }
+      }
+
+      @keyframes titleTextDistort {
+        0%,
+        100% {
+          transform: skewX(0deg) translateX(0);
+        }
+        2.5% {
+          transform: skewX(-0.6deg) translateX(-1.5px);
+        }
+        5% {
+          transform: skewX(0.35deg) translateX(1px);
+        }
+        95% {
+          transform: skewX(0.25deg) translateX(-1px);
+        }
+        97.5% {
+          transform: skewX(-0.45deg) translateX(1.5px);
+        }
+      }
+
+      p {
+        font-size: clamp(0.85rem, min(1.8vw, 2vh), 1.2rem);
+        margin-bottom: clamp(6px, 1.2vh, 14px);
+        line-height: 1.45;
+        color: var(--text-color);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+      }
+
+      .play-button {
+        font-family: "Creepster", cursive;
+        font-size: clamp(1rem, min(3vw, 2.8vh), 1.6rem);
+        padding: clamp(8px, 1.2vh, 14px) 28px;
+        background-color: var(--button-bg-color);
+        color: var(--button-text-color);
+        border: 1px solid #1a0003;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        transition:
+          background-color 0.25s ease,
+          transform 0.15s ease,
+          box-shadow 0.25s ease,
+          letter-spacing 0.25s ease;
+        box-shadow:
+          0 0 12px rgba(0, 0, 0, 0.85),
+          inset 0 0 10px rgba(0, 0, 0, 0.75);
+        letter-spacing: 2px;
+      }
+
+      .play-button:hover {
+        background-color: var(--button-hover-bg-color);
+        transform: scale(1.03) translateY(-2.5px);
+        box-shadow:
+          0 0 20px rgba(130, 0, 8, 0.6),
+          inset 0 0 12px rgba(0, 0, 0, 0.65);
+        letter-spacing: 3.5px;
+        color: #fff;
+      }
+
+      .play-button:active {
+        transform: scale(0.97) translateY(0px);
+        box-shadow:
+          0 0 6px rgba(0, 0, 0, 0.9),
+          inset 0 0 14px rgba(0, 0, 0, 0.95);
+        letter-spacing: 1px;
+      }
+
+      .particle {
+        position: absolute;
+        border-radius: 50%;
+        animation: eerieParticleAnimation linear infinite;
+        opacity: 0;
+        z-index: 1;
+      }
+
+      @keyframes eerieParticleAnimation {
+        0% {
+          transform: translate(var(--x-start), var(--y-start))
+            scale(var(--scale-start));
+          opacity: 0;
+        }
+        15%,
+        75% {
+          opacity: var(--opacity-max);
+        }
+        100% {
+          transform: translate(var(--x-end), var(--y-end))
+            scale(var(--scale-end));
+          opacity: 0;
+        }
+      }
+
+      .lightning-bolt {
+        position: absolute;
+        background-color: var(--lightning-color);
+        box-shadow:
+          0 0 6px 1px var(--lightning-glow),
+          0 0 12px 2px var(--lightning-color);
+        transform-origin: top center;
+        opacity: 0;
+        animation: lightningFlash linear;
+        z-index: 2;
+      }
+
+      @keyframes lightningFlash {
+        0% {
+          opacity: 0;
+          transform: scaleY(0.2) scaleX(0.7);
+        }
+        5% {
+          opacity: 0.9;
+          transform: scaleY(1) scaleX(1);
+        }
+        10% {
+          opacity: 0.3;
+        }
+        12% {
+          opacity: 0.7;
+          transform: scaleY(0.8) scaleX(0.9);
+        }
+        15% {
+          opacity: 0;
+          transform: scaleY(0.3) scaleX(0.6);
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      .footer-text {
+        position: fixed;
+        bottom: 10px;
+        font-size: 0.8rem;
+        color: rgba(100, 100, 100, 0.35);
+        z-index: 2;
+        text-shadow: 1px 1px 1px #000;
+        pointer-events: none;
+      }
+
+      /* ── CRT SCANLINES ───────────────────────────────────────── */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent 0px,
+          transparent 3px,
+          rgba(0, 0, 0, 0.06) 3px,
+          rgba(0, 0, 0, 0.06) 4px
+        );
+        pointer-events: none;
+        z-index: 998;
+        animation: scanFlicker 0.12s steps(1) infinite;
+      }
+      @keyframes scanFlicker {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.92;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      /* ── CORNER VIGNETTE ─────────────────────────────────────── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(
+          ellipse at 50% 50%,
+          transparent 35%,
+          rgba(0, 0, 0, 0.55) 75%,
+          rgba(0, 0, 0, 0.85) 100%
+        );
+        pointer-events: none;
+        z-index: 997;
+      }
+
+      /* ── BACKROOMS CORRIDOR BG ───────────────────────────────── */
+      .corridor-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+      }
+      .corridor-bg::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        /* floor lines */
+        background:
+          repeating-linear-gradient(
+            90deg,
+            transparent 0,
+            transparent 79px,
+            rgba(40, 30, 5, 0.07) 79px,
+            rgba(40, 30, 5, 0.07) 80px
+          ),
+          repeating-linear-gradient(
+            0deg,
+            transparent 0,
+            transparent 59px,
+            rgba(40, 30, 5, 0.06) 59px,
+            rgba(40, 30, 5, 0.06) 60px
+          );
+        transform-origin: 50% 60%;
+        animation: corridorBreath 9s ease-in-out infinite;
+      }
+      .corridor-bg::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse at 50% 48%,
+          transparent 8%,
+          rgba(15, 8, 2, 0.35) 40%,
+          rgba(3, 1, 0, 0.7) 80%
+        );
+        animation: corridorPulse 9s ease-in-out infinite;
+      }
+      @keyframes corridorBreath {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.04);
+        }
+      }
+      @keyframes corridorPulse {
+        0%,
+        100% {
+          opacity: 0.8;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      /* ── SHADOW FIGURE (right side) ──────────────────────────── */
+      .shadow-figure {
+        position: fixed;
+        bottom: 0;
+        right: -110px;
+        width: 90px;
+        height: min(85vh, 520px);
+        pointer-events: none;
+        z-index: 6;
+        animation: shadowPeek 22s ease-in-out infinite 4s;
+      }
+      /* torso + legs */
+      .shadow-figure::before {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 32px;
+        height: 62%;
+        background: #000;
+        border-radius: 8px 8px 0 0;
+        box-shadow:
+          -18px 10px 0 6px #000,
+          /* left arm */ 18px 10px 0 6px #000,
+          /* right arm */ -12px 100% 0 0 #000,
+          /* left leg extension */ 12px 100% 0 0 #000; /* right leg extension */
+      }
+      /* head with glowing red eyes */
+      .shadow-figure::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 34px;
+        height: 34px;
+        background: #000;
+        border-radius: 50%;
+        /* two red eyes */
+        box-shadow:
+          -7px 12px 0 2px rgba(200, 0, 0, 0.9),
+          -7px 12px 6px 2px rgba(255, 0, 0, 0.5),
+          7px 12px 0 2px rgba(200, 0, 0, 0.9),
+          7px 12px 6px 2px rgba(255, 0, 0, 0.5);
+      }
+      @keyframes shadowPeek {
+        0%,
+        55%,
+        100% {
+          right: -110px;
+        }
+        20%,
+        45% {
+          right: -40px;
+        }
+        32% {
+          right: -28px;
+        }
+      }
+
+      /* ── BLOOD DRIPS ─────────────────────────────────────────── */
+      .blood-drip {
+        position: fixed;
+        top: 0;
+        width: 3px;
+        border-radius: 0 0 50% 50%;
+        background: linear-gradient(
+          to bottom,
+          rgba(160, 0, 0, 0.95) 0%,
+          rgba(100, 0, 0, 0.7) 70%,
+          transparent 100%
+        );
+        pointer-events: none;
+        z-index: 50;
+        transform-origin: top center;
+        animation: bloodDrip ease-in infinite;
+      }
+      @keyframes bloodDrip {
+        0% {
+          height: 0px;
+          opacity: 0;
+        }
+        10% {
+          opacity: 0.9;
+        }
+        65% {
+          height: 90px;
+          opacity: 0.7;
+        }
+        100% {
+          height: 5px;
+          opacity: 0;
+          margin-top: 90px;
+        }
+      }
+
+      /* ── FOG WISPS ───────────────────────────────────────────── */
+      .fog-wisp {
+        position: fixed;
+        bottom: -20px;
+        border-radius: 50%;
+        background: radial-gradient(
+          ellipse,
+          rgba(60, 5, 5, 0.14) 0%,
+          transparent 65%
+        );
+        pointer-events: none;
+        z-index: 4;
+        animation: fogDrift linear infinite;
+      }
+      @keyframes fogDrift {
+        0% {
+          transform: translateX(0) scaleX(1);
+          opacity: 0;
+        }
+        15% {
+          opacity: 1;
+        }
+        85% {
+          opacity: 0.6;
+        }
+        100% {
+          transform: translateX(120px) scaleX(1.3);
+          opacity: 0;
+        }
+      }
+
+      /* ── RED CURSOR DOT ──────────────────────────────────────── */
+      .cursor-trail {
+        position: fixed;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: rgba(220, 0, 0, 0.85);
+        box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
+        pointer-events: none;
+        z-index: 9999;
+        transform: translate(-50%, -50%);
+        transition:
+          opacity 0.5s ease,
+          transform 0.5s ease;
+      }
+
+      /* ── STATIC GLITCH FLASH ─────────────────────────────────── */
+      .glitch-flash {
+        position: fixed;
+        inset: 0;
+        background: rgba(180, 0, 0, 0.04);
+        pointer-events: none;
+        z-index: 996;
+        opacity: 0;
+        animation: staticGlitch 0.08s steps(1) 3;
+      }
+      @keyframes staticGlitch {
+        0%,
+        100% {
+          opacity: 0;
+        }
+        33% {
+          opacity: 1;
+          background: rgba(200, 0, 0, 0.06);
+        }
+        66% {
+          opacity: 0.5;
+          background: rgba(0, 200, 0, 0.02);
+        }
+      }
+
+      /* ── Modal de nombre ── */
+      #nameModal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.97);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        animation: modalFadeIn 0.6s ease;
+      }
+      @keyframes modalFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      .modal-card {
+        position: relative;
+        background: rgba(8,3,3,0.92);
+        border: 1px solid rgba(120,0,0,0.5);
+        border-radius: 4px;
+        padding: clamp(24px,4vh,40px) clamp(28px,5vw,54px);
+        max-width: min(480px,90vw);
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 0 40px rgba(180,0,0,0.2), inset 0 0 30px rgba(0,0,0,0.8);
+      }
+      .modal-card::before {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, rgba(120,0,0,0.4) 0%, transparent 50%, rgba(120,0,0,0.2) 100%);
+        pointer-events: none;
+      }
+      .modal-eyebrow {
+        font-family: 'VT323', monospace;
+        font-size: 0.9em;
+        letter-spacing: 5px;
+        color: rgba(160,50,50,0.7);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+      }
+      .modal-title {
+        font-family: 'Creepster', cursive;
+        font-size: clamp(2.2rem,8vw,3.4rem);
+        color: #cc1111;
+        text-shadow: 0 0 12px rgba(200,0,0,0.5), 0 0 30px rgba(180,0,0,0.2);
+        margin-bottom: 4px;
+        line-height: 1;
+        animation: titlePulsatingGlow 2.8s infinite alternate;
+      }
+      .modal-sub {
+        font-family: 'VT323', monospace;
+        font-size: 1em;
+        color: rgba(110,70,70,0.8);
+        letter-spacing: 2px;
+        margin-bottom: 28px;
+      }
+      .modal-label {
+        font-family: 'VT323', monospace;
+        font-size: 1.05em;
+        letter-spacing: 3px;
+        color: rgba(160,100,80,0.75);
+        margin-bottom: 10px;
+      }
+      #playerNameInput {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 12px 18px;
+        font-family: 'VT323', monospace;
+        font-size: 1.6em;
+        letter-spacing: 3px;
+        background: rgba(4,1,1,0.9);
+        color: #d8b8a0;
+        border: 1px solid rgba(100,30,30,0.6);
+        border-bottom: 2px solid rgba(180,40,40,0.7);
+        border-radius: 3px;
+        text-align: center;
+        outline: none;
+        margin-bottom: 20px;
+        transition: border-color 0.25s, box-shadow 0.25s;
+        caret-color: #cc2222;
+      }
+      #playerNameInput::placeholder { color: rgba(120,70,60,0.5); }
+      #playerNameInput:focus {
+        border-color: rgba(200,50,50,0.8);
+        box-shadow: 0 0 14px rgba(180,30,30,0.25), inset 0 0 8px rgba(0,0,0,0.4);
+      }
+      #startGameBtn {
+        font-family: 'Creepster', cursive;
+        font-size: 1.6em;
+        letter-spacing: 4px;
+        padding: 12px 42px;
+        background: linear-gradient(135deg, #3a0206, #5a0209);
+        color: #e0b0a0;
+        border: 1px solid rgba(200,50,50,0.5);
+        border-radius: 3px;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.15s, box-shadow 0.2s, letter-spacing 0.2s;
+        box-shadow: 0 0 16px rgba(180,0,0,0.15), inset 0 0 10px rgba(0,0,0,0.5);
+      }
+      #startGameBtn:hover {
+        background: linear-gradient(135deg, #5a0209, #800210);
+        color: #fff;
+        letter-spacing: 6px;
+        transform: translateY(-2px);
+        box-shadow: 0 0 24px rgba(200,0,0,0.35);
+      }
+      #startGameBtn:active { transform: translateY(0); }
+      .modal-footer {
+        font-family: 'VT323', monospace;
+        font-size: 0.8em;
+        color: rgba(90,50,50,0.5);
+        letter-spacing: 1px;
+        margin-top: 18px;
+      }
+
+      @keyframes gradient-shift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="nameModal">
+      <div class="modal-card">
+        <div class="modal-eyebrow">— IDENTIFICACIÓN —</div>
+        <div class="modal-title">PESADILLA<br/>EN LOS BACKROOMS</div>
+        <div class="modal-sub">PROTOCOLO DE ENTRADA · NIVEL CERO</div>
+        <div class="modal-label">¿CÓMO TE LLAMAS, VÍCTIMA?</div>
+        <input
+          type="text"
+          id="playerNameInput"
+          placeholder="Escribe tu nombre..."
+          maxlength="30"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="startGameBtn">ENTRAR</button>
+        <div class="modal-footer">
+          Tu nombre será susurrado en la oscuridad.<br/>
+          Nadie escapó antes. Tú tampoco escaparás.
+        </div>
+      </div>
+    </div>
+
+    <!-- Efectos de fondo -->
+    <div class="corridor-bg"></div>
+    <div class="shadow-figure"></div>
+    <div id="fogContainer"></div>
+
+    <div class="background-effects">
+      <div class="rain-container"></div>
+    </div>
+
+    <div class="container" id="mainMenu" style="display: none">
+      <h1>Pesadilla en los Backrooms</h1>
+      <p>
+        El eco de tus pasos en el silencio. Paredes que susurran secretos
+        olvidados.<br />
+        Cada sombra es una amenaza, cada pasillo una trampa.<br />
+        ¿Escaparás de esta locura o te consumirá la oscuridad?
+      </p>
+
+      <div
+        style="
+          margin-top: clamp(8px, 1.5vh, 18px);
+          display: flex;
+          flex-direction: column;
+          gap: clamp(6px, 0.9vh, 10px);
+          align-items: center;
+        "
+      >
+        <div
+          style="
+            font-size: clamp(1.1em, min(2.5vw, 3vh), 1.6em);
+            margin-bottom: clamp(4px, 0.8vh, 10px);
+            color: #ff6b6b;
+            text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+            font-family: &quot;Creepster&quot;, cursive;
+            letter-spacing: 2px;
+          "
+        >
+          ELIGE TU DESTINO
+        </div>
+
+        <!-- Selector de dificultad -->
+        <div
+          id="difficultySelector"
+          style="
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            align-items: center;
+          "
+        >
+          <span style="color: #888; font-size: 0.85em; letter-spacing: 1px"
+            >DIFICULTAD:</span
+          >
+          <button
+            class="diff-btn"
+            data-diff="easy"
+            onclick="setDifficulty('easy')"
+            style="
+              padding: 4px 10px;
+              font-family: &quot;Creepster&quot;, cursive;
+              font-size: 0.95em;
+              background: #1a3a1a;
+              color: #88ffaa;
+              border: 1px solid #2a5a2a;
+              border-radius: 4px;
+              cursor: pointer;
+            "
+          >
+            FÁCIL
+          </button>
+          <button
+            class="diff-btn"
+            data-diff="normal"
+            onclick="setDifficulty('normal')"
+            style="
+              padding: 4px 10px;
+              font-family: &quot;Creepster&quot;, cursive;
+              font-size: 0.95em;
+              background: #3a1a08;
+              color: #ffcc88;
+              border: 1px solid #5a2a08;
+              border-radius: 4px;
+              cursor: pointer;
+            "
+          >
+            NORMAL
+          </button>
+          <button
+            class="diff-btn"
+            data-diff="nightmare"
+            onclick="setDifficulty('nightmare')"
+            style="
+              padding: 4px 10px;
+              font-family: &quot;Creepster&quot;, cursive;
+              font-size: 0.95em;
+              background: #3a0208;
+              color: #ff8888;
+              border: 1px solid #6a020b;
+              border-radius: 4px;
+              cursor: pointer;
+            "
+          >
+            PESADILLA
+          </button>
+        </div>
+        <div
+          id="diffDesc"
+          style="
+            font-size: 0.75em;
+            color: #777;
+            margin-bottom: 4px;
+            min-height: 14px;
+          "
+        ></div>
+
+        <a
+          href="game.html?level=1"
+          class="play-button"
+          style="
+            width: clamp(240px, 75%, 400px);
+            background: linear-gradient(135deg, #3a0208, #5a0208);
+            border: 2px solid rgba(255, 107, 107, 0.3);
+            position: relative;
+            overflow: hidden;
+          "
+        >
+          <div style="font-size: 1.35em; margin-bottom: 3px">🔊 NIVEL 1</div>
+          <div style="font-size: 0.75em; opacity: 0.85; color: #ffaaaa">
+            Audio 3D • Encuentra la Salida
+          </div>
+        </a>
+
+        <a
+          href="game.html?level=2"
+          class="play-button"
+          style="
+            width: clamp(240px, 75%, 400px);
+            background: linear-gradient(135deg, #3a0208, #5a0208);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+          "
+        >
+          <div style="font-size: 1.35em; margin-bottom: 3px">💰 NIVEL 2</div>
+          <div style="font-size: 0.75em; opacity: 0.85; color: #ffd700">
+            Colecciona 100 Puntos
+          </div>
+        </a>
+
+        <a
+          href="game.html?level=3"
+          class="play-button"
+          style="
+            width: clamp(240px, 75%, 400px);
+            background: linear-gradient(135deg, #1a3a1a, #2a5a2a);
+            border: 2px solid rgba(100, 255, 150, 0.3);
+            position: relative;
+            overflow: hidden;
+          "
+        >
+          <div style="font-size: 1.35em; margin-bottom: 3px">🚪 NIVEL 3</div>
+          <div style="font-size: 0.75em; opacity: 0.85; color: #88ffaa">
+            Salas Abiertas • Pasillos Anchos
+          </div>
+        </a>
+
+        <a
+          href="game.html?level=4"
+          class="play-button"
+          style="
+            width: clamp(240px, 75%, 400px);
+            background: linear-gradient(135deg, #0a0a0a, #1a0808);
+            border: 2px solid rgba(80, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+          "
+        >
+          <div style="font-size: 1.35em; margin-bottom: 3px">🔦 NIVEL 4</div>
+          <div style="font-size: 0.75em; opacity: 0.85; color: #cc4444">
+            Apagón Total • Solo la Linterna
+          </div>
+        </a>
+
+        <a
+          href="game.html?level=ultimate"
+          class="play-button"
+          style="
+            width: clamp(240px, 75%, 400px);
+            background: linear-gradient(135deg, #6a020b, #900000, #6a020b);
+            background-size: 200% 200%;
+            animation: gradient-shift 3s ease infinite;
+            border: 3px solid #ff6b6b;
+            box-shadow:
+              0 0 20px rgba(255, 107, 107, 0.5),
+              inset 0 0 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+          "
+        >
+          <div
+            style="
+              font-size: 1.4em;
+              margin-bottom: 3px;
+              text-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
+            "
+          >
+            🔥 ULTIMATE
+          </div>
+          <div
+            style="
+              font-size: 0.7em;
+              opacity: 0.95;
+              color: #ffcccc;
+              font-weight: bold;
+            "
+          >
+            Supervivencia • 3 Enemigos
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="footer-text">
+      La cordura es un lujo que no puedes permitirte.
+    </div>
+
+    <script>
+      let audioStarted = false;
+      let playerName = "";
+
+      // ── DIFICULTAD ─────────────────────────────────────────────────────────
+      const DIFF_DESCS = {
+        easy: "😌 Enemigos más lentos, linterna dura más, sin penalización de cordura",
+        normal: "⚔ Experiencia equilibrada — el juego tal como fue diseñado",
+        nightmare:
+          "💀 Enemigos rápidos, linterna escasa, cordura cae muy rápido",
+      };
+      function setDifficulty(diff) {
+        sessionStorage.setItem("difficulty", diff);
+        document.getElementById("diffDesc").textContent =
+          DIFF_DESCS[diff] || "";
+        document.querySelectorAll(".diff-btn").forEach((b) => {
+          b.style.boxShadow =
+            b.dataset.diff === diff ? "0 0 10px rgba(255,200,100,0.7)" : "none";
+          b.style.color = b.dataset.diff === diff ? "#fff" : "";
+        });
+      }
+      // Dificultad por defecto
+      setDifficulty(sessionStorage.getItem("difficulty") || "normal");
+
+      const nameModal = document.getElementById("nameModal");
+      const playerNameInput = document.getElementById("playerNameInput");
+      const startGameBtn = document.getElementById("startGameBtn");
+      const mainMenu = document.getElementById("mainMenu");
+
+      function startGame() {
+        playerName = playerNameInput.value.trim();
+        sessionStorage.setItem("playerName", playerName);
+
+        nameModal.style.display = "none";
+        mainMenu.style.display = "block";
+
+        startRainMusic();
+        startVisualEffects();
+
+        if (playerName) {
+          speakPlayerName(playerName);
+        }
+      }
+
+      function speakPlayerName(name) {
+        const synth = window.speechSynthesis;
+        if (!synth) return;
+
+        const phrase = `${name}...`;
+        const utterance = new SpeechSynthesisUtterance(phrase);
+        utterance.lang = "es-ES";
+        utterance.rate = 0.5;
+        utterance.pitch = 0.3;
+        utterance.volume = 0.9;
+
+        const speak = () => {
+          synth.cancel();
+          synth.speak(utterance);
+        };
+
+        if (synth.getVoices().length > 0) {
+          const voice =
+            synth.getVoices().find((v) => v.lang.includes("es")) ||
+            synth.getVoices()[0];
+          if (voice) utterance.voice = voice;
+          speak();
+        } else {
+          synth.addEventListener(
+            "voiceschanged",
+            () => {
+              const voice =
+                synth.getVoices().find((v) => v.lang.includes("es")) ||
+                synth.getVoices()[0];
+              if (voice) utterance.voice = voice;
+              speak();
+            },
+            { once: true },
+          );
+          setTimeout(speak, 200);
+        }
+      }
+
+      if (startGameBtn) {
+        startGameBtn.addEventListener("click", startGame);
+      }
+      if (playerNameInput) {
+        playerNameInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") startGame();
+        });
+      }
+
+      // Si ya hay nombre guardado (vuelve del juego), saltar el modal
+      const _savedName = sessionStorage.getItem("playerName");
+      if (_savedName !== null) {
+        playerName = _savedName;
+        nameModal.style.display = "none";
+        mainMenu.style.display = "block";
+        startVisualEffects();
+        // El AudioContext necesita gesto del usuario — arranca al primer click
+        document.addEventListener("click", () => startRainMusic(), {
+          once: true,
+        });
+      }
+
+      // ── BLOOD DRIPS ──────────────────────────────────────────────
+      (function spawnBloodDrips() {
+        const positions = [8, 17, 28, 42, 55, 67, 79, 88]; // % from left
+        positions.forEach((pct, i) => {
+          const d = document.createElement("div");
+          d.className = "blood-drip";
+          d.style.left = pct + "%";
+          d.style.width = 2 + Math.random() * 2 + "px";
+          const dur = (3 + Math.random() * 5).toFixed(2) + "s";
+          const delay = (i * 1.3 + Math.random() * 4).toFixed(2) + "s";
+          d.style.animationDuration = dur;
+          d.style.animationDelay = delay;
+          document.body.appendChild(d);
+        });
+      })();
+
+      // ── FOG WISPS ────────────────────────────────────────────────
+      (function spawnFog() {
+        const fog = document.getElementById("fogContainer");
+        if (!fog) return;
+        for (let i = 0; i < 8; i++) {
+          const w = document.createElement("div");
+          w.className = "fog-wisp";
+          const size = 200 + Math.random() * 300;
+          w.style.width = size + "px";
+          w.style.height = size * 0.4 + "px";
+          w.style.left = Math.random() * 110 - 10 + "%";
+          w.style.animationDuration =
+            (14 + Math.random() * 12).toFixed(1) + "s";
+          w.style.animationDelay = (Math.random() * -20).toFixed(1) + "s";
+          fog.appendChild(w);
+        }
+      })();
+
+      // ── CURSOR TRAIL ─────────────────────────────────────────────
+      document.addEventListener("mousemove", (e) => {
+        const dot = document.createElement("div");
+        dot.className = "cursor-trail";
+        dot.style.left = e.clientX + "px";
+        dot.style.top = e.clientY + "px";
+        document.body.appendChild(dot);
+        requestAnimationFrame(() => {
+          dot.style.transform = "translate(-50%,-50%) scale(0)";
+          dot.style.opacity = "0";
+        });
+        setTimeout(() => dot.remove(), 500);
+      });
+
+      // ── RANDOM GLITCH FLASH ──────────────────────────────────────
+      (function scheduleGlitch() {
+        const delay = 8000 + Math.random() * 20000;
+        setTimeout(() => {
+          const f = document.createElement("div");
+          f.className = "glitch-flash";
+          document.body.appendChild(f);
+          setTimeout(() => f.remove(), 300);
+          scheduleGlitch();
+        }, delay);
+      })();
+
+      function startRainMusic() {
+        if (audioStarted) return;
+        audioStarted = true;
+
+        const audioContext = new (
+          window.AudioContext || window.webkitAudioContext
+        )();
+
+        if (audioContext.state === "suspended") {
+          audioContext.resume();
+        }
+
+        const masterGain = audioContext.createGain();
+        masterGain.gain.value = 0.5;
+        masterGain.connect(audioContext.destination);
+
+        function createAmbientDrone() {
+          const droneGain = audioContext.createGain();
+          droneGain.gain.value = 0.35;
+          droneGain.connect(masterGain);
+
+          const osc1 = audioContext.createOscillator();
+          osc1.type = "sine";
+          osc1.frequency.value = 55;
+
+          const osc2 = audioContext.createOscillator();
+          osc2.type = "sine";
+          osc2.frequency.value = 57;
+
+          const osc3 = audioContext.createOscillator();
+          osc3.type = "triangle";
+          osc3.frequency.value = 110;
+
+          const lfo = audioContext.createOscillator();
+          lfo.type = "sine";
+          lfo.frequency.value = 0.1;
+
+          const lfoGain = audioContext.createGain();
+          lfoGain.gain.value = 5;
+
+          lfo.connect(lfoGain);
+          lfoGain.connect(osc1.frequency);
+          lfoGain.connect(osc2.frequency);
+
+          const droneFilter = audioContext.createBiquadFilter();
+          droneFilter.type = "lowpass";
+          droneFilter.frequency.value = 180;
+          droneFilter.Q.value = 2;
+
+          const reverb = audioContext.createConvolver();
+          const reverbLength = audioContext.sampleRate * 3;
+          const reverbBuffer = audioContext.createBuffer(
+            2,
+            reverbLength,
+            audioContext.sampleRate,
+          );
+          for (let channel = 0; channel < 2; channel++) {
+            const data = reverbBuffer.getChannelData(channel);
+            for (let i = 0; i < reverbLength; i++) {
+              data[i] =
+                (Math.random() * 2 - 1) *
+                Math.exp(-i / (audioContext.sampleRate * 1.5));
+            }
+          }
+          reverb.buffer = reverbBuffer;
+
+          const reverbGain = audioContext.createGain();
+          reverbGain.gain.value = 0.5;
+
+          osc1.connect(droneFilter);
+          osc2.connect(droneFilter);
+          osc3.connect(droneFilter);
+          droneFilter.connect(reverb);
+          reverb.connect(reverbGain);
+          reverbGain.connect(droneGain);
+
+          osc1.start();
+          osc2.start();
+          osc3.start();
+          lfo.start();
+        }
+
+        function createWindNoise() {
+          const windGain = audioContext.createGain();
+          windGain.gain.value = 0.15;
+          windGain.connect(masterGain);
+
+          const bufferSize = audioContext.sampleRate * 4;
+          const buffer = audioContext.createBuffer(
+            2,
+            bufferSize,
+            audioContext.sampleRate,
+          );
+
+          for (let channel = 0; channel < 2; channel++) {
+            const data = buffer.getChannelData(channel);
+            let b0 = 0,
+              b1 = 0,
+              b2 = 0,
+              b3 = 0,
+              b4 = 0,
+              b5 = 0,
+              b6 = 0;
+            for (let i = 0; i < bufferSize; i++) {
+              const white = Math.random() * 2 - 1;
+              b0 = 0.99886 * b0 + white * 0.0555179;
+              b1 = 0.99332 * b1 + white * 0.0750759;
+              b2 = 0.969 * b2 + white * 0.153852;
+              b3 = 0.8665 * b3 + white * 0.3104856;
+              b4 = 0.55 * b4 + white * 0.5329522;
+              b5 = -0.7616 * b5 - white * 0.016898;
+              data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+              data[i] *= 0.11;
+              b6 = white * 0.115926;
+            }
+          }
+
+          const windSource = audioContext.createBufferSource();
+          windSource.buffer = buffer;
+          windSource.loop = true;
+
+          const windFilter = audioContext.createBiquadFilter();
+          windFilter.type = "lowpass";
+          windFilter.frequency.value = 350;
+
+          const windFilter2 = audioContext.createBiquadFilter();
+          windFilter2.type = "highpass";
+          windFilter2.frequency.value = 60;
+
+          const lfo = audioContext.createOscillator();
+          lfo.type = "sine";
+          lfo.frequency.value = 0.12;
+
+          const lfoGain = audioContext.createGain();
+          lfoGain.gain.value = 0.08;
+
+          lfo.connect(lfoGain);
+          lfoGain.connect(windGain.gain);
+
+          windSource.connect(windFilter);
+          windFilter.connect(windFilter2);
+          windFilter2.connect(windGain);
+          windSource.start();
+          lfo.start();
+        }
+
+        function createCreepyWhispers() {
+          console.log("[Audio] Starting whispers...");
+
+          const whisperGain = audioContext.createGain();
+          whisperGain.gain.value = 0.5;
+          whisperGain.connect(masterGain);
+
+          function playWhisper() {
+            try {
+              const now = audioContext.currentTime;
+
+              const bufferSize = Math.floor(audioContext.sampleRate * 1.2);
+              const buffer = audioContext.createBuffer(
+                1,
+                bufferSize,
+                audioContext.sampleRate,
+              );
+              const data = buffer.getChannelData(0);
+
+              for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * 0.5;
+              }
+
+              const source = audioContext.createBufferSource();
+              source.buffer = buffer;
+
+              const filter = audioContext.createBiquadFilter();
+              filter.type = "bandpass";
+              filter.frequency.value = 800;
+              filter.Q.value = 8;
+
+              const gain = audioContext.createGain();
+              gain.gain.setValueAtTime(0.8, now);
+              gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+
+              source.connect(filter);
+              filter.connect(gain);
+              gain.connect(whisperGain);
+
+              source.start(now);
+              source.stop(now + 1.0);
+
+              console.log("[Audio] Whisper played");
+            } catch (e) {
+              console.log("[Audio] Whisper error:", e);
+            }
+
+            setTimeout(playWhisper, 3000 + Math.random() * 8000);
+          }
+
+          setTimeout(playWhisper, 2000);
+        }
+
+        createAmbientDrone();
+        createWindNoise();
+        createCreepyWhispers();
+
+        console.log("[Audio] All audio started");
+      }
+
+      function startVisualEffects() {
+        const title = document.querySelector("h1");
+        if (title) {
+          const originalText = title.textContent;
+          let initialGlitchInterval;
+          const duration = 1300;
+          const intervalTime = 90;
+
+          const initialGlitchEffect = () => {
+            let newText = "";
+            for (let i = 0; i < originalText.length; i++) {
+              if (Math.random() < 0.3) {
+                const randomChar = String.fromCharCode(
+                  33 + Math.floor(Math.random() * 94),
+                );
+                newText += `<span style="opacity:${Math.random() * 0.4 + 0.3}; color: hsl(${Math.random() * 30}, 100%, ${50 + Math.random() * 20}%); transform: translate(${(Math.random() - 0.5) * 4}px, ${(Math.random() - 0.5) * 4}px) skew(${(Math.random() - 0.5) * 8}deg); display:inline-block;">${randomChar}</span>`;
+              } else {
+                newText += originalText[i];
+              }
+            }
+            title.innerHTML = newText;
+          };
+
+          const originalAnimation = title.style.animation;
+          title.style.animation = "none";
+          initialGlitchInterval = setInterval(
+            initialGlitchEffect,
+            intervalTime,
+          );
+
+          setTimeout(() => {
+            clearInterval(initialGlitchInterval);
+            title.innerHTML = originalText;
+            title.style.animation =
+              originalAnimation ||
+              "titlePulsatingGlow 2.8s infinite alternate, titleTextDistort 13s infinite steps(1)";
+          }, duration);
+        }
+
+        const effectsContainer = document.querySelector(".background-effects");
+        const rainContainer = document.querySelector(".rain-container");
+
+        function createRainDrop() {
+          const drop = document.createElement("div");
+          drop.classList.add("rain-drop");
+          drop.style.left = `${Math.random() * 100}vw`;
+          const fallDuration = Math.random() * 0.8 + 0.4;
+          drop.style.animationDuration = `${fallDuration}s`;
+          drop.style.animationDelay = `${Math.random() * 2}s`;
+          drop.style.opacity = Math.random() * 0.5 + 0.35;
+          rainContainer.appendChild(drop);
+          setTimeout(
+            () => {
+              if (drop.parentNode) drop.parentNode.removeChild(drop);
+            },
+            (fallDuration + parseFloat(drop.style.animationDelay || 0) + 0.1) *
+              1000 +
+              600,
+          );
+        }
+
+        function makeItRain() {
+          for (let i = 0; i < 3; i++) {
+            createRainDrop();
+          }
+          setTimeout(makeItRain, 45);
+        }
+        makeItRain();
+
+        const numberOfParticles = 30;
+        const particleColors = [
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--particle-color-1")
+            .trim(),
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--particle-color-2")
+            .trim(),
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--particle-color-3")
+            .trim(),
+        ];
+
+        for (let i = 0; i < numberOfParticles; i++) {
+          const particle = document.createElement("div");
+          particle.classList.add("particle");
+          const size = Math.random() * 2.5 + 0.5;
+          particle.style.width = `${size}px`;
+          particle.style.height = `${size}px`;
+          particle.style.backgroundColor =
+            particleColors[Math.floor(Math.random() * particleColors.length)];
+          const xStart = Math.random() * 100;
+          const yStart = Math.random() * 100;
+          particle.style.left = `${xStart}vw`;
+          particle.style.top = `${yStart}vh`;
+          particle.style.setProperty(
+            "--x-start",
+            `${(Math.random() - 0.5) * 10}vw`,
+          );
+          particle.style.setProperty(
+            "--y-start",
+            `${(Math.random() - 0.5) * 10}vh`,
+          );
+          particle.style.setProperty(
+            "--scale-start",
+            `${Math.random() * 0.3 + 0.2}`,
+          );
+          const xEnd = (Math.random() - 0.5) * (Math.random() * 60 + 30);
+          const yEnd = (Math.random() - 0.5) * (Math.random() * 60 + 30);
+          particle.style.setProperty("--x-end", `${xEnd}vw`);
+          particle.style.setProperty("--y-end", `${yEnd}vh`);
+          particle.style.setProperty(
+            "--scale-end",
+            `${Math.random() * 0.2 + 0.1}`,
+          );
+          particle.style.setProperty(
+            "--opacity-max",
+            `${Math.random() * 0.3 + 0.1}`,
+          );
+          const duration = Math.random() * 16 + 10;
+          particle.style.animationDuration = `${duration}s`;
+          particle.style.animationDelay = `${Math.random() * 10}s`;
+          effectsContainer.appendChild(particle);
+        }
+
+        function createLightningBolt() {
+          const bolt = document.createElement("div");
+          bolt.classList.add("lightning-bolt");
+          const length = Math.random() * 280 + 120;
+          const width = Math.random() * 2.5 + 1;
+          bolt.style.width = `${width}px`;
+          bolt.style.height = `${length}px`;
+          bolt.style.left = `${Math.random() * 98}vw`;
+          bolt.style.top = `${Math.random() * 98}vh`;
+          bolt.style.transform = `rotate(${Math.random() * 360}deg) scaleY(0.2) scaleX(0.7)`;
+          const flashDuration = Math.random() * 0.28 + 0.22;
+          const animationDelay = Math.random() * 0.08;
+          bolt.style.animationDuration = `${flashDuration}s`;
+          bolt.style.animationDelay = `${animationDelay}s`;
+          bolt.style.animationFillMode = "forwards";
+          effectsContainer.appendChild(bolt);
+          setTimeout(
+            () => {
+              if (bolt.parentNode) bolt.parentNode.removeChild(bolt);
+            },
+            (flashDuration + animationDelay + 0.1) * 1000,
+          );
+        }
+
+        function generateLightningStorm() {
+          const numFlashesInBurst = Math.floor(Math.random() * 2) + 1;
+          for (let i = 0; i < numFlashesInBurst; i++) {
+            setTimeout(createLightningBolt, Math.random() * 120);
+          }
+          const nextStormDelay = Math.random() * 5000 + 2500;
+          setTimeout(generateLightningStorm, nextStormDelay);
+        }
+        setTimeout(generateLightningStorm, 2000);
+      }
+    </script>
+  </body>
+</html>

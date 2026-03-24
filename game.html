@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Backrooms - Juego</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Creepster&family=VT323&display=swap');
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        overflow: hidden;
+        background-color: #000;
+        color: #fff;
+        font-family: 'VT323', monospace;
+      }
+
+      canvas { display: block; }
+
+      #startOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 200;
+        cursor: pointer;
+      }
+
+      #startOverlay h1 {
+        font-family: 'Creepster', cursive;
+        font-size: clamp(2.5em, 8vw, 5em);
+        color: #ff4444;
+        text-shadow: 0 0 20px rgba(255, 0, 0, 0.6), 0 0 40px rgba(255, 0, 0, 0.3);
+        margin-bottom: 20px;
+        text-align: center;
+        animation: titlePulse 2s ease-in-out infinite;
+      }
+
+      @keyframes titlePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+      }
+
+      #startOverlay p {
+        font-size: 1.5em;
+        color: #aaa;
+        animation: blink 1s ease-in-out infinite;
+      }
+
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+
+      #loadingScreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 200;
+      }
+
+      #loadingText {
+        font-size: 1.8em;
+        margin-bottom: 20px;
+        font-family: 'Creepster', cursive;
+        color: #ff6b6b;
+      }
+
+      .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top: 4px solid #ff6b6b;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      #hud {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 1.2em;
+        z-index: 100;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        min-width: 200px;
+      }
+
+      .hud-bar { margin: 8px 0; }
+
+      .hud-bar-label {
+        margin-bottom: 4px;
+        color: #aaa;
+        font-size: 0.9em;
+      }
+
+      .hud-bar-container {
+        width: 100%;
+        height: 20px;
+        background: rgba(50, 50, 50, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .hud-bar-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+        border-radius: 3px;
+      }
+
+      #staminaBar { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+      #batteryBar { background: linear-gradient(90deg, #FFC107, #FFD54F); }
+
+      .hud-bar-fill.low { animation: pulse-warning 1s infinite; }
+
+      @keyframes pulse-warning {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      #enemyIndicator {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.9em;
+        min-height: 20px;
+      }
+
+      #scoreIndicator {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 1.1em;
+        color: #ffd700;
+      }
+
+      #levelObjective {
+        margin-top: 10px;
+        padding: 6px 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.82em;
+        color: rgba(180, 220, 255, 0.85);
+        line-height: 1.4;
+        text-shadow: 0 0 6px rgba(100, 180, 255, 0.5);
+      }
+      #levelObjective .obj-title {
+        display: block;
+        font-size: 0.78em;
+        color: rgba(120, 160, 200, 0.7);
+        letter-spacing: 1px;
+        margin-bottom: 2px;
+      }
+
+      /* ===== MINIMAP ===== */
+      #minimapWrapper {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 100;
+        pointer-events: none;
+      }
+
+      #minimapLabel {
+        font-size: 0.75em;
+        color: rgba(180, 160, 100, 0.7);
+        text-align: center;
+        letter-spacing: 2px;
+        margin-bottom: 3px;
+      }
+
+      #minimapCanvas {
+        display: block;
+        border: 1px solid rgba(180, 160, 80, 0.35);
+        border-radius: 3px;
+        background: rgba(0, 0, 0, 0.75);
+        image-rendering: pixelated;
+      }
+      /* =================== */
+
+      #instructions {
+        position: absolute;
+        top: 10px;
+        right: 180px;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.8);
+        border-radius: 8px;
+        font-size: 1em;
+        z-index: 100;
+        max-width: 200px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+      }
+
+      #instructions strong { color: #ff6b6b; }
+
+      #messageOverlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: red;
+        font-size: clamp(2em, 5vw, 4em);
+        text-shadow: 0 0 10px rgba(255, 0, 0, 0.8), 2px 2px 4px #000;
+        display: none;
+        text-align: center;
+        padding: 20px;
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 10px;
+        z-index: 150;
+        border: 2px solid rgba(255, 0, 0, 0.5);
+      }
+
+      #sanityOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle, transparent 30%, rgba(80, 0, 80, 0.6) 100%);
+        pointer-events: none;
+        z-index: 80;
+        opacity: 0;
+        transition: opacity 0.5s;
+      }
+
+      #sanityDistortion {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 79;
+        opacity: 0;
+        background: transparent;
+        animation: none;
+      }
+
+      @keyframes sanityBlur {
+        0% { filter: blur(0px); }
+        50% { filter: blur(2px); }
+        100% { filter: blur(0px); }
+      }
+
+      @keyframes sanityWave {
+        0% { transform: translateX(0) skewX(0deg); }
+        25% { transform: translateX(-3px) skewX(1deg); }
+        75% { transform: translateX(3px) skewX(-1deg); }
+        100% { transform: translateX(0) skewX(0deg); }
+      }
+
+      @keyframes sanityPulse {
+        0% { background: transparent; }
+        50% { background: rgba(60, 0, 0, 0.1); }
+        100% { background: transparent; }
+      }
+
+      #hallucinationOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 78;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .hallucination-image {
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 5px;
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+        animation: hallucinationFade 2s ease-out forwards;
+        filter: grayscale(50%) contrast(1.2);
+      }
+
+      @keyframes hallucinationFade {
+        0% { opacity: 0; transform: scale(0.5); }
+        20% { opacity: 0.8; transform: scale(1); }
+        80% { opacity: 0.6; transform: scale(1.1); }
+        100% { opacity: 0; transform: scale(0.8); }
+      }
+
+      #noteOverlay {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.95);
+        padding: 30px;
+        border-radius: 10px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        z-index: 300;
+        display: none;
+        max-width: 400px;
+        text-align: center;
+      }
+
+      #noteOverlay.active {
+        display: block;
+        animation: noteAppear 0.5s ease-out;
+      }
+
+      @keyframes noteAppear {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      }
+
+      #noteOverlay h2 {
+        color: #ff6b6b;
+        font-family: 'Creepster', cursive;
+        font-size: 1.8em;
+        margin-bottom: 15px;
+      }
+
+      #noteOverlay p {
+        color: #ccc;
+        font-size: 1.2em;
+        line-height: 1.6;
+      }
+
+      #photoOverlay {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.95);
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid rgba(255, 200, 100, 0.4);
+        z-index: 300;
+        display: none;
+        text-align: center;
+      }
+
+      #photoOverlay.active {
+        display: block;
+        animation: noteAppear 0.5s ease-out;
+      }
+
+      #photoOverlay h2 {
+        color: #ffd700;
+        font-family: 'Creepster', cursive;
+        font-size: 1.5em;
+        margin-bottom: 15px;
+      }
+
+      #photoCanvas {
+        border: 3px solid #333;
+        border-radius: 5px;
+        max-width: 300px;
+        max-height: 200px;
+      }
+
+      #photoOverlay p {
+        color: #888;
+        font-size: 1em;
+        margin-top: 10px;
+        font-style: italic;
+      }
+
+      #pickupMessage {
+        position: fixed;
+        bottom: 20%;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ffd700;
+        font-size: 1.5em;
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 85;
+        text-align: center;
+      }
+
+      #pickupMessage.visible {
+        opacity: 1;
+      }
+
+      #hidingOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        z-index: 90;
+        pointer-events: none;
+        /* Tablones de madera oscura con grietas finas — el juego se ve a través */
+        background:
+          radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(0,0,0,0.90) 100%),
+          repeating-linear-gradient(
+            to bottom,
+            rgba(14,  6, 1, 0.98)  0px,
+            rgba(22, 10, 3, 0.97) 30px,
+            rgba(10,  4, 1, 0.99) 74px,
+            rgba( 8,  3, 0, 0.99) 77px,
+            transparent           77px,
+            transparent           81px,
+            rgba( 8,  3, 0, 0.99) 81px,
+            rgba(14,  6, 1, 0.98) 82px
+          );
+        animation: coffinBreathe 5s ease-in-out infinite;
+      }
+      @keyframes coffinBreathe {
+        0%,  100% { transform: translateY(0px)    scaleX(1);     }
+        25%        { transform: translateY(0.8px)  scaleX(1.001); }
+        75%        { transform: translateY(-0.6px) scaleX(0.999); }
+      }
+
+      #hidingText {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: rgba(200, 160, 100, 0.9);
+        font-size: 1.6em;
+        text-align: center;
+        z-index: 95;
+        display: none;
+        letter-spacing: 4px;
+        text-shadow: 0 0 12px rgba(180,100,30,0.6), 2px 2px 4px rgba(0, 0, 0, 0.95);
+      }
+
+      #hideHint {
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: rgba(100, 200, 255, 0.95);
+        font-size: 1.1em;
+        font-family: 'VT323', monospace;
+        text-align: center;
+        z-index: 95;
+        display: none;
+        pointer-events: none;
+        text-shadow: 0 0 8px rgba(80,160,255,0.8), 1px 1px 3px rgba(0,0,0,0.9);
+        letter-spacing: 2px;
+        animation: hideHintPulse 1s ease-in-out infinite alternate;
+      }
+      @keyframes hideHintPulse {
+        from { opacity: 0.7; }
+        to   { opacity: 1; }
+      }
+
+      #backButton {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px 20px;
+        background: rgba(80, 0, 0, 0.8);
+        border: 1px solid rgba(255, 100, 100, 0.3);
+        border-radius: 5px;
+        color: #ffaaaa;
+        font-family: 'VT323', monospace;
+        font-size: 1.2em;
+        cursor: pointer;
+        z-index: 100;
+        text-decoration: none;
+      }
+
+      #backButton:hover {
+        background: rgba(120, 0, 0, 0.9);
+      }
+
+      /* ===== HEADPHONES MODAL ===== */
+      #headphonesModal {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.98);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 600;
+        animation: headphonesIn 0.5s ease-out;
+      }
+
+      @keyframes headphonesIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+
+      #headphonesModal .hp-box {
+        background: rgba(15, 5, 5, 0.97);
+        border: 2px solid rgba(255, 100, 100, 0.35);
+        border-radius: 12px;
+        padding: 40px 50px;
+        max-width: min(480px, 90vw);
+        text-align: center;
+        box-shadow: 0 0 60px rgba(200, 0, 0, 0.15);
+      }
+
+      #headphonesModal .hp-icon {
+        font-size: 4em;
+        line-height: 1;
+        margin-bottom: 18px;
+        filter: drop-shadow(0 0 12px rgba(255,200,100,0.5));
+        animation: hpPulse 2s ease-in-out infinite;
+      }
+
+      @keyframes hpPulse {
+        0%, 100% { transform: scale(1); }
+        50%       { transform: scale(1.07); }
+      }
+
+      #headphonesModal h2 {
+        font-family: 'Creepster', cursive;
+        font-size: clamp(1.4em, 4vw, 2em);
+        color: #ff6b6b;
+        text-shadow: 0 0 12px rgba(255,80,80,0.5);
+        margin-bottom: 16px;
+        letter-spacing: 1px;
+      }
+
+      #headphonesModal p {
+        font-size: 1.15em;
+        color: #aaa;
+        line-height: 1.65;
+        margin-bottom: 28px;
+      }
+
+      #headphonesModal p strong {
+        color: #ffddaa;
+      }
+
+      .hp-btn {
+        display: block;
+        width: 100%;
+        font-family: 'Creepster', cursive;
+        font-size: 1.2em;
+        padding: 12px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+      }
+
+      .hp-btn:hover { transform: scale(1.03); }
+
+      .hp-btn-primary {
+        background: linear-gradient(135deg, #4d0208, #6a020b);
+        color: #fff;
+        border: 2px solid rgba(255,107,107,0.5);
+        box-shadow: 0 0 16px rgba(200,0,0,0.3);
+      }
+
+      .hp-btn-primary:hover {
+        box-shadow: 0 0 24px rgba(255,80,80,0.5);
+      }
+
+      .hp-btn-secondary {
+        background: transparent;
+        color: #666;
+        border: 1px solid rgba(255,255,255,0.1);
+        font-size: 0.9em;
+      }
+
+      .hp-btn-secondary:hover { color: #999; }
+
+      /* ============================= */
+
+      #jumpscareOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        cursor: pointer;
+      }
+
+      #jumpscareOverlay.active {
+        display: flex;
+        animation: jumpscareShake 0.8s ease-out;
+      }
+
+      @keyframes jumpscareShake {
+        0% { background: #fff; transform: scale(1.2); }
+        10% { background: #ff0000; transform: scale(1) translate(-20px, 10px); }
+        20% { background: #000; transform: scale(1.1) translate(20px, -10px); }
+        30% { background: #ff0000; transform: scale(1) translate(-15px, 15px); }
+        40% { background: #000; transform: scale(1.15) translate(10px, -5px); }
+        50% { background: #8b0000; transform: scale(1.05) translate(-10px, 10px); }
+        60% { background: #000; transform: scale(1.1) translate(15px, -15px); }
+        70% { background: #ff0000; transform: scale(1) translate(-5px, 5px); }
+        80% { background: #000; transform: scale(1.05); }
+        90% { background: #4a0000; }
+        100% { background: #000; transform: scale(1); }
+      }
+
+      #jumpscareFace {
+        width: 80vmin;
+        height: 80vmin;
+        max-width: 600px;
+        max-height: 600px;
+        position: relative;
+        animation: facePulse 0.1s infinite;
+      }
+
+      @keyframes facePulse {
+        0%, 100% { transform: scale(1) rotate(-2deg); }
+        50% { transform: scale(1.05) rotate(2deg); }
+      }
+
+      #jumpscareText {
+        position: absolute;
+        bottom: 5%;
+        font-family: 'Creepster', cursive;
+        font-size: clamp(3em, 10vw, 6em);
+        color: #ff0000;
+        text-shadow: 0 0 30px #ff0000, 0 0 60px #ff0000, 0 0 90px #8b0000;
+        animation: textFlicker 0.15s infinite;
+        letter-spacing: 5px;
+      }
+
+      @keyframes textFlicker {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+
+      #gameOverOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 500;
+      }
+
+      #gameOverOverlay.active {
+        display: flex;
+      }
+
+      #gameOverOverlay h1 {
+        font-family: 'Creepster', cursive;
+        font-size: clamp(3em, 10vw, 6em);
+        color: #ff0000;
+        text-shadow: 0 0 30px #ff0000;
+        margin-bottom: 20px;
+      }
+
+      #gameOverOverlay p {
+        font-size: 1.5em;
+        color: #aaa;
+        margin-bottom: 16px;
+      }
+
+      #statsPanel {
+        display: none;
+        margin: 0 0 22px;
+        padding: 14px 22px;
+        border: 1px solid rgba(255,60,60,0.3);
+        background: rgba(0,0,0,0.55);
+        min-width: 270px;
+        font-size: 1.05em;
+      }
+
+      .stats-title {
+        color: #ff8888;
+        font-size: 1.1em;
+        letter-spacing: 3px;
+        text-align: center;
+        margin-bottom: 10px;
+        opacity: 0.9;
+      }
+
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        color: #999;
+        letter-spacing: 1px;
+      }
+
+      .stat-row span:last-child {
+        color: #ddd;
+        font-weight: bold;
+      }
+
+      #restartButton {
+        font-family: 'Creepster', cursive;
+        font-size: 1.5em;
+        padding: 15px 40px;
+        background: #4d0208;
+        color: #fff;
+        border: 2px solid #ff0000;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+      }
+
+      #restartButton:hover {
+        background: #6a020b;
+        transform: scale(1.05);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Modal de recomendación de auriculares -->
+    <div id="headphonesModal">
+      <div class="hp-box">
+        <div class="hp-icon">🎧</div>
+        <h2>SE RECOMIENDA USAR AURICULARES</h2>
+        <p>
+          Este juego utiliza <strong>audio 3D espacial</strong> y música procedural.<br>
+          Los sonidos posicionales, latidos y susurros están diseñados para<br>
+          <strong>auriculares o cascos</strong> para máxima inmersión.
+        </p>
+        <button class="hp-btn hp-btn-primary" id="hpBtnYes">🎧 TENGO AURICULARES — COMENZAR</button>
+        <button class="hp-btn hp-btn-secondary" id="hpBtnNo">Continuar sin auriculares</button>
+      </div>
+    </div>
+
+    <div id="startOverlay">
+      <h1>PESADILLA<br><span style="font-size:0.6em;letter-spacing:0.15em;color:#cc2222;">EN LOS BACKROOMS</span></h1>
+      <div id="levelSubtitle" style="font-family:'Creepster',cursive;font-size:clamp(1.1em,3vw,1.6em);color:#ff8888;letter-spacing:3px;margin-bottom:16px;text-shadow:0 0 10px rgba(255,60,60,0.6);"></div>
+      <div id="loreText" style="color: #888; font-size: 1.1em; max-width: 600px; text-align: center; margin: 20px auto; line-height: 1.6; padding: 0 20px;">
+        Corporation te reclutó para "mantenimiento".<br><br>
+        Mentira.<br><br>
+        Este lugar no tiene salida. Solo pasillos infinitos y los gritos de quienes fueron antes que tú.<br><br>
+        Algunos dicen que hay 5 niveles. Otros dicen 100.<br>
+        Nadie sabe cuántos hay realmente.<br><br>
+        <span style="color: #ff4444;">Sobrevive. No mires atrás.</span>
+      </div>
+      <p>CLICK PARA COMENZAR</p>
+    </div>
+
+    <div id="loadingScreen">
+      <div id="loadingText">CARGANDO...</div>
+      <div class="spinner"></div>
+    </div>
+
+    <a id="backButton" href="index.html">← MENÚ</a>
+
+    <div id="hud">
+      <div class="hud-bar">
+        <div class="hud-bar-label">ENERGÍA</div>
+        <div class="hud-bar-container">
+          <div id="staminaBar" class="hud-bar-fill" style="width: 100%"></div>
+        </div>
+      </div>
+      <div class="hud-bar">
+        <div class="hud-bar-label">BATERÍA</div>
+        <div class="hud-bar-container">
+          <div id="batteryBar" class="hud-bar-fill" style="width: 100%"></div>
+        </div>
+      </div>
+      <div class="hud-bar">
+        <div class="hud-bar-label" style="color: #cc66ff;">CORDURA</div>
+        <div class="hud-bar-container">
+          <div id="sanityBar" class="hud-bar-fill" style="width: 100%; background: linear-gradient(90deg, #9933ff, #cc66ff);"></div>
+        </div>
+      </div>
+      <div id="enemyIndicator"></div>
+      <div id="scoreIndicator"></div>
+      <div id="levelObjective"></div>
+    </div>
+
+    <div id="minimapWrapper">
+      <div id="minimapLabel">MAPA</div>
+      <canvas id="minimapCanvas" width="160" height="160"></canvas>
+    </div>
+
+    <div id="instructions">
+      <strong>CONTROLES:</strong><br/>
+      W/A/S/D - Moverse<br/>
+      SHIFT - Correr<br/>
+      F - Linterna<br/>
+      CTRL - Esconderse<br/>
+      Mouse - Mirar
+    </div>
+
+    <div id="messageOverlay"></div>
+    <div id="sanityOverlay"></div>
+    <div id="sanityDistortion"></div>
+    <div id="hallucinationOverlay"></div>
+    <div id="hidingOverlay"></div>
+    <div id="hidingText">⚰ DENTRO DEL ATAÚD ⚰<br/><span style="font-size:0.65em;color:rgba(160,120,70,0.7);letter-spacing:2px;">[CTRL] para salir</span></div>
+    <div id="hideHint">⚰ [ CTRL ] Entrar al ataúd</div>
+    <div id="pickupMessage"></div>
+
+    <div id="noteOverlay">
+      <h2 id="noteTitle">NOTA</h2>
+      <p id="noteText">...</p>
+    </div>
+
+    <div id="photoOverlay">
+      <h2 id="photoTitle">FOTO</h2>
+      <canvas id="photoCanvas"></canvas>
+      <p id="photoDesc">...</p>
+    </div>
+
+    <div id="jumpscareOverlay">
+      <canvas id="jumpscareFace"></canvas>
+      <div id="jumpscareText">¡MUERTE!</div>
+    </div>
+
+    <div id="gameOverOverlay">
+      <h1>¡HAS MUERTO!</h1>
+      <p>El monstruo te encontró...</p>
+      <div id="statsPanel">
+        <div class="stats-title">─── ESTADÍSTICAS ───</div>
+        <div class="stat-row"><span>⏱ TIEMPO</span><span id="statTime">0:00</span></div>
+        <div class="stat-row"><span>🚶 DISTANCIA</span><span id="statDist">0 m</span></div>
+        <div class="stat-row"><span>🔋 BATERÍAS</span><span id="statBatt">0</span></div>
+        <div class="stat-row"><span>💀 SUSTOS</span><span id="statClose">0</span></div>
+        <div class="stat-row"><span>⚰ ATAÚD</span><span id="statHide">0</span></div>
+        <div class="stat-row" id="statCoinsRow" style="display:none"><span>💰 MONEDAS</span><span id="statCoins">0</span></div>
+      </div>
+      <a id="restartButton" href="game.html">REINTENTAR</a>
+    </div>
+
+    <script>
+      // Headphones modal
+      (function() {
+        function dismissHeadphones() {
+          const modal = document.getElementById('headphonesModal');
+          if (modal) modal.style.display = 'none';
+        }
+        const btnYes = document.getElementById('hpBtnYes');
+        const btnNo  = document.getElementById('hpBtnNo');
+        if (btnYes) btnYes.addEventListener('click', dismissHeadphones);
+        if (btnNo)  btnNo.addEventListener('click', dismissHeadphones);
+      })();
+
+      let currentEnemyType = 'stalker';
+      
+      function setEnemyType(type) {
+        currentEnemyType = type;
+      }
+
+      function drawJumpscareFace() {
+        const canvas = document.getElementById('jumpscareFace');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+        canvas.width = size;
+        canvas.height = size;
+        
+        const centerX = size / 2;
+        const centerY = size / 2;
+        
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, size, size);
+        
+        if (currentEnemyType === 'runner') {
+          drawRunnerFace(ctx, size, centerX, centerY);
+        } else if (currentEnemyType === 'teleporter') {
+          drawTeleporterFace(ctx, size, centerX, centerY);
+        } else if (currentEnemyType === 'stalker') {
+          drawStalkerFace(ctx, size, centerX, centerY);
+        } else {
+          drawMonsterFace(ctx, size, centerX, centerY);
+        }
+        
+        drawGlitchEffects(ctx, size);
+      }
+      
+      function drawRunnerFace(ctx, size, centerX, centerY) {
+        ctx.fillStyle = '#1a0505';
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, size * 0.35, size * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = size * 0.02;
+        ctx.stroke();
+        
+        const eyeY = centerY - size * 0.15;
+        const eyeSpacing = size * 0.12;
+        
+        ctx.fillStyle = '#ffff00';
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = size * 0.15;
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX - eyeSpacing, eyeY, size * 0.06, size * 0.1, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX + eyeSpacing, eyeY, size * 0.06, size * 0.1, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.ellipse(centerX - eyeSpacing, eyeY, size * 0.025, size * 0.06, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX + eyeSpacing, eyeY, size * 0.025, size * 0.06, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        const mouthY = centerY + size * 0.15;
+        ctx.fillStyle = '#2a0000';
+        ctx.beginPath();
+        ctx.moveTo(centerX - size * 0.08, mouthY);
+        ctx.lineTo(centerX + size * 0.08, mouthY);
+        ctx.lineTo(centerX + size * 0.05, mouthY + size * 0.2);
+        ctx.lineTo(centerX - size * 0.05, mouthY + size * 0.2);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.ellipse(centerX, mouthY + size * 0.08, size * 0.03, size * 0.04, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#ff4400';
+        ctx.lineWidth = size * 0.015;
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.moveTo(centerX - size * 0.06 + i * size * 0.04, mouthY + size * 0.18);
+          ctx.lineTo(centerX - size * 0.04 + i * size * 0.04, mouthY + size * 0.24);
+          ctx.stroke();
+        }
+      }
+      
+      function drawTeleporterFace(ctx, size, centerX, centerY) {
+        ctx.fillStyle = '#0a0a1a';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, size * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#8800ff';
+        ctx.lineWidth = size * 0.02;
+        ctx.stroke();
+        
+        ctx.shadowColor = '#8800ff';
+        ctx.shadowBlur = size * 0.1;
+        
+        const eyeY = centerY - size * 0.05;
+        
+        ctx.fillStyle = '#ff00ff';
+        ctx.beginPath();
+        ctx.moveTo(centerX - size * 0.15, eyeY - size * 0.05);
+        ctx.lineTo(centerX - size * 0.08, eyeY + size * 0.1);
+        ctx.lineTo(centerX - size * 0.22, eyeY + size * 0.1);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(centerX + size * 0.15, eyeY - size * 0.05);
+        ctx.lineTo(centerX + size * 0.08, eyeY + size * 0.1);
+        ctx.lineTo(centerX + size * 0.22, eyeY + size * 0.1);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.fillStyle = '#000';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(centerX - size * 0.15, eyeY + size * 0.03, size * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(centerX + size * 0.15, eyeY + size * 0.03, size * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+        
+        const mouthY = centerY + size * 0.2;
+        ctx.fillStyle = '#1a0030';
+        ctx.beginPath();
+        ctx.arc(centerX, mouthY, size * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#aa00ff';
+        ctx.lineWidth = size * 0.01;
+        for (let i = 0; i < 6; i++) {
+          const offset = (Math.random() - 0.5) * size * 0.1;
+          ctx.beginPath();
+          ctx.moveTo(centerX - size * 0.08 + i * size * 0.03 + offset, mouthY - size * 0.05);
+          ctx.lineTo(centerX - size * 0.06 + i * size * 0.03 + offset, mouthY + size * 0.05);
+          ctx.stroke();
+        }
+        
+        for (let i = 0; i < 20; i++) {
+          const starX = centerX + (Math.random() - 0.5) * size * 0.8;
+          const starY = centerY + (Math.random() - 0.5) * size * 0.8;
+          const starSize = Math.random() * size * 0.02;
+          
+          ctx.fillStyle = `rgba(180, 100, 255, ${Math.random() * 0.8})`;
+          ctx.beginPath();
+          ctx.arc(starX, starY, starSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      
+      function drawStalkerFace(ctx, size, centerX, centerY) {
+        ctx.fillStyle = '#0a0a0a';
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, size * 0.45, size * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#3a0a0a';
+        ctx.lineWidth = size * 0.03;
+        ctx.stroke();
+        
+        const eyeY = centerY - size * 0.1;
+        const eyeSpacing = size * 0.18;
+        
+        ctx.fillStyle = '#ff0000';
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = size * 0.1;
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX - eyeSpacing, eyeY, size * 0.08, size * 0.12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX + eyeSpacing, eyeY, size * 0.08, size * 0.12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.ellipse(centerX - eyeSpacing, eyeY, size * 0.04, size * 0.08, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.ellipse(centerX + eyeSpacing, eyeY, size * 0.04, size * 0.08, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        const mouthY = centerY + size * 0.2;
+        ctx.fillStyle = '#2a0000';
+        ctx.beginPath();
+        ctx.ellipse(centerX, mouthY, size * 0.15, size * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#ff0000';
+        for (let i = 0; i < 8; i++) {
+          const toothX = centerX - size * 0.1 + (i % 4) * (size * 0.05);
+          const toothY = mouthY - size * 0.1 + Math.floor(i / 4) * (size * 0.08);
+          ctx.fillRect(toothX, toothY, size * 0.03, size * 0.05);
+        }
+        
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = size * 0.01;
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.moveTo(centerX - size * 0.1 + i * size * 0.05, mouthY + size * 0.15);
+          ctx.lineTo(centerX - size * 0.08 + i * size * 0.05, mouthY + size * 0.22);
+          ctx.stroke();
+        }
+        
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = size * 0.05;
+        
+        ctx.strokeStyle = '#4a0000';
+        ctx.lineWidth = size * 0.015;
+        
+        ctx.beginPath();
+        ctx.moveTo(centerX - size * 0.35, centerY - size * 0.3);
+        ctx.lineTo(centerX - size * 0.25, centerY - size * 0.35);
+        ctx.lineTo(centerX - size * 0.2, centerY - size * 0.28);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(centerX + size * 0.35, centerY - size * 0.3);
+        ctx.lineTo(centerX + size * 0.25, centerY - size * 0.35);
+        ctx.lineTo(centerX + size * 0.2, centerY - size * 0.28);
+        ctx.stroke();
+        
+        for (let i = 0; i < 12; i++) {
+          const crackX = centerX + (Math.random() - 0.5) * size * 0.7;
+          const crackY = centerY + (Math.random() - 0.5) * size * 0.7;
+          ctx.strokeStyle = '#2a0000';
+          ctx.lineWidth = Math.random() * size * 0.01 + size * 0.005;
+          ctx.beginPath();
+          ctx.moveTo(crackX, crackY);
+          ctx.lineTo(crackX + (Math.random() - 0.5) * size * 0.1, crackY + (Math.random() - 0.5) * size * 0.15);
+          ctx.stroke();
+        }
+      }
+      
+      function drawMonsterFace(ctx, size, centerX, centerY) {
+        drawStalkerFace(ctx, size, centerX, centerY);
+      }
+      
+      function drawGlitchEffects(ctx, size) {
+        for (let i = 0; i < 5; i++) {
+          const glitchY = Math.random() * size;
+          const glitchHeight = Math.random() * size * 0.1 + size * 0.02;
+          
+          ctx.fillStyle = `rgba(${Math.random() > 0.5 ? '255,0,0' : '0,0,255'}, ${Math.random() * 0.3})`;
+          ctx.fillRect(0, glitchY, size, glitchHeight);
+        }
+      }
+      
+      function triggerEnhancedJumpscare(enemyType) {
+        currentEnemyType = enemyType;
+        
+        const jumpscareOverlay = document.getElementById('jumpscareOverlay');
+        if (!jumpscareOverlay) return;
+        
+        drawJumpscareFace();
+        jumpscareOverlay.classList.add('active');
+        
+        document.body.style.animation = 'none';
+        setTimeout(() => {
+          document.body.style.animation = 'jumpscareShake 0.5s ease-out';
+        }, 10);
+        
+        setTimeout(() => {
+          jumpscareOverlay.classList.remove('active');
+        }, 2500);
+      }
+      
+      window.addEventListener('resize', drawJumpscareFace);
+
+      // Preservar el nivel actual en el botón de reintentar
+      const _currentLevel = new URLSearchParams(window.location.search).get('level') || '1';
+      const _restartBtn = document.getElementById('restartButton');
+      if (_restartBtn) _restartBtn.href = `game.html?level=${_currentLevel}`;
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

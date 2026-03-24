@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pesadilla en los Backrooms - Abismo</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Creepster&family=VT323&display=swap");
+
+      :root {
+        --main-bg-color: #020202;
+        --container-bg-color: rgba(6, 2, 2, 0.78);
+        --text-color: #909090;
+        --title-color: #900000;
+        --title-glow1: #b00000;
+        --title-glow2: #efa000;
+        --button-bg-color: #4d0208;
+        --button-hover-bg-color: #6a020b;
+        --button-text-color: #d0d0d0;
+        --particle-color-1: rgba(110, 0, 0, 0.3);
+        --particle-color-2: rgba(60, 60, 60, 0.2);
+        --particle-color-3: rgba(120, 60, 0, 0.1);
+        --lightning-color: rgba(180, 180, 220, 0.5);
+        --lightning-glow: rgba(160, 160, 220, 0.3);
+        --rain-color: rgba(100, 110, 120, 0.55); /* Lluvia más clara y opaca */
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--main-bg-color);
+        color: var(--text-color);
+        font-family: "VT323", monospace;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        overflow: hidden;
+        text-align: center;
+        cursor: default;
+        position: relative;
+        animation: bodyBackgroundPulse 25s infinite ease-in-out;
+      }
+
+      @keyframes bodyBackgroundPulse {
+        0% {
+          background-color: #010101;
+        }
+        50% {
+          background-color: #050505;
+        }
+        100% {
+          background-color: #010101;
+        }
+      }
+
+      .background-effects {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .rain-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 0;
+      }
+
+      .rain-drop {
+        position: absolute;
+        bottom: 100%;
+        width: 1.5px; /* Gotas ligeramente más anchas */
+        height: 60px; /* Estela ligeramente más larga */
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0) 0%,
+          var(--rain-color) 100%
+        );
+        animation: fall linear infinite;
+      }
+
+      @keyframes fall {
+        to {
+          transform: translateY(100vh);
+          bottom: -60px; /* Ajustar al nuevo height */
+        }
+      }
+
+      .container {
+        position: relative;
+        z-index: 3;
+        padding: 30px 35px;
+        background-color: var(--container-bg-color);
+        border-radius: 8px;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.8),
+          inset 0 0 15px rgba(0, 0, 0, 0.95);
+        border: 1px solid rgba(70, 0, 0, 0.45);
+        animation: containerSubtleShift 23s infinite ease-in-out;
+      }
+
+      @keyframes containerSubtleShift {
+        0%,
+        100% {
+          transform: translate(0, 0) skewX(0deg);
+        }
+        25% {
+          transform: translate(0.5px, -0.5px) skewX(0.05deg);
+        }
+        50% {
+          transform: translate(-0.5px, 0.5px) skewX(-0.05deg);
+        }
+        75% {
+          transform: translate(-0.5px, -0.5px) skewX(0.02deg);
+        }
+      }
+
+      h1 {
+        font-family: "Creepster", cursive;
+        font-size: clamp(3.5rem, 12vw, 7rem);
+        color: var(--title-color);
+        text-shadow: 0 0 3px var(--title-color), 0 0 7px var(--title-glow1),
+          0 0 11px var(--title-glow1), 0 0 18px var(--title-glow2),
+          1px 1px 0px #000, -1px -1px 0px #000;
+        margin-bottom: 20px;
+        animation: titlePulsatingGlow 2.8s infinite alternate,
+          titleTextDistort 13s infinite steps(1);
+      }
+
+      @keyframes titlePulsatingGlow {
+        from {
+          text-shadow: 0 0 2px var(--title-color), 0 0 5px var(--title-glow1),
+            0 0 8px var(--title-glow1), 0 0 13px var(--title-glow2),
+            1px 1px 0px #000, -1px -1px 0px #000;
+          opacity: 0.8;
+        }
+        to {
+          text-shadow: 0 0 4px var(--title-color), 0 0 9px var(--title-glow1),
+            0 0 16px var(--title-glow1), 0 0 25px var(--title-glow2),
+            1px 1px 0px #000, -1px -1px 0px #000;
+          opacity: 1;
+        }
+      }
+
+      @keyframes titleTextDistort {
+        0%,
+        100% {
+          transform: skewX(0deg) translateX(0);
+        }
+        2.5% {
+          transform: skewX(-0.6deg) translateX(-1.5px);
+        }
+        5% {
+          transform: skewX(0.35deg) translateX(1px);
+        }
+        95% {
+          transform: skewX(0.25deg) translateX(-1px);
+        }
+        97.5% {
+          transform: skewX(-0.45deg) translateX(1.5px);
+        }
+      }
+
+      p {
+        font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+        margin-bottom: 40px;
+        line-height: 1.6;
+        color: var(--text-color);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+      }
+
+      .play-button {
+        font-family: "Creepster", cursive;
+        font-size: clamp(2rem, 5vw, 3rem);
+        padding: 18px 35px;
+        background-color: var(--button-bg-color);
+        color: var(--button-text-color);
+        border: 1px solid #1a0003;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background-color 0.25s ease, transform 0.15s ease,
+          box-shadow 0.25s ease, letter-spacing 0.25s ease;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.85),
+          inset 0 0 10px rgba(0, 0, 0, 0.75);
+        letter-spacing: 2px;
+      }
+
+      .play-button:hover {
+        background-color: var(--button-hover-bg-color);
+        transform: scale(1.03) translateY(-2.5px);
+        box-shadow: 0 0 20px rgba(130, 0, 8, 0.6),
+          inset 0 0 12px rgba(0, 0, 0, 0.65);
+        letter-spacing: 3.5px;
+        color: #fff;
+      }
+
+      .play-button:active {
+        transform: scale(0.97) translateY(0px);
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.9),
+          inset 0 0 14px rgba(0, 0, 0, 0.95);
+        letter-spacing: 1px;
+      }
+
+      .particle {
+        position: absolute;
+        border-radius: 50%;
+        animation: eerieParticleAnimation linear infinite;
+        opacity: 0;
+        z-index: 1;
+      }
+
+      @keyframes eerieParticleAnimation {
+        0% {
+          transform: translate(var(--x-start), var(--y-start))
+            scale(var(--scale-start));
+          opacity: 0;
+        }
+        15%,
+        75% {
+          opacity: var(--opacity-max);
+        }
+        100% {
+          transform: translate(var(--x-end), var(--y-end))
+            scale(var(--scale-end));
+          opacity: 0;
+        }
+      }
+
+      .lightning-bolt {
+        position: absolute;
+        background-color: var(--lightning-color);
+        box-shadow: 0 0 6px 1px var(--lightning-glow),
+          0 0 12px 2px var(--lightning-color);
+        transform-origin: top center;
+        opacity: 0;
+        animation: lightningFlash linear;
+        z-index: 2;
+      }
+
+      @keyframes lightningFlash {
+        0% {
+          opacity: 0;
+          transform: scaleY(0.2) scaleX(0.7);
+        }
+        5% {
+          opacity: 0.9;
+          transform: scaleY(1) scaleX(1);
+        }
+        10% {
+          opacity: 0.3;
+        }
+        12% {
+          opacity: 0.7;
+          transform: scaleY(0.8) scaleX(0.9);
+        }
+        15% {
+          opacity: 0;
+          transform: scaleY(0.3) scaleX(0.6);
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      .footer-text {
+        position: absolute;
+        bottom: 15px;
+        font-size: 0.85rem;
+        color: rgba(100, 100, 100, 0.4);
+        z-index: 2;
+        text-shadow: 1px 1px 1px #000;
+      }
+
+      @keyframes gradient-shift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="background-effects">
+      <div class="rain-container"></div>
+    </div>
+
+    <div class="container">
+      <h1>Pesadilla en los Backrooms</h1>
+      <p>
+        El eco de tus pasos en el silencio. Paredes que susurran secretos
+        olvidados.<br />
+        Cada sombra es una amenaza, cada pasillo una trampa.<br />
+        ¿Escaparás de esta locura o te consumirá la oscuridad?
+      </p>
+
+      <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 15px; align-items: center;">
+        <div style="font-size: clamp(1.5em, 3vw, 1.8em); margin-bottom: 10px; color: #ff6b6b; text-shadow: 0 0 10px rgba(255, 107, 107, 0.5); font-family: 'Creepster', cursive; letter-spacing: 2px;">
+          ELIGE TU DESTINO
+        </div>
+
+        <a href="juego_backrooms.html" class="play-button" style="
+          width: clamp(280px, 80%, 400px);
+          font-size: clamp(1em, 2.5vw, 1.2em);
+          padding: 15px 30px;
+          background: linear-gradient(135deg, #3a0208, #5a0208);
+          border: 2px solid rgba(255, 107, 107, 0.3);
+          position: relative;
+          overflow: hidden;
+        ">
+          <div style="font-size: 1.4em; margin-bottom: 5px;">🔊 NIVEL 1</div>
+          <div style="font-size: 0.75em; opacity: 0.85; color: #ffaaaa;">Audio 3D • Horror Atmosférico</div>
+        </a>
+
+        <a href="juego_backrooms2.html" class="play-button" style="
+          width: clamp(280px, 80%, 400px);
+          font-size: clamp(1em, 2.5vw, 1.2em);
+          padding: 15px 30px;
+          background: linear-gradient(135deg, #3a0208, #5a0208);
+          border: 2px solid rgba(255, 215, 0, 0.3);
+          position: relative;
+          overflow: hidden;
+        ">
+          <div style="font-size: 1.4em; margin-bottom: 5px;">💰 NIVEL 2</div>
+          <div style="font-size: 0.75em; opacity: 0.85; color: #ffd700;">Eco Dorado • Colecciona Monedas</div>
+        </a>
+
+        <a href="juego_backrooms_ultimate.html" class="play-button" style="
+          width: clamp(280px, 80%, 400px);
+          font-size: clamp(1.1em, 3vw, 1.4em);
+          padding: 20px 35px;
+          background: linear-gradient(135deg, #6a020b, #900000, #6a020b);
+          background-size: 200% 200%;
+          animation: gradient-shift 3s ease infinite;
+          border: 3px solid #ff6b6b;
+          box-shadow: 0 0 20px rgba(255, 107, 107, 0.5), inset 0 0 20px rgba(0, 0, 0, 0.5);
+          position: relative;
+          overflow: hidden;
+        ">
+          <div style="font-size: 1.5em; margin-bottom: 8px; text-shadow: 0 0 15px rgba(255, 107, 107, 0.8);">🔥 ULTIMATE EDITION</div>
+          <div style="font-size: 0.7em; opacity: 0.95; color: #ffcccc; font-weight: bold;">Laberintos Infinitos • 3 Enemigos • Supervivencia</div>
+        </a>
+      </div>
+    </div>
+
+    <div class="footer-text">
+      La cordura es un lujo que no puedes permitirte.
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const title = document.querySelector("h1");
+        if (title) {
+          const originalText = title.textContent;
+          let initialGlitchInterval;
+          const duration = 1300;
+          const intervalTime = 90;
+
+          const initialGlitchEffect = () => {
+            let newText = "";
+            for (let i = 0; i < originalText.length; i++) {
+              if (Math.random() < 0.3) {
+                const randomChar = String.fromCharCode(
+                  33 + Math.floor(Math.random() * 94)
+                );
+                newText += `<span style="opacity:${
+                  Math.random() * 0.4 + 0.3
+                }; color: hsl(${Math.random() * 30}, 100%, ${
+                  50 + Math.random() * 20
+                }%); transform: translate(${(Math.random() - 0.5) * 4}px, ${
+                  (Math.random() - 0.5) * 4
+                }px) skew(${
+                  (Math.random() - 0.5) * 8
+                }deg); display:inline-block;">${randomChar}</span>`;
+              } else {
+                newText += originalText[i];
+              }
+            }
+            title.innerHTML = newText;
+          };
+
+          const originalAnimation = title.style.animation;
+          title.style.animation = "none";
+          initialGlitchInterval = setInterval(
+            initialGlitchEffect,
+            intervalTime
+          );
+
+          setTimeout(() => {
+            clearInterval(initialGlitchInterval);
+            title.innerHTML = originalText;
+            title.style.animation =
+              originalAnimation ||
+              "titlePulsatingGlow 2.8s infinite alternate, titleTextDistort 13s infinite steps(1)";
+          }, duration);
+        }
+
+        const effectsContainer = document.querySelector(".background-effects");
+        const rainContainer = document.querySelector(".rain-container"); // Seleccionar el contenedor existente
+
+        // --- Efecto de Lluvia Constante ---
+        const numberOfRainDrops = 120; // Ligero aumento en la densidad
+
+        function createRainDrop() {
+          const drop = document.createElement("div");
+          drop.classList.add("rain-drop");
+
+          drop.style.left = `${Math.random() * 100}vw`;
+          const fallDuration = Math.random() * 0.8 + 0.4;
+          drop.style.animationDuration = `${fallDuration}s`;
+          drop.style.animationDelay = `${Math.random() * 2}s`;
+          drop.style.opacity = Math.random() * 0.5 + 0.35; // Rango de opacidad: 0.35 a 0.85
+
+          rainContainer.appendChild(drop);
+
+          setTimeout(() => {
+            if (drop.parentNode) {
+              drop.parentNode.removeChild(drop);
+            }
+          }, (fallDuration + parseFloat(drop.style.animationDelay || 0) + 0.1) * 1000 + 600); // Aumentar margen para el nuevo height
+        }
+
+        function makeItRain() {
+          for (let i = 0; i < 3; i++) {
+            // Crear unas pocas más gotas cada intervalo
+            createRainDrop();
+          }
+          setTimeout(makeItRain, 45); // Intervalo ligeramente más corto
+        }
+        makeItRain();
+
+        // --- Partículas Inquietantes ---
+        const numberOfParticles = 30; // Ligeramente reducido para compensar lluvia más visible
+        const particleColors = [
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--particle-color-1")
+            .trim(),
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--particle-color-2")
+            .trim(),
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--particle-color-3")
+            .trim(),
+        ];
+
+        for (let i = 0; i < numberOfParticles; i++) {
+          const particle = document.createElement("div");
+          particle.classList.add("particle");
+
+          const size = Math.random() * 2.5 + 0.5;
+          particle.style.width = `${size}px`;
+          particle.style.height = `${size}px`;
+          particle.style.backgroundColor =
+            particleColors[Math.floor(Math.random() * particleColors.length)];
+
+          const xStart = Math.random() * 100;
+          const yStart = Math.random() * 100;
+          particle.style.left = `${xStart}vw`;
+          particle.style.top = `${yStart}vh`;
+
+          particle.style.setProperty(
+            "--x-start",
+            `${(Math.random() - 0.5) * 10}vw`
+          );
+          particle.style.setProperty(
+            "--y-start",
+            `${(Math.random() - 0.5) * 10}vh`
+          );
+          particle.style.setProperty(
+            "--scale-start",
+            `${Math.random() * 0.3 + 0.2}`
+          );
+
+          const xEnd = (Math.random() - 0.5) * (Math.random() * 60 + 30);
+          const yEnd = (Math.random() - 0.5) * (Math.random() * 60 + 30);
+          particle.style.setProperty("--x-end", `${xEnd}vw`);
+          particle.style.setProperty("--y-end", `${yEnd}vh`);
+          particle.style.setProperty(
+            "--scale-end",
+            `${Math.random() * 0.2 + 0.1}`
+          );
+
+          particle.style.setProperty(
+            "--opacity-max",
+            `${Math.random() * 0.3 + 0.1}`
+          );
+
+          const duration = Math.random() * 16 + 10;
+          particle.style.animationDuration = `${duration}s`;
+          particle.style.animationDelay = `${Math.random() * 10}s`;
+
+          effectsContainer.appendChild(particle);
+        }
+
+        // --- Rayos / Relámpagos ---
+        function createLightningBolt() {
+          const bolt = document.createElement("div");
+          bolt.classList.add("lightning-bolt");
+
+          const length = Math.random() * 280 + 120;
+          const width = Math.random() * 2.5 + 1;
+          bolt.style.width = `${width}px`;
+          bolt.style.height = `${length}px`;
+
+          bolt.style.left = `${Math.random() * 98}vw`;
+          bolt.style.top = `${Math.random() * 98}vh`;
+
+          bolt.style.transform = `rotate(${
+            Math.random() * 360
+          }deg) scaleY(0.2) scaleX(0.7)`;
+
+          const flashDuration = Math.random() * 0.28 + 0.22;
+          const animationDelay = Math.random() * 0.08;
+
+          bolt.style.animationDuration = `${flashDuration}s`;
+          bolt.style.animationDelay = `${animationDelay}s`;
+          bolt.style.animationFillMode = "forwards";
+
+          effectsContainer.appendChild(bolt);
+
+          setTimeout(() => {
+            if (bolt.parentNode) {
+              bolt.parentNode.removeChild(bolt);
+            }
+          }, (flashDuration + animationDelay + 0.1) * 1000);
+        }
+
+        function generateLightningStorm() {
+          const numFlashesInBurst = Math.floor(Math.random() * 2) + 1;
+          for (let i = 0; i < numFlashesInBurst; i++) {
+            setTimeout(createLightningBolt, Math.random() * 120);
+          }
+
+          const nextStormDelay = Math.random() * 5000 + 2500;
+          setTimeout(generateLightningStorm, nextStormDelay);
+        }
+        setTimeout(generateLightningStorm, 2000);
+      });
+    </script>
+  </body>
+</html>

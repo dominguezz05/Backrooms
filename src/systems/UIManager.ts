@@ -1,0 +1,141 @@
+export class UIManager {
+  private staminaBar: HTMLElement | null = null;
+  private batteryBar: HTMLElement | null = null;
+  private sanityBar: HTMLElement | null = null;
+  private sanityOverlay: HTMLElement | null = null;
+  private enemyIndicator: HTMLElement | null = null;
+  private hidingOverlay: HTMLElement | null = null;
+  private hidingText: HTMLElement | null = null;
+  private hideHint: HTMLElement | null = null;
+  private loadingScreen: HTMLElement | null = null;
+  private messageOverlay: HTMLElement | null = null;
+  private scoreElement: HTMLElement | null = null;
+  private levelObjective: HTMLElement | null = null;
+
+  constructor() {
+    this.staminaBar = document.getElementById('staminaBar');
+    this.batteryBar = document.getElementById('batteryBar');
+    this.sanityBar = document.getElementById('sanityBar');
+    this.sanityOverlay = document.getElementById('sanityOverlay');
+    this.enemyIndicator = document.getElementById('enemyIndicator');
+    this.hidingOverlay = document.getElementById('hidingOverlay');
+    this.hidingText = document.getElementById('hidingText');
+    this.hideHint = document.getElementById('hideHint');
+    this.loadingScreen = document.getElementById('loadingScreen');
+    this.messageOverlay = document.getElementById('messageOverlay');
+    this.scoreElement = document.getElementById('scoreIndicator');
+    this.levelObjective = document.getElementById('levelObjective');
+  }
+
+  updateStamina(stamina: number): void {
+    if (this.staminaBar) {
+      this.staminaBar.style.width = `${stamina}%`;
+      if (stamina < 20) {
+        this.staminaBar.classList.add('low');
+      } else {
+        this.staminaBar.classList.remove('low');
+      }
+    }
+  }
+
+  updateBattery(battery: number): void {
+    if (this.batteryBar) {
+      this.batteryBar.style.width = `${battery}%`;
+      if (battery < 20) {
+        this.batteryBar.classList.add('low');
+      } else {
+        this.batteryBar.classList.remove('low');
+      }
+    }
+  }
+
+  updateSanity(sanity: number, maxSanity: number): void {
+    if (this.sanityBar) {
+      this.sanityBar.style.width = `${(sanity / maxSanity) * 100}%`;
+      if (sanity < 30) {
+        this.sanityBar.classList.add('low');
+        this.sanityBar.style.background = 'linear-gradient(90deg, #660099, #9933ff)';
+      } else if (sanity < 50) {
+        this.sanityBar.classList.add('low');
+        this.sanityBar.style.background = 'linear-gradient(90deg, #8800cc, #aa44ff)';
+      } else {
+        this.sanityBar.classList.remove('low');
+        this.sanityBar.style.background = 'linear-gradient(90deg, #9933ff, #cc66ff)';
+      }
+    }
+    if (this.sanityOverlay) {
+      const opacity = Math.max(0, (1 - sanity / maxSanity) * 0.7);
+      this.sanityOverlay.style.opacity = String(opacity);
+    }
+  }
+
+  updateEnemyIndicator(distance: number): void {
+    if (this.enemyIndicator) {
+      if (distance < 5) {
+        this.enemyIndicator.textContent = '¡PELIGRO! Enemigo muy cerca';
+        this.enemyIndicator.style.color = '#ff0000';
+      } else if (distance < 10) {
+        this.enemyIndicator.textContent = 'Enemigo detectado cerca';
+        this.enemyIndicator.style.color = '#ff8800';
+      } else {
+        this.enemyIndicator.textContent = '';
+      }
+    }
+  }
+
+  updateHiding(isHiding: boolean, canHide: boolean): void {
+    if (this.hidingOverlay) {
+      this.hidingOverlay.style.display = isHiding ? 'block' : 'none';
+    }
+    if (this.hidingText) {
+      this.hidingText.style.display = isHiding ? 'block' : 'none';
+    }
+    if (this.hideHint) {
+      // Mostrar solo cuando puedes esconderte pero no estás escondido
+      this.hideHint.style.display = (canHide && !isHiding) ? 'block' : 'none';
+    }
+  }
+
+  showLoading(show: boolean): void {
+    if (this.loadingScreen) {
+      this.loadingScreen.style.display = show ? 'flex' : 'none';
+    }
+  }
+
+  showMessage(message: string, duration: number = 2000): void {
+    if (this.messageOverlay) {
+      this.messageOverlay.textContent = message;
+      this.messageOverlay.style.display = 'block';
+      setTimeout(() => {
+        if (this.messageOverlay) {
+          this.messageOverlay.style.display = 'none';
+        }
+      }, duration);
+    }
+  }
+
+  getMessageElement(): HTMLElement | null {
+    return this.messageOverlay;
+  }
+
+  updateScore(score: number, target: number): void {
+    if (this.scoreElement) {
+      this.scoreElement.textContent = `PUNTOS: ${score}/${target}`;
+      if (score >= target) {
+        this.scoreElement.style.color = '#00ff00';
+      }
+    }
+  }
+
+  setLevelObjective(html: string): void {
+    if (this.levelObjective) {
+      this.levelObjective.innerHTML = html;
+    }
+  }
+
+  updateLevelObjective(html: string): void {
+    if (this.levelObjective) {
+      this.levelObjective.innerHTML = html;
+    }
+  }
+}
