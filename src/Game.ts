@@ -191,7 +191,7 @@ export class Game {
     await delay(200);
     this.uiManager.setLoadingProgress(95, 'Listo para comenzar...');
     this.setupStartButton();
-    this.initTutorial();
+    this.startTutorial();
 
     await delay(300);
     this.uiManager.setLoadingProgress(100, '¡Pulsa para empezar!');
@@ -338,6 +338,7 @@ export class Game {
         self.gameStartTime = Date.now();
         self.statsLastPos.copy(self.player.position);
         self.isActive = true;
+        self.startTutorial(); // Iniciar tutorial cuando el juego comienza
         self.animate();
       });
     }
@@ -1396,7 +1397,7 @@ export class Game {
     }
   }
 
-  private initTutorial(): void {
+  private startTutorial(): void {
     const isFirstTime = !localStorage.getItem('backrooms_tutorial_done');
     
     this.tutorialHints = [
