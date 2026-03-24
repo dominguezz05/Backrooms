@@ -11,6 +11,10 @@ export enum CellType {
   BLOOD_STAIN = 7,
   PHOTO = 8,
   CEILING_LIGHT = 9,
+  POWER_SPEED = 10,
+  POWER_INVISIBLE = 11,
+  POWER_STUN = 12,
+  POWER_SANITY = 13,
 }
 
 export enum EnemyType {

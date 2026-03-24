@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CONFIG, PLAYER_HEIGHT } from '../constants';
+import { CONFIG, PLAYER_HEIGHT, POWERUP_SPEED_DURATION, POWERUP_SPEED_MULTIPLIER, POWERUP_INVISIBLE_DURATION, POWERUP_SANITY_AMOUNT } from '../constants';
 import type { InputManager } from '../core/InputManager';
 import type { SceneManager } from '../core/SceneManager';
 import { CellType } from '../types';
@@ -17,6 +17,9 @@ export class Player {
   isSprinting: boolean;
   isHiding: boolean;
   canHide: boolean;
+  speedBoostTimer: number = 0;
+  invisibilityTimer: number = 0;
+  isInvisible: boolean = false;
   private sceneManager: SceneManager;
   private inputManager: InputManager;
   private maze: number[][];
@@ -62,10 +65,48 @@ export class Player {
   }
 
   update(delta: number): void {
+    this.updatePowerUps(delta);
     this.updateMovement(delta);
     this.updateResources(delta);
     this.updateCamera();
     this.updateFlashlight();
+  }
+
+  private updatePowerUps(delta: number): void {
+    if (this.speedBoostTimer > 0) {
+      this.speedBoostTimer -= delta;
+      if (this.speedBoostTimer <= 0) {
+        this.speedBoostTimer = 0;
+      }
+    }
+    if (this.invisibilityTimer > 0) {
+      this.invisibilityTimer -= delta;
+      if (this.invisibilityTimer <= 0) {
+        this.invisibilityTimer = 0;
+        this.isInvisible = false;
+      }
+    }
+  }
+
+  activateSpeedBoost(): void {
+    this.speedBoostTimer = POWERUP_SPEED_DURATION;
+  }
+
+  activateInvisibility(): void {
+    this.invisibilityTimer = POWERUP_INVISIBLE_DURATION;
+    this.isInvisible = true;
+  }
+
+  restoreSanity(): void {
+    this.sanity = Math.min(CONFIG.SANITY_MAX, this.sanity + POWERUP_SANITY_AMOUNT);
+  }
+
+  getSpeedMultiplier(): number {
+    return this.speedBoostTimer > 0 ? POWERUP_SPEED_MULTIPLIER : 1.0;
+  }
+
+  isPlayerInvisible(): boolean {
+    return this.invisibilityTimer > 0;
   }
 
   private updateMovement(delta: number): void {
@@ -103,7 +144,8 @@ export class Player {
         this.stamina = Math.min(CONFIG.STAMINA_MAX, this.stamina);
       }
 
-      const speed = this.isSprinting ? CONFIG.SPRINT_SPEED : CONFIG.WALK_SPEED;
+      const baseSpeed = this.isSprinting ? CONFIG.SPRINT_SPEED : CONFIG.WALK_SPEED;
+      const speed = baseSpeed * this.getSpeedMultiplier();
 
       const forward = new THREE.Vector3(
         -Math.sin(this.yaw),

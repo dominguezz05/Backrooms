@@ -329,7 +329,8 @@ export class Enemy {
   private investigateTimer = 0;
   private patrolTarget: THREE.Vector3 | null = null;
   private patrolTimer = 0;
-  private readonly PATROL_TIMEOUT = 6; // s máximo en ruta antes de elegir nuevo objetivo
+  private readonly PATROL_TIMEOUT = 6;
+  private stunTimer = 0;
 
   /** Llamar durante la carga del juego para pre-generar las texturas y evitar el tirón al spawnear */
   static preloadTextures(): void {
@@ -577,6 +578,30 @@ export class Enemy {
 
   update(delta: number, playerPos: THREE.Vector3, playerHiding: boolean, sanityBonus: number = 1.0): number {
     const distToPlayer = this.position.distanceTo(playerPos);
+    
+    if (this.stunTimer > 0) {
+      this.stunTimer -= delta;
+      this.isMoving = false;
+      if (this.mesh.children.length > 0) {
+        const torso = this.mesh.children[0] as THREE.Mesh;
+        if (torso.material instanceof THREE.MeshStandardMaterial) {
+          torso.material.emissive.setHex(0x888800);
+          torso.material.emissiveIntensity = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+        }
+      }
+      this.animationTime += delta;
+      this.animate(delta);
+      return distToPlayer;
+    }
+    
+    if (this.mesh.children.length > 0) {
+      const torso = this.mesh.children[0] as THREE.Mesh;
+      if (torso.material instanceof THREE.MeshStandardMaterial) {
+        torso.material.emissive.setHex(this.getEmissiveColor());
+        torso.material.emissiveIntensity = 0.2;
+      }
+    }
+
     const currentSpeed = this.speed * sanityBonus;
 
     if (this.type === EnemyType.TELEPORTER) {
@@ -1025,6 +1050,11 @@ export class Enemy {
     }
     
     return bestDir;
+  }
+
+  stun(duration: number): void {
+    this.stunTimer = duration;
+    console.log(`[Enemy] ${this.type} stunned for ${duration}s`);
   }
 
   canKillPlayer(playerPos: THREE.Vector3): boolean {

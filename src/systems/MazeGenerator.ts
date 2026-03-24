@@ -169,6 +169,20 @@ export class MazeGenerator {
       }
     }
 
+    const powerUpTypes = [CellType.POWER_SPEED, CellType.POWER_INVISIBLE, CellType.POWER_STUN, CellType.POWER_SANITY];
+    for (const powerType of powerUpTypes) {
+      let count = 0;
+      const maxCount = powerType === CellType.POWER_SANITY ? 3 : 2;
+      while (count < maxCount) {
+        const x = Math.floor(Math.random() * (this.width - 2)) + 1;
+        const z = Math.floor(Math.random() * (this.height - 2)) + 1;
+        if (this.maze[z][x] === CellType.EMPTY && (x > 4 || z > 4)) {
+          this.maze[z][x] = powerType;
+          count++;
+        }
+      }
+    }
+
     let hidingSpotsPlaced = 0;
     const maxHidingSpots = 6;
 
