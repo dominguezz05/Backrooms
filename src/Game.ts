@@ -8,7 +8,7 @@ import { UIManager } from './systems/UIManager';
 import { ScoreManager } from './systems/ScoreManager';
 import { Player } from './entities/Player';
 import { Enemy } from './entities/Enemy';
-import { CONFIG } from './constants';
+import { CONFIG, POWERUP_STUN_DURATION } from './constants';
 import { CellType, EnemyType } from './types';
 import { createFloorTexture, createWallTexture, createCeilingTexture } from './utils/textures';
 
@@ -40,6 +40,7 @@ export class Game {
   private photos: THREE.Mesh[] = [];
   private bloodStains: THREE.Mesh[] = [];
   private ceilingLights: THREE.Vector3[] = [];
+  private powerUps: THREE.Mesh[] = [];
 
   // Puerta de salida animada
   private exitDoor: THREE.Group | null = null;
@@ -138,27 +139,49 @@ export class Game {
     this.configureLevel();
     this.applyDifficulty();
 
-    this.uiManager.showLoading(true);
-    // Pre-generar texturas de enemigos DURANTE la carga (evita tirón en el spawn)
-    Enemy.preloadTextures();
-    this.maze = this.mazeGenerator.generate();
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+    this.uiManager.showLoading(true);
+    this.uiManager.setLoadingProgress(5, 'Preparando recursos...');
+    await delay(200);
+
+    this.uiManager.setLoadingProgress(15, 'Cargando texturas de enemigos...');
+    Enemy.preloadTextures();
+    await delay(300);
+
+    this.uiManager.setLoadingProgress(25, 'Generando laberinto...');
+    this.maze = this.mazeGenerator.generate();
+    await delay(400);
+
+    this.uiManager.setLoadingProgress(40, 'Construyendo entorno...');
     this.buildMaze();
+    await delay(300);
+
+    this.uiManager.setLoadingProgress(60, 'Inicializando mapa...');
     this.initMinimap();
+    await delay(200);
+
+    this.uiManager.setLoadingProgress(75, 'Configurando jugador...');
     this.player.setMaze(this.maze);
     this.player.setAudioManager(this.audioManager);
 
-    // Nivel 4 — apagón total: solo la linterna ilumina
     if (this.currentLevel === 'level4') {
       this.sceneManager.ambientLight.intensity = 0.02;
     }
 
+    await delay(200);
+    this.uiManager.setLoadingProgress(85, 'Preparando efectos...');
     this.horrorEffects.setMessageElement(
       document.getElementById('messageOverlay') || document.createElement('div')
     );
 
+    await delay(200);
+    this.uiManager.setLoadingProgress(95, 'Listo para comenzar...');
     this.setupStartButton();
 
+    await delay(300);
+    this.uiManager.setLoadingProgress(100, '¡Pulsa para empezar!');
+    await delay(500);
     this.uiManager.showLoading(false);
     console.log('[Game] Initialization complete - Level:', this.currentLevel);
   }
@@ -319,6 +342,14 @@ export class Game {
           battery.position.set(posX, 0.5, posZ);
           this.sceneManager.scene.add(battery);
           this.batteries.push(battery);
+        }
+
+        if (cell === CellType.POWER_SPEED || cell === CellType.POWER_INVISIBLE || 
+            cell === CellType.POWER_STUN || cell === CellType.POWER_SANITY) {
+          const powerUpMesh = this.createPowerUpMesh(cell);
+          powerUpMesh.position.set(posX, 0.8, posZ);
+          this.sceneManager.scene.add(powerUpMesh);
+          this.powerUps.push(powerUpMesh);
         }
 
         if (cell === CellType.NOTE) {
@@ -790,6 +821,54 @@ export class Game {
     return new THREE.CanvasTexture(canvas);
   }
 
+  private createPowerUpMesh(cellType: number): THREE.Mesh {
+    const colors: Record<number, { color: number; emissive: number }> = {
+      [CellType.POWER_SPEED]:     { color: 0xff8800, emissive: 0xff4400 },
+      [CellType.POWER_INVISIBLE]: { color: 0x00ffff, emissive: 0x0088ff },
+      [CellType.POWER_STUN]:      { color: 0xffff00, emissive: 0xffaa00 },
+      [CellType.POWER_SANITY]:    { color: 0xff00ff, emissive: 0xaa00ff },
+    };
+    const style = colors[cellType] || { color: 0xffffff, emissive: 0x888888 };
+
+    const group = new THREE.Group();
+    const core = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.3, 0),
+      new THREE.MeshStandardMaterial({
+        color: style.color,
+        emissive: style.emissive,
+        emissiveIntensity: 0.8,
+        metalness: 0.9,
+        roughness: 0.1,
+      })
+    );
+    group.add(core);
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.45, 0.04, 8, 24),
+      new THREE.MeshBasicMaterial({
+        color: style.color,
+        transparent: true,
+        opacity: 0.5,
+      })
+    );
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
+
+    const light = new THREE.PointLight(style.color, 1.5, 6);
+    light.position.set(0, 0.5, 0);
+    group.add(light);
+
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1, 8, 8),
+      new THREE.MeshBasicMaterial({ visible: false })
+    );
+    mesh.userData = { cellType, group };
+    group.userData = { core, ring, light };
+    mesh.add(group);
+
+    return mesh;
+  }
+
   private showStats(isVictory: boolean): void {
     const elapsed = (Date.now() - this.gameStartTime) / 1000;
     const mins = Math.floor(elapsed / 60);
@@ -1097,6 +1176,68 @@ export class Game {
           if (this.score === 80) this.horrorEffects.showMessage('¡CASI! 2 monedas más', 2000);
           if (this.score === 90) this.horrorEffects.showMessage('¡ÚLTIMA MONEDA!', 2000);
           console.log('[Game] Coin collected! Score:', this.score);
+        }
+      }
+    }
+
+    for (let i = this.powerUps.length - 1; i >= 0; i--) {
+      const powerUp = this.powerUps[i];
+      const dist = this.player.position.distanceTo(powerUp.position);
+      
+      if (dist < CONFIG.UNIT_SIZE * 0.8) {
+        const cellType = powerUp.userData.cellType;
+        const cellX = Math.round(powerUp.position.x / CONFIG.UNIT_SIZE);
+        const cellZ = Math.round(powerUp.position.z / CONFIG.UNIT_SIZE);
+        
+        if (this.maze[cellZ] && this.maze[cellZ][cellX] === cellType) {
+          this.maze[cellZ][cellX] = CellType.EMPTY;
+          this.sceneManager.scene.remove(powerUp);
+          this.powerUps.splice(i, 1);
+          
+          this.audioManager.playPowerUpPickup();
+          
+          switch (cellType) {
+            case CellType.POWER_SPEED:
+              this.player.activateSpeedBoost();
+              this.showPickupMessage('⚡ ¡VELOCIDAD x1.5!');
+              break;
+            case CellType.POWER_INVISIBLE:
+              this.player.activateInvisibility();
+              this.showPickupMessage('👻 ¡INVISIBILIDAD!');
+              break;
+            case CellType.POWER_STUN:
+              this.stunAllEnemies();
+              this.showPickupMessage('💥 ¡ENEMIGOS ATURDIDOS!');
+              break;
+            case CellType.POWER_SANITY:
+              this.player.restoreSanity();
+              this.showPickupMessage('🧠 ¡CORDURA RESTAURADA!');
+              break;
+          }
+          console.log('[Game] Power-up collected! Type:', cellType);
+        }
+      }
+    }
+  }
+
+  private stunAllEnemies(): void {
+    for (const enemy of this.enemies) {
+      enemy.stun(POWERUP_STUN_DURATION);
+    }
+  }
+
+  private updatePowerUpVisuals(delta: number): void {
+    const time = Date.now() * 0.001;
+    for (const powerUp of this.powerUps) {
+      const group = powerUp.userData.group;
+      if (group) {
+        group.rotation.y += delta * 1.5;
+        const floatY = Math.sin(time * 2 + powerUp.position.x) * 0.15;
+        group.position.y = floatY;
+        
+        const ring = group.userData.ring;
+        if (ring) {
+          ring.rotation.z += delta * 0.8;
         }
       }
     }
@@ -1521,6 +1662,7 @@ export class Game {
 
     this.player.update(delta);
     this.checkBatteryCollection();
+    this.updatePowerUpVisuals(delta);
 
     // ── Estadísticas ─────────────────────────────────────────────────────────
     this.statsDistanceWalked += this.player.position.distanceTo(this.statsLastPos);
@@ -1543,9 +1685,10 @@ export class Game {
 
     let closestEnemyDist = Infinity;
     const sanityBonus = this.player.sanity < 30 ? 1.3 : (this.player.sanity < 50 ? 1.15 : 1.0);
+    const isEffectivelyHidden = this.player.isHiding || this.player.isPlayerInvisible();
     
     for (const enemy of this.enemies) {
-      const dist = enemy.update(delta, this.player.position, this.player.isHiding, sanityBonus);
+      const dist = enemy.update(delta, this.player.position, isEffectivelyHidden, sanityBonus);
       closestEnemyDist = Math.min(closestEnemyDist, dist);
 
       this.enemyStepTimer += delta;
@@ -1681,6 +1824,7 @@ export class Game {
     this.uiManager.updateBattery(this.player.battery);
     this.uiManager.updateSanity(this.player.sanity, CONFIG.SANITY_MAX);
     this.uiManager.updateHiding(this.player.isHiding, this.player.canHide);
+    this.uiManager.updatePowerUps(this.player.speedBoostTimer, this.player.invisibilityTimer);
 
     // Actualizar objetivo dinámicamente
     if (this.currentLevel === 'level2') {

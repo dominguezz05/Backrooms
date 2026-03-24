@@ -8,9 +8,15 @@ export class UIManager {
   private hidingText: HTMLElement | null = null;
   private hideHint: HTMLElement | null = null;
   private loadingScreen: HTMLElement | null = null;
+  private loadingBar: HTMLElement | null = null;
+  private loadingStatus: HTMLElement | null = null;
   private messageOverlay: HTMLElement | null = null;
   private scoreElement: HTMLElement | null = null;
   private levelObjective: HTMLElement | null = null;
+  private speedBoostIndicator: HTMLElement | null = null;
+  private speedBoostTimer: HTMLElement | null = null;
+  private invisibilityIndicator: HTMLElement | null = null;
+  private invisibilityTimer: HTMLElement | null = null;
 
   constructor() {
     this.staminaBar = document.getElementById('staminaBar');
@@ -22,9 +28,24 @@ export class UIManager {
     this.hidingText = document.getElementById('hidingText');
     this.hideHint = document.getElementById('hideHint');
     this.loadingScreen = document.getElementById('loadingScreen');
+    this.loadingBar = document.getElementById('loadingBar');
+    this.loadingStatus = document.getElementById('loadingStatus');
     this.messageOverlay = document.getElementById('messageOverlay');
     this.scoreElement = document.getElementById('scoreIndicator');
     this.levelObjective = document.getElementById('levelObjective');
+    this.speedBoostIndicator = document.getElementById('speedBoostIndicator');
+    this.speedBoostTimer = document.getElementById('speedBoostTimer');
+    this.invisibilityIndicator = document.getElementById('invisibilityIndicator');
+    this.invisibilityTimer = document.getElementById('invisibilityTimer');
+  }
+
+  setLoadingProgress(percent: number, status: string): void {
+    if (this.loadingBar) {
+      this.loadingBar.style.width = `${percent}%`;
+    }
+    if (this.loadingStatus) {
+      this.loadingStatus.textContent = status;
+    }
   }
 
   updateStamina(stamina: number): void {
@@ -136,6 +157,30 @@ export class UIManager {
   updateLevelObjective(html: string): void {
     if (this.levelObjective) {
       this.levelObjective.innerHTML = html;
+    }
+  }
+
+  updatePowerUps(speedBoostTime: number, invisibilityTime: number): void {
+    if (this.speedBoostIndicator && this.speedBoostTimer) {
+      if (speedBoostTime > 0) {
+        this.speedBoostIndicator.style.display = 'flex';
+        this.speedBoostTimer.textContent = Math.ceil(speedBoostTime).toString();
+        this.speedBoostIndicator.classList.add('active');
+      } else {
+        this.speedBoostIndicator.style.display = 'none';
+        this.speedBoostIndicator.classList.remove('active');
+      }
+    }
+    
+    if (this.invisibilityIndicator && this.invisibilityTimer) {
+      if (invisibilityTime > 0) {
+        this.invisibilityIndicator.style.display = 'flex';
+        this.invisibilityTimer.textContent = Math.ceil(invisibilityTime).toString();
+        this.invisibilityIndicator.classList.add('active');
+      } else {
+        this.invisibilityIndicator.style.display = 'none';
+        this.invisibilityIndicator.classList.remove('active');
+      }
     }
   }
 }
