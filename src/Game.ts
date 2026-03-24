@@ -102,6 +102,18 @@ export class Game {
   private readonly MAX_FOOTPRINTS = 28;
   private readonly FOOTPRINT_LIFETIME = 18;
 
+  // ── Sistema de Trail del Jugador ────────────────────────────────────────────
+  private trailPositions: THREE.Vector3[] = [];
+  private trailTimer = 0;
+  private readonly TRAIL_INTERVAL = 0.8;     // Guardar posición cada 0.8s
+  private readonly MAX_TRAIL_LENGTH = 40;    // Máximo de puntos en el trail
+  private trailCanvas: HTMLCanvasElement | null = null;
+  private trailCtx: CanvasRenderingContext2D | null = null;
+  private trailVisible = false;
+
+  // ── Sistema de Transiciones Suaves ──────────────────────────────────────────
+  private transitionOverlay: HTMLElement | null = null;
+
 
 
   constructor() {
@@ -149,6 +161,10 @@ export class Game {
     this.applyDifficulty();
 
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Inicializar sistemas de transición y trail
+    this.initTransitionSystem();
+    this.initTrailSystem();
 
     this.uiManager.showLoading(true);
     this.uiManager.setLoadingProgress(5, 'Preparando recursos...');
@@ -202,6 +218,152 @@ export class Game {
     this.cleanupMenuAudio();
     
     console.log('[Game] Initialization complete - Level:', this.currentLevel);
+  }
+
+  // ── Sistema de Transiciones Suaves ──────────────────────────────────────────
+  private initTransitionSystem(): void {
+    this.transitionOverlay = document.getElementById('transitionOverlay');
+  }
+
+  /** Hace un fade a negro y luego fade desde negro (para transiciones entre pantallas) */
+  public transitionFade(callback: () => void, fadeOutMs = 500, fadeInMs = 500): void {
+    if (!this.transitionOverlay) {
+      callback();
+      return;
+    }
+    
+    // Fade a negro
+    this.transitionOverlay.classList.add('active');
+    this.transitionOverlay.style.transition = `opacity ${fadeOutMs}ms ease`;
+    this.transitionOverlay.style.opacity = '1';
+    
+    setTimeout(() => {
+      // Ejecutar la acción (cambiar pantalla, etc.)
+      callback();
+      
+      // Fade desde negro
+      if (this.transitionOverlay) {
+        this.transitionOverlay.style.transition = `opacity ${fadeInMs}ms ease`;
+        this.transitionOverlay.style.opacity = '0';
+      }
+      
+      setTimeout(() => {
+        this.transitionOverlay?.classList.remove('active');
+      }, fadeInMs);
+    }, fadeOutMs);
+  }
+
+  // ── Sistema de Trail del Jugador ────────────────────────────────────────────
+  private initTrailSystem(): void {
+    this.trailCanvas = document.getElementById('trailCanvas') as HTMLCanvasElement | null;
+    if (this.trailCanvas) {
+      this.trailCtx = this.trailCanvas.getContext('2d');
+      this.resizeTrailCanvas();
+      
+      window.addEventListener('resize', () => this.resizeTrailCanvas());
+    }
+  }
+
+  private resizeTrailCanvas(): void {
+    if (this.trailCanvas) {
+      this.trailCanvas.width = window.innerWidth;
+      this.trailCanvas.height = window.innerHeight;
+    }
+    if (this.trailCtx) {
+      this.trailCtx = this.trailCanvas?.getContext('2d') || null;
+    }
+  }
+
+  /** Añade la posición actual al trail del jugador */
+  private addTrailPosition(): void {
+    this.trailPositions.push(this.player.position.clone());
+    
+    // Limitar longitud del trail
+    if (this.trailPositions.length > this.MAX_TRAIL_LENGTH) {
+      this.trailPositions.shift();
+    }
+    
+    this.trailVisible = true;
+  }
+
+  /** Renderiza el trail del jugador en el canvas overlay */
+  private renderTrail(): void {
+    if (!this.trailCtx || !this.trailCanvas || !this.trailVisible || this.trailPositions.length < 2) {
+      if (this.trailCtx && this.trailCanvas) {
+        this.trailCtx.clearRect(0, 0, this.trailCanvas.width, this.trailCanvas.height);
+      }
+      return;
+    }
+
+    const ctx = this.trailCtx;
+    const canvas = this.trailCanvas;
+    
+    // Limpiar canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Obtener la dirección de la cámara
+    const camera = this.sceneManager.camera;
+    const cameraDir = new THREE.Vector3();
+    camera.getWorldDirection(cameraDir);
+    
+    // Proyectar puntos 3D a 2D usando la cámara
+    const projectedPoints: Array<{ x: number; y: number; z: number }> = [];
+    
+    for (const pos of this.trailPositions) {
+      const screenPos = pos.clone().project(camera);
+      const x = (screenPos.x * 0.5 + 0.5) * canvas.width;
+      const y = (-screenPos.y * 0.5 + 0.5) * canvas.height;
+      projectedPoints.push({ x, y, z: screenPos.z });
+    }
+
+    // Solo dibujar puntos que estén frente a la cámara
+    const visiblePoints = projectedPoints.filter(p => p.z < 1);
+    
+    if (visiblePoints.length < 2) return;
+
+    // Dibujar línea de trail con degradado
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    for (let i = 1; i < visiblePoints.length; i++) {
+      const alpha = i / visiblePoints.length; // Más brillante hacia el jugador
+      const prev = visiblePoints[i - 1];
+      const curr = visiblePoints[i];
+      
+      // Calcular distancia en pantalla
+      const distScreen = Math.sqrt(
+        Math.pow(curr.x - prev.x, 2) + Math.pow(curr.y - prev.y, 2)
+      );
+      
+      // No dibujar si los puntos están muy separados (fuera del campo de visión)
+      if (distScreen > 200) continue;
+      
+      const lineWidth = 2 + alpha * 3;
+      
+      // Color con degradado de opacity
+      const r = 60;
+      const g = 50 + Math.floor(alpha * 30);
+      const b = 40;
+      
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(curr.x, curr.y);
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.6})`;
+      ctx.lineWidth = lineWidth;
+      ctx.stroke();
+    }
+
+    // Dibujar puntos como pequeños círculos
+    for (let i = 0; i < visiblePoints.length; i++) {
+      const alpha = (i + 1) / visiblePoints.length;
+      const p = visiblePoints[i];
+      const radius = 2 + alpha * 3;
+      
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(80, 60, 40, ${alpha * 0.5})`;
+      ctx.fill();
+    }
   }
 
   private cleanupMenuAudio(): void {
@@ -343,6 +505,24 @@ export class Game {
 
   private startGame(): void {
     const self = this;
+    
+    // Fade-out del overlay de inicio
+    const startOverlay = document.getElementById('startOverlay');
+    if (startOverlay) {
+      startOverlay.style.transition = 'opacity 0.6s ease';
+      startOverlay.style.opacity = '0';
+      setTimeout(() => {
+        startOverlay.style.display = 'none';
+      }, 600);
+    }
+    
+    // Fade-in del juego
+    if (this.transitionOverlay) {
+      this.transitionOverlay.style.transition = 'opacity 0.8s ease';
+      this.transitionOverlay.style.opacity = '0';
+      this.transitionOverlay.classList.remove('active');
+    }
+    
     this.inputManager.requestPointerLock();
     this.audioManager.init(this.sceneManager.camera).then(() => {
       this.audioManager.startAmbientMusic();
@@ -1116,7 +1296,8 @@ export class Game {
     };
     const subtext = subtexts[this.currentLevel] ?? '¡Lograste escapar de los Backrooms!';
 
-    setTimeout(() => {
+    // Fade transition to victory screen
+    this.transitionFade(() => {
       const overlay = document.getElementById('gameOverOverlay');
       const title = overlay?.querySelector('h1');
       const text = overlay?.querySelector('p');
@@ -1137,7 +1318,7 @@ export class Game {
       }
       this.showStats(true);
       if (overlay) overlay.classList.add('active');
-    }, 600);
+    }, 400, 600);
   }
 
   private triggerJumpscare(enemyType: string = 'stalker'): void {
@@ -1176,6 +1357,13 @@ export class Game {
       this.showStats(false);
       if (gameOverOverlay) gameOverOverlay.classList.add('active');
       document.exitPointerLock();
+      
+      // Fade-in suave del overlay de muerte
+      if (this.transitionOverlay) {
+        this.transitionOverlay.style.transition = 'opacity 0.5s ease';
+        this.transitionOverlay.style.opacity = '0';
+        this.transitionOverlay.classList.remove('active');
+      }
     }, 2500);
   }
 
@@ -1195,11 +1383,14 @@ export class Game {
     
     ScoreManager.unlockAchievement('first_death');
 
-    this.showStats(false);
-    if (gameOverOverlay) {
-      gameOverOverlay.classList.add('active');
-      this.audioManager.playJumpscareSound();
-    }
+    // Fade transition
+    this.transitionFade(() => {
+      this.showStats(false);
+      if (gameOverOverlay) {
+        gameOverOverlay.classList.add('active');
+        this.audioManager.playJumpscareSound();
+      }
+    }, 500, 600);
 
     document.exitPointerLock();
     console.log('[Game] Game Over - Player lost sanity');
@@ -2046,6 +2237,16 @@ export class Game {
       this.footprintTimer = 0;
     }
     this.updateFootprints(delta);
+
+    // ── Trail del Jugador ─────────────────────────────────────────────────────
+    if (isMoving) {
+      this.trailTimer += delta;
+      if (this.trailTimer >= this.TRAIL_INTERVAL) {
+        this.addTrailPosition();
+        this.trailTimer = 0;
+      }
+    }
+    this.renderTrail();
 
     // Guardar distancia para los mini-sustos
     this.lastClosestEnemyDist = closestEnemyDist;

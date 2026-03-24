@@ -93,11 +93,11 @@
 |--------|-------------|-----------|
 | Tutorial/Hints | Instrucciones contextuales al inicio de cada nivel | ✅ Implementado |
 | ~~Screen shake mejorado~~ | ~~Efecto de temblor al estar cerca de enemigos~~ | ✅ Implementado |
-| Trail del jugador | Línea sutil de por dónde has pasado | Baja |
+| Trail del jugador | Línea sutil de por dónde has pasado | ✅ Completado |
 | Partículas de polvo | Pequeñas partículas flotando en el aire | ✅ Implementado |
 | Indicador de dirección | Flecha hacia la salida cuando no la ves | ✅ Implementado |
 | Vibration móvil | Feedback háptico en dispositivos móviles | Baja |
-| Transiciones suaves | Fade entre pantallas (menú→juego→muerte) | Baja |
+| Transiciones suaves | Fade entre pantallas (menú→juego→muerte) | ✅ Completado |
 
 ## 8. Efectos Visuales
 
@@ -138,6 +138,8 @@
 15. ~~**Loading screen mejorado**~~ - ✅ COMPLETADO
 16. ~~**Power-ups en minimapa**~~ - ✅ COMPLETADO
 17. ~~**Screen shake de cámara**~~ - ✅ COMPLETADO
+18. ~~**Transiciones suaves**~~ - ✅ COMPLETADO
+19. ~~**Trail del jugador**~~ - ✅ COMPLETADO
 
 ---
 

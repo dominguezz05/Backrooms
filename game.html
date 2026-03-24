@@ -108,6 +108,12 @@
 
     <!-- Flash de pantalla para mini-sustos (pointer-events:none para no bloquear input) -->
     <div id="screenFlash" style="position:fixed;inset:0;opacity:0;pointer-events:none;z-index:9999;"></div>
+    
+    <!-- Transition Overlay para fade between screens -->
+    <div id="transitionOverlay"></div>
+    
+    <!-- Canvas para el trail del jugador -->
+    <canvas id="trailCanvas"></canvas>
 
     <div id="messageOverlay"></div>
     <div id="sanityOverlay"></div>
