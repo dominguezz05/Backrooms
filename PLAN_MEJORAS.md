@@ -83,9 +83,9 @@
 |--------|-------------|-----------|
 | Viento mejorado | Ruido de viento más intenso con relámpagos | ✅ Implementado |
 | Música ambiente menú | Drone base + tensión gradual | ✅ Implementado |
-| Efecto glitch título | Glitches ocasionales en "PESADILLA EN LOS BACKROOMS" | Baja |
-| Suspiro distante | Sonido atmosférico de alguien suspirando | Baja |
-| Clock tick | Sonido de reloj marcando el tiempo | Baja |
+| Efecto glitch título | Glitches ocasionales en "PESADILLA EN LOS BACKROOMS" | ✅ Implementado |
+| Suspiro distante | Sonido atmosférico de alguien suspirando | ✅ Implementado |
+| Clock tick | Sonido de reloj marcando el tiempo | ✅ Implementado |
 
 ## 7. Experiencia de Usuario
 
@@ -94,7 +94,7 @@
 | Tutorial/Hints | Instrucciones contextuales al inicio de cada nivel | Media |
 | ~~Screen shake mejorado~~ | ~~Efecto de temblor al estar cerca de enemigos~~ | ✅ Implementado |
 | Trail del jugador | Línea sutil de por dónde has pasado | Baja |
-| Partículas de polvo | Pequeñas partículas flotando en el aire | Baja |
+| Partículas de polvo | Pequeñas partículas flotando en el aire | ✅ Implementado |
 | Indicador de dirección | Flecha hacia la salida cuando no la ves | Media |
 | Vibration móvil | Feedback háptico en dispositivos móviles | Baja |
 | Transiciones suaves | Fade entre pantallas (menú→juego→muerte) | Baja |
@@ -103,8 +103,8 @@
 
 | Mejora | Descripción | Prioridad |
 |--------|-------------|-----------|
-| Partículas flotantes | Polvo/flocos en el fondo del menú | Baja |
-| Niebla dinámica | Niebla que se mueve lentamente | Baja |
+| Partículas flotantes | Polvo/flocos en el fondo del menú | ✅ Implementado |
+| Niebla dinámica | Niebla que se mueve lentamente | ✅ Implementado |
 | Escuchas | Manos en las paredes como decoración | Baja |
 | Cuadros de miedo | Pinturas perturbadoras en las paredes del laberinto | Media |
 

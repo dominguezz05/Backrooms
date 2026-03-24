@@ -68,7 +68,7 @@
 
   <!-- Portada Principal -->
   <div id="mainCover">
-    <div class="cover-title">PESADILLA EN LOS<br>BACKROOMS</div>
+    <div class="cover-title glitch-text" data-text="PESADILLA EN LOS BACKROOMS">PESADILLA EN LOS<br>BACKROOMS</div>
     <div class="cover-subtitle">Nivel Cero</div>
     
     <div class="main-menu">
@@ -78,6 +78,12 @@
       <button class="menu-btn" id="btnOptions">OPCIONES</button>
     </div>
   </div>
+  
+  <!-- Partículas flotantes menú -->
+  <div class="floating-particles" id="menuParticles"></div>
+  
+  <!-- Niebla dinámica menú -->
+  <div class="menu-fog" id="menuFog"></div>
 
   <!-- Modal Niveles -->
   <div class="modal" id="modalNiveles">
@@ -253,6 +259,26 @@
         drop.style.animationDelay = Math.random() * 5 + 's';
         document.body.appendChild(drop);
       });
+    })();
+
+    // ════ PARTÍCULAS FLOTANTES ════
+    (function createFloatingParticles() {
+      const container = document.getElementById('menuParticles');
+      if (!container) return;
+      
+      const particleCount = window.innerWidth < 600 ? 15 : 30;
+      
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'floating-particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.width = (2 + Math.random() * 3) + 'px';
+        particle.style.height = particle.style.width;
+        particle.style.animationDuration = (15 + Math.random() * 20) + 's';
+        particle.style.animationDelay = Math.random() * 20 + 's';
+        particle.style.opacity = 0.2 + Math.random() * 0.3;
+        container.appendChild(particle);
+      }
     })();
 
     // ════ AURICULARES MODAL ════
@@ -711,6 +737,8 @@
       createAmbientDrone();
       createWindNoise();
       createCreepyWhispers();
+      createDistantSighs();
+      createClockTick();
       
       applyMenuAudioOptions();
     }
@@ -858,6 +886,92 @@
         setTimeout(playWhisper, 4000 + Math.random() * 8000);
       }
       setTimeout(playWhisper, 2000);
+    }
+
+    // ════ SUSPIRO DISTANTE ════
+    function createDistantSighs() {
+      if (!audioContext || !whisperGain) return;
+
+      function playSigh() {
+        try {
+          const now = audioContext.currentTime;
+          const duration = 1.5 + Math.random() * 1;
+          const bufferSize = Math.floor(audioContext.sampleRate * duration);
+          const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+          const data = buffer.getChannelData(0);
+          
+          for (let i = 0; i < bufferSize; i++) {
+            const t = i / bufferSize;
+            // Respiración: sube y baja
+            const breathEnv = Math.sin(t * Math.PI);
+            // Ruido suave
+            const noise = (Math.random() * 2 - 1) * 0.3;
+            // Filtro pasa-bajos para suavizar
+            data[i] = noise * breathEnv * Math.exp(-t * 0.5);
+          }
+          
+          const source = audioContext.createBufferSource();
+          source.buffer = buffer;
+          
+          const filter = audioContext.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.value = 400;
+          
+          const gain = audioContext.createGain();
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.25, now + 0.3);
+          gain.gain.setValueAtTime(0.25, now + duration * 0.7);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+          
+          source.connect(filter);
+          filter.connect(gain);
+          gain.connect(whisperGain);
+          source.start(now);
+          source.stop(now + duration);
+        } catch (e) {}
+        setTimeout(playSigh, 8000 + Math.random() * 15000);
+      }
+      setTimeout(playSigh, 5000);
+    }
+
+    // ════ CLOCK TICK ════
+    function createClockTick() {
+      if (!audioContext || !masterGain) return;
+      
+      function playTick() {
+        try {
+          const now = audioContext.currentTime;
+          const bufferSize = Math.floor(audioContext.sampleRate * 0.05);
+          const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+          const data = buffer.getChannelData(0);
+          
+          for (let i = 0; i < bufferSize; i++) {
+            const t = i / bufferSize;
+            // Click seco
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 40) * 0.5;
+          }
+          
+          const source = audioContext.createBufferSource();
+          source.buffer = buffer;
+          
+          const filter = audioContext.createBiquadFilter();
+          filter.type = 'highpass';
+          filter.frequency.value = 2000;
+          
+          const gain = audioContext.createGain();
+          gain.gain.value = 0.15;
+          
+          source.connect(filter);
+          filter.connect(gain);
+          gain.connect(masterGain);
+          source.start(now);
+        } catch (e) {}
+        
+        // Tic tac cada 1-2 segundos
+        setTimeout(playTick, 1000 + Math.random() * 1000);
+      }
+      
+      setTimeout(playTick, 3000);
     }
 
     // Iniciar audio al primer click
