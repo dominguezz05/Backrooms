@@ -595,61 +595,34 @@ export class Enemy {
     const canSeePlayer = distToPlayer < this.detectionRange && this.hasLineOfSight(playerPos);
 
     if (canSeePlayer) {
-      const direction = new THREE.Vector3().subVectors(playerPos, this.position);
-      direction.y = 0;
-      direction.normalize();
-
-      const newPos = this.position.clone();
-      newPos.x += direction.x * currentSpeed * delta;
-      newPos.z += direction.z * currentSpeed * delta;
-
-      const isOpenArea = this.isInOpenArea(this.position);
+      const pathStep = this.findPathStep(playerPos);
       
-      if (!this.checkWallCollision(newPos)) {
-        this.position.copy(newPos);
-        this.mesh.position.copy(this.position);
-        this.isMoving = true;
-        this.stuckTimer = 0;
-      } else {
-        if (isOpenArea) {
-          const directPath = this.findPathAroundObstacle(playerPos, currentSpeed * delta);
-          if (directPath) {
-            this.position.copy(directPath);
-            this.mesh.position.copy(directPath);
-            this.isMoving = true;
-            this.stuckTimer = 0;
-          } else {
-            this.isMoving = false;
-            this.stuckTimer += delta;
-          }
-        } else {
-          const stuckDir = new THREE.Vector3(direction.z, 0, -direction.x);
-          const tryPos1 = this.position.clone().add(stuckDir.multiplyScalar(currentSpeed * delta * 0.8));
-          if (!this.checkWallCollision(tryPos1)) {
-            this.position.copy(tryPos1);
+      if (pathStep) {
+        const dir = new THREE.Vector3().subVectors(pathStep, this.position);
+        dir.y = 0;
+        const dist = dir.length();
+        
+        if (dist > 0.1) {
+          dir.normalize();
+          const moveAmount = Math.min(currentSpeed * delta, dist);
+          const newPos = this.position.clone().add(dir.multiplyScalar(moveAmount));
+          
+          if (!this.checkWallCollision(newPos)) {
+            this.position.copy(newPos);
             this.mesh.position.copy(this.position);
             this.isMoving = true;
             this.stuckTimer = 0;
           } else {
-            const tryPos2 = this.position.clone().add(stuckDir.multiplyScalar(-currentSpeed * delta * 0.8));
-            if (!this.checkWallCollision(tryPos2)) {
-              this.position.copy(tryPos2);
-              this.mesh.position.copy(this.position);
-              this.isMoving = true;
-              this.stuckTimer = 0;
-            } else {
+            const escaped = this.escapeStuck();
+            if (escaped) this.isMoving = true;
+            else {
               this.isMoving = false;
               this.stuckTimer += delta;
             }
           }
         }
-
-        // Si lleva +2s sin poder moverse, relocalizarse en una celda libre cercana
-        if (this.stuckTimer > 2.0) {
-          this.stuckTimer = 0;
-          const escaped = this.escapeStuck();
-          if (escaped) this.isMoving = true;
-        }
+      } else {
+        this.isMoving = false;
       }
 
       this.mesh.lookAt(new THREE.Vector3(playerPos.x, this.mesh.position.y, playerPos.z));
@@ -849,23 +822,51 @@ export class Enemy {
   private escapeStuck(): boolean {
     const cellX = Math.round(this.position.x / CONFIG.UNIT_SIZE);
     const cellZ = Math.round(this.position.z / CONFIG.UNIT_SIZE);
-    // Buscar celda libre adyacente (4 direcciones cardinales primero, luego diagonales)
     const offsets = [
       [1, 0], [-1, 0], [0, 1], [0, -1],
       [2, 0], [-2, 0], [0, 2], [0, -2],
       [1, 1], [1, -1], [-1, 1], [-1, -1],
+      [3, 0], [-3, 0], [0, 3], [0, -3],
+      [2, 1], [2, -1], [-2, 1], [-2, -1],
+      [1, 2], [1, -2], [-1, 2], [-1, -2],
     ];
-    for (const [dx, dz] of offsets) {
-      const nx = cellX + dx;
-      const nz = cellZ + dz;
-      if (nz >= 0 && nz < this.maze.length && nx >= 0 && nx < this.maze[0].length &&
-          this.maze[nz][nx] !== CellType.WALL) {
-        this.position.set(nx * CONFIG.UNIT_SIZE, 0, nz * CONFIG.UNIT_SIZE);
+    
+    const playerDir = new THREE.Vector3();
+    const self = this;
+    
+    const freeCells = offsets
+      .map(([dx, dz]) => {
+        const nx = cellX + dx;
+        const nz = cellZ + dz;
+        if (nz >= 0 && nz < self.maze.length && nx >= 0 && nx < self.maze[0].length &&
+            self.maze[nz][nx] !== CellType.WALL) {
+          return { nx, nz, dx, dz, dist: Math.sqrt(dx*dx + dz*dz) };
+        }
+        return null;
+      })
+      .filter(Boolean) as { nx: number; nz: number; dx: number; dz: number; dist: number }[];
+    
+    if (freeCells.length === 0) return false;
+    
+    freeCells.sort((a, b) => a.dist - b.dist);
+    
+    for (const cell of freeCells) {
+      const testPos = new THREE.Vector3(
+        cell.nx * CONFIG.UNIT_SIZE,
+        0,
+        cell.nz * CONFIG.UNIT_SIZE
+      );
+      if (!this.checkWallCollision(testPos)) {
+        this.position.set(testPos.x, 0, testPos.z);
         this.mesh.position.copy(this.position);
         return true;
       }
     }
-    return false;
+    
+    const bestCell = freeCells[0];
+    this.position.set(bestCell.nx * CONFIG.UNIT_SIZE, 0, bestCell.nz * CONFIG.UNIT_SIZE);
+    this.mesh.position.copy(this.position);
+    return true;
   }
 
   private checkWallCollision(position: THREE.Vector3): boolean {
@@ -878,6 +879,74 @@ export class Enemy {
     }
 
     return true;
+  }
+
+  private findPathStep(targetPos: THREE.Vector3): THREE.Vector3 | null {
+    const startX = Math.round(this.position.x / CONFIG.UNIT_SIZE);
+    const startZ = Math.round(this.position.z / CONFIG.UNIT_SIZE);
+    const endX = Math.round(targetPos.x / CONFIG.UNIT_SIZE);
+    const endZ = Math.round(targetPos.z / CONFIG.UNIT_SIZE);
+
+    if (startX === endX && startZ === endZ) return null;
+    if (this.maze[endZ]?.[endX] === CellType.WALL) return null;
+
+    interface PathNode {x: number; z: number; g: number; f: number; parent: PathNode | null}
+    const openSet: PathNode[] = [{x: startX, z: startZ, g: 0, f: 0, parent: null}];
+    const closedSet = new Set<string>();
+    const key = (x: number, z: number) => `${x},${z}`;
+    const heuristic = (x: number, z: number) => Math.abs(x - endX) + Math.abs(z - endZ);
+
+    let iterations = 0;
+    const maxIterations = 200;
+
+    while (openSet.length > 0 && iterations < maxIterations) {
+      iterations++;
+      openSet.sort((a, b) => a.f - b.f);
+      const current = openSet.shift()!;
+      const currentKey = key(current.x, current.z);
+
+      if (current.x === endX && current.z === endZ) {
+        let node: PathNode | null = current;
+        while (node && node.parent) {
+          const prev = node;
+          node = node.parent;
+          if (!node.parent || (node.x === startX && node.z === startZ)) {
+            return new THREE.Vector3(prev.x * CONFIG.UNIT_SIZE, 0, prev.z * CONFIG.UNIT_SIZE);
+          }
+        }
+        return null;
+      }
+
+      closedSet.add(currentKey);
+
+      const neighbors = [
+        {x: current.x + 1, z: current.z}, {x: current.x - 1, z: current.z},
+        {x: current.x, z: current.z + 1}, {x: current.x, z: current.z - 1},
+      ];
+
+      for (const neighbor of neighbors) {
+        const nKey = key(neighbor.x, neighbor.z);
+        if (closedSet.has(nKey)) continue;
+        if (neighbor.z < 0 || neighbor.z >= this.maze.length) continue;
+        if (neighbor.x < 0 || neighbor.x >= this.maze[0].length) continue;
+        if (this.maze[neighbor.z][neighbor.x] === CellType.WALL) continue;
+
+        const g = current.g + 1;
+        const f = g + heuristic(neighbor.x, neighbor.z);
+        const existing = openSet.find(n => n.x === neighbor.x && n.z === neighbor.z);
+
+        if (existing) {
+          if (g < existing.g) {
+            existing.g = g;
+            existing.f = f;
+            existing.parent = current;
+          }
+        } else {
+          openSet.push({x: neighbor.x, z: neighbor.z, g, f, parent: current});
+        }
+      }
+    }
+    return null;
   }
 
   private isInOpenArea(position: THREE.Vector3): boolean {
