@@ -53,7 +53,7 @@
   width: 120px;
   height: 180px;
   pointer-events: none;
-  z-index: 5;
+  z-index: 50;
   transform: rotate(45deg);
   transform-origin: bottom right;
   animation: facePeekDiagonal 20s ease-in-out infinite 3s;
@@ -156,9 +156,10 @@
 .finger:nth-child(5) { left: 47px; width: 5px; height: 22px; transform: rotate(15deg); }
 
 @keyframes facePeekDiagonal {
-  0%, 70%, 100% { right: -150px; opacity: 0.5; }
-  15%, 60% { right: -40px; opacity: 1; }
-  25%, 50% { right: -20px; opacity: 1; }
+  0%, 75%, 100% { right: -150px; opacity: 0.3; }
+  10%, 65% { right: -60px; opacity: 1; }
+  20%, 55% { right: -30px; opacity: 1; }
+  30%, 45% { right: -15px; opacity: 1; }
 }
 
 @keyframes eyeGlow {
@@ -781,7 +782,8 @@ body::after {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.95);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(3px);
 }
 
 .hp-box {
