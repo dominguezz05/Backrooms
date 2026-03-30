@@ -10,6 +10,10 @@ export class AudioManager {
   private listener: THREE.AudioListener | null = null;
   private playerName = '';
   private lastEnemySpeechTime = 0;
+  private lastFlashlightSoundTime = 0;
+  private readonly FLASHLIGHT_SOUND_COOLDOWN = 300;
+  private cachedVoice: SpeechSynthesisVoice | null = null;
+  private voicesCached = false;
 
   private droneOsc: OscillatorNode | null = null;
   private droneOsc2: OscillatorNode | null = null;
@@ -27,16 +31,40 @@ export class AudioManager {
   setPlayerName(name: string): void {
     this.playerName = name;
     console.log('[AudioManager] Player name set:', this.playerName);
+    // Pre-cargar voces para evitar bloqueo en primer uso
+    this.prefetchVoices();
+  }
+
+  private prefetchVoices(): void {
+    if (this.voicesCached || typeof window === 'undefined') return;
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+
+    const tryCache = () => {
+      const voices = synth.getVoices();
+      if (voices.length > 0) {
+        this.cachedVoice = voices.find(v => v.lang.includes('es')) || voices[0];
+        this.voicesCached = true;
+      }
+    };
+
+    tryCache();
+    if (!this.voicesCached) {
+      synth.addEventListener('voiceschanged', tryCache, { once: true });
+    }
+  }
+
+  private applyVoice(utterance: SpeechSynthesisUtterance): void {
+    if (this.cachedVoice) {
+      utterance.voice = this.cachedVoice;
+    }
   }
 
   whisperPlayerName(): void {
     if (!this.playerName || typeof window === 'undefined') return;
-    
+
     const synth = window.speechSynthesis;
-    if (!synth) {
-      console.log('[AudioManager] Speech synthesis not available');
-      return;
-    }
+    if (!synth) return;
 
     const phrases = [
       `¿${this.playerName}?`,
@@ -47,49 +75,32 @@ export class AudioManager {
       `¿Me buscas, ${this.playerName}?`,
       `${this.playerName}, ¿dónde estás?`,
     ];
-    
+
     const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-    console.log('[AudioManager] Whispering:', phrase);
-    
     const utterance = new SpeechSynthesisUtterance(phrase);
     utterance.lang = 'es-ES';
     utterance.rate = 0.6;
     utterance.pitch = 0.2;
     utterance.volume = 0.8;
-    
-    const speak = () => {
-      synth.cancel();
+    this.applyVoice(utterance);
+
+    // Diferir fuera del game loop — synth.cancel() bloquea el main thread en Chrome
+    setTimeout(() => {
+      if (synth.speaking) synth.cancel();
       synth.speak(utterance);
-    };
-    
-    if (synth.getVoices().length > 0) {
-      const spanishVoice = synth.getVoices().find(v => v.lang.includes('es')) || synth.getVoices()[0];
-      if (spanishVoice) {
-        utterance.voice = spanishVoice;
-      }
-      speak();
-    } else {
-      synth.addEventListener('voiceschanged', () => {
-        const spanishVoice = synth.getVoices().find(v => v.lang.includes('es')) || synth.getVoices()[0];
-        if (spanishVoice) {
-          utterance.voice = spanishVoice;
-        }
-        speak();
-      }, { once: true });
-      setTimeout(speak, 100);
-    }
+    }, 0);
   }
 
   playEnemySpeech(distance: number): void {
     const now = Date.now();
     if (now - this.lastEnemySpeechTime < 8000) return;
     if (distance > 20) return;
-    
+
     const synth = window.speechSynthesis;
     if (!synth) return;
-    
+
     this.lastEnemySpeechTime = now;
-    
+
     const phrases = [
       '¿Dónde estás?',
       'Te encontré',
@@ -99,25 +110,20 @@ export class AudioManager {
       'Alguien necesita ayuda',
       '¿Por qué estás aquí?'
     ];
-    
+
     const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-    console.log('[AudioManager] Enemy speaks:', phrase, 'distance:', distance);
-    
     const utterance = new SpeechSynthesisUtterance(phrase);
     utterance.lang = 'es-ES';
     utterance.rate = 0.7;
     utterance.pitch = 0.4;
-    
-    const volume = Math.max(0.3, Math.min(1.0, 1.0 - (distance - 3) / 17));
-    utterance.volume = volume;
-    
-    if (synth.getVoices().length > 0) {
-      const voice = synth.getVoices().find(v => v.lang.includes('es')) || synth.getVoices()[0];
-      if (voice) utterance.voice = voice;
-    }
-    
-    synth.cancel();
-    synth.speak(utterance);
+    utterance.volume = Math.max(0.3, Math.min(1.0, 1.0 - (distance - 3) / 17));
+    this.applyVoice(utterance);
+
+    // Diferir fuera del game loop
+    setTimeout(() => {
+      if (synth.speaking) synth.cancel();
+      synth.speak(utterance);
+    }, 0);
   }
 
   whisperRandomCall(): void {
@@ -828,67 +834,56 @@ export class AudioManager {
 
   playFlashlightOn(): void {
     if (!this.context || !this.sfxGain) return;
-
-    const now = this.context.currentTime;
     
-    const osc = this.context.createOscillator();
+    const now = performance.now();
+    if (now - this.lastFlashlightSoundTime < this.FLASHLIGHT_SOUND_COOLDOWN) return;
+    this.lastFlashlightSoundTime = now;
+    
+    const ctx = this.context;
+    
+    const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.linearRampToValueAtTime(800, now + 0.15);
+    osc.frequency.setValueAtTime(200, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.15);
 
-    const gain = this.context.createGain();
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
-    gain.gain.linearRampToValueAtTime(0.15, now + 0.1);
-    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.1);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
 
-    const filter = this.context.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 500;
-
-    const distortion = this.context.createWaveShaper();
-    const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) {
-      const x = (i - 128) / 128;
-      curve[i] = Math.tanh(x * 2);
-    }
-    distortion.curve = curve;
-
-    osc.connect(distortion);
-    distortion.connect(filter);
-    filter.connect(gain);
+    osc.connect(gain);
     gain.connect(this.sfxGain);
 
-    osc.start(now);
-    osc.stop(now + 0.25);
-    osc.onended = () => { osc.disconnect(); distortion.disconnect(); filter.disconnect(); gain.disconnect(); };
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.25);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
 
   playFlashlightOff(): void {
     if (!this.context || !this.sfxGain) return;
-
-    const now = this.context.currentTime;
     
-    const osc = this.context.createOscillator();
+    const now = performance.now();
+    if (now - this.lastFlashlightSoundTime < this.FLASHLIGHT_SOUND_COOLDOWN) return;
+    this.lastFlashlightSoundTime = now;
+    
+    const ctx = this.context;
+    
+    const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, now);
-    osc.frequency.linearRampToValueAtTime(150, now + 0.3);
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(150, ctx.currentTime + 0.3);
 
-    const gain = this.context.createGain();
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.35);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.35);
 
-    const filter = this.context.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 1000;
-
-    osc.connect(filter);
-    filter.connect(gain);
+    osc.connect(gain);
     gain.connect(this.sfxGain);
 
-    osc.start(now);
-    osc.stop(now + 0.4);
-    osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); };
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
 
   playBatteryEmpty(): void {

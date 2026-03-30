@@ -117,19 +117,10 @@ function createVeinTexture(type: EnemyType): THREE.CanvasTexture {
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  const baseColors: Record<EnemyType, { r: number; g: number; b: number }> = {
-    [EnemyType.RUNNER]: { r: 40, g: 10, b: 10 },
-    [EnemyType.STALKER]: { r: 20, g: 35, b: 15 },
-    [EnemyType.TELEPORTER]: { r: 35, g: 10, b: 45 },
-  };
-
-  ctx.fillStyle = `rgb(${baseColors[type].r}, ${baseColors[type].g}, ${baseColors[type].b})`;
+  ctx.fillStyle = 'rgb(18, 14, 12)'; // Color base uniforme oscuro
   ctx.fillRect(0, 0, size, size);
 
-  const veinColor = type === EnemyType.RUNNER ? '#1a0505' :
-                     type === EnemyType.STALKER ? '#0a1508' : '#150a20';
-
-  ctx.strokeStyle = veinColor;
+  ctx.strokeStyle = '#0d0a08'; // Venas uniformes, apenas visibles
   ctx.lineWidth = 2;
 
   for (let i = 0; i < 12; i++) {
@@ -1034,21 +1025,11 @@ export class Enemy {
   }
 
   private getBodyColor(): number {
-    const colors: Record<EnemyType, number> = {
-      [EnemyType.RUNNER]: 0x1a0a0a,
-      [EnemyType.STALKER]: 0x0a1a0a,
-      [EnemyType.TELEPORTER]: 0x1a0a1a,
-    };
-    return colors[this.type];
+    return 0x0d0d0d; // Negro uniforme — sin pistas visuales de tipo
   }
 
   private getEmissiveColor(): number {
-    const colors: Record<EnemyType, number> = {
-      [EnemyType.RUNNER]: 0x330000,
-      [EnemyType.STALKER]: 0x003300,
-      [EnemyType.TELEPORTER]: 0x330033,
-    };
-    return colors[this.type];
+    return 0x000000; // Sin brillo — todos igual de oscuros
   }
 
   private hasLineOfSight(playerPos: THREE.Vector3): boolean {

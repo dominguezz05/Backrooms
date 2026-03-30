@@ -21,7 +21,7 @@ export const CONFIG: GameConfig = {
   TELEPORTER_SPEED: 2.5,
   MONSTER_SPAWN_DELAY: 8000,
   FOG_NEAR: 1.5,
-  FOG_FAR: 24,
+  FOG_FAR: 18,
 };
 
 export const HORROR_MESSAGES = [
@@ -56,7 +56,3 @@ export const POWERUP_STUN_DURATION = 3;
 export const POWERUP_SANITY_AMOUNT = 50;
 
 export const DOOR_SPAWN_CHANCE = 0.15;
-export const DOOR_CLOSE_INTERVAL_MIN = 8000;
-export const DOOR_CLOSE_INTERVAL_MAX = 15000;
-export const DOOR_CLOSE_DURATION = 5000;
-export const DOOR_SPEED = 2.5;

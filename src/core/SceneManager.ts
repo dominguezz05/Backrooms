@@ -28,10 +28,12 @@ export class SceneManager {
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
+      powerPreference: 'high-performance',
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.BasicShadowMap;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     document.body.appendChild(this.renderer.domElement);
 
     this.ambientLight = new THREE.AmbientLight(0x151515, 0.5);

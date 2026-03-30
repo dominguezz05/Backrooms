@@ -19,6 +19,19 @@ export class UIManager {
   private invisibilityIndicator: HTMLElement | null = null;
   private invisibilityTimer: HTMLElement | null = null;
 
+  private lastStamina = -1;
+  private lastBattery = -1;
+  private lastSanity = -1;
+  private lastHiding = false;
+  private lastCanHide = false;
+  private lastSpeedBoost = -1;
+  private lastInvisibility = -1;
+  private lastEnemyDist = Infinity;
+  private lastScore = -1;
+
+  private uiUpdateThrottle = 0;
+  private readonly UI_UPDATE_INTERVAL = 100;
+
   constructor() {
     this.staminaBar = document.getElementById('staminaBar');
     this.batteryBar = document.getElementById('batteryBar');
@@ -41,6 +54,15 @@ export class UIManager {
     this.invisibilityTimer = document.getElementById('invisibilityTimer');
   }
 
+  shouldUpdateUI(delta: number): boolean {
+    this.uiUpdateThrottle += delta * 1000;
+    if (this.uiUpdateThrottle >= this.UI_UPDATE_INTERVAL) {
+      this.uiUpdateThrottle = 0;
+      return true;
+    }
+    return false;
+  }
+
   setLoadingProgress(percent: number, status: string): void {
     if (this.loadingBar) {
       this.loadingBar.style.width = `${percent}%`;
@@ -51,30 +73,33 @@ export class UIManager {
   }
 
   updateStamina(stamina: number): void {
-    if (this.staminaBar) {
+    if (this.staminaBar && Math.abs(stamina - this.lastStamina) > 0.5) {
       this.staminaBar.style.width = `${stamina}%`;
       if (stamina < 20) {
         this.staminaBar.classList.add('low');
       } else {
         this.staminaBar.classList.remove('low');
       }
+      this.lastStamina = stamina;
     }
   }
 
   updateBattery(battery: number): void {
-    if (this.batteryBar) {
+    if (this.batteryBar && Math.abs(battery - this.lastBattery) > 0.5) {
       this.batteryBar.style.width = `${battery}%`;
       if (battery < 20) {
         this.batteryBar.classList.add('low');
       } else {
         this.batteryBar.classList.remove('low');
       }
+      this.lastBattery = battery;
     }
   }
 
   updateSanity(sanity: number, maxSanity: number): void {
-    if (this.sanityBar) {
-      this.sanityBar.style.width = `${(sanity / maxSanity) * 100}%`;
+    if (this.sanityBar && Math.abs(sanity - this.lastSanity) > 1) {
+      const pct = (sanity / maxSanity) * 100;
+      this.sanityBar.style.width = `${pct}%`;
       if (sanity < 30) {
         this.sanityBar.classList.add('low');
         this.sanityBar.style.background = 'linear-gradient(90deg, #660099, #9933ff)';
@@ -85,6 +110,7 @@ export class UIManager {
         this.sanityBar.classList.remove('low');
         this.sanityBar.style.background = 'linear-gradient(90deg, #9933ff, #cc66ff)';
       }
+      this.lastSanity = sanity;
     }
     if (this.sanityOverlay) {
       const opacity = Math.max(0, (1 - sanity / maxSanity) * 0.7);
@@ -93,7 +119,7 @@ export class UIManager {
   }
 
   updateEnemyIndicator(distance: number): void {
-    if (this.enemyIndicator) {
+    if (this.enemyIndicator && Math.abs(distance - this.lastEnemyDist) > 0.5) {
       if (distance < 5) {
         this.enemyIndicator.textContent = '¡PELIGRO! Enemigo muy cerca';
         this.enemyIndicator.style.color = '#ff0000';
@@ -103,6 +129,7 @@ export class UIManager {
       } else {
         this.enemyIndicator.textContent = '';
       }
+      this.lastEnemyDist = distance;
     }
   }
 
@@ -113,15 +140,18 @@ export class UIManager {
   }
 
   updateHiding(isHiding: boolean, canHide: boolean): void {
-    if (this.hidingOverlay) {
-      this.hidingOverlay.style.display = isHiding ? 'block' : 'none';
-    }
-    if (this.hidingText) {
-      this.hidingText.style.display = isHiding ? 'block' : 'none';
-    }
-    if (this.hideHint) {
-      // Mostrar solo cuando puedes esconderte pero no estás escondido
-      this.hideHint.style.display = (canHide && !isHiding) ? 'block' : 'none';
+    if (isHiding !== this.lastHiding || canHide !== this.lastCanHide) {
+      if (this.hidingOverlay) {
+        this.hidingOverlay.style.display = isHiding ? 'block' : 'none';
+      }
+      if (this.hidingText) {
+        this.hidingText.style.display = isHiding ? 'block' : 'none';
+      }
+      if (this.hideHint) {
+        this.hideHint.style.display = (canHide && !isHiding) ? 'block' : 'none';
+      }
+      this.lastHiding = isHiding;
+      this.lastCanHide = canHide;
     }
   }
 
@@ -148,11 +178,12 @@ export class UIManager {
   }
 
   updateScore(score: number, target: number): void {
-    if (this.scoreElement) {
+    if (this.scoreElement && score !== this.lastScore) {
       this.scoreElement.textContent = `PUNTOS: ${score}/${target}`;
       if (score >= target) {
         this.scoreElement.style.color = '#00ff00';
       }
+      this.lastScore = score;
     }
   }
 
@@ -169,26 +200,32 @@ export class UIManager {
   }
 
   updatePowerUps(speedBoostTime: number, invisibilityTime: number): void {
-    if (this.speedBoostIndicator && this.speedBoostTimer) {
-      if (speedBoostTime > 0) {
-        this.speedBoostIndicator.style.display = 'flex';
-        this.speedBoostTimer.textContent = Math.ceil(speedBoostTime).toString();
-        this.speedBoostIndicator.classList.add('active');
-      } else {
-        this.speedBoostIndicator.style.display = 'none';
-        this.speedBoostIndicator.classList.remove('active');
+    if (Math.abs(speedBoostTime - this.lastSpeedBoost) > 0.1) {
+      if (this.speedBoostIndicator && this.speedBoostTimer) {
+        if (speedBoostTime > 0) {
+          this.speedBoostIndicator.style.display = 'flex';
+          this.speedBoostTimer.textContent = Math.ceil(speedBoostTime).toString();
+          this.speedBoostIndicator.classList.add('active');
+        } else {
+          this.speedBoostIndicator.style.display = 'none';
+          this.speedBoostIndicator.classList.remove('active');
+        }
       }
+      this.lastSpeedBoost = speedBoostTime;
     }
     
-    if (this.invisibilityIndicator && this.invisibilityTimer) {
-      if (invisibilityTime > 0) {
-        this.invisibilityIndicator.style.display = 'flex';
-        this.invisibilityTimer.textContent = Math.ceil(invisibilityTime).toString();
-        this.invisibilityIndicator.classList.add('active');
-      } else {
-        this.invisibilityIndicator.style.display = 'none';
-        this.invisibilityIndicator.classList.remove('active');
+    if (Math.abs(invisibilityTime - this.lastInvisibility) > 0.1) {
+      if (this.invisibilityIndicator && this.invisibilityTimer) {
+        if (invisibilityTime > 0) {
+          this.invisibilityIndicator.style.display = 'flex';
+          this.invisibilityTimer.textContent = Math.ceil(invisibilityTime).toString();
+          this.invisibilityIndicator.classList.add('active');
+        } else {
+          this.invisibilityIndicator.style.display = 'none';
+          this.invisibilityIndicator.classList.remove('active');
+        }
       }
+      this.lastInvisibility = invisibilityTime;
     }
   }
 }

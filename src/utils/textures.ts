@@ -115,15 +115,16 @@ export function createFloorTexture(level: LevelType = 'level1', seed: number = M
     }
   }
 
-  for (let i = 0; i < 3000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const brightness = Math.random() * 30 - 15;
-    const baseR = parseInt(config.base.slice(1, 3), 16);
-    const baseG = parseInt(config.base.slice(3, 5), 16);
-    const baseB = parseInt(config.base.slice(5, 7), 16);
-    ctx.fillStyle = `rgb(${Math.min(255, Math.max(0, baseR + brightness))},${Math.min(255, Math.max(0, baseG + brightness))},${Math.min(255, Math.max(0, baseB + brightness))})`;
-    ctx.fillRect(x, y, Math.random() * 2 + 1, Math.random() * 2 + 1);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  for (let i = 0; i < 400; i++) {
+    const x = Math.floor(Math.random() * size);
+    const y = Math.floor(Math.random() * size);
+    const brightness = Math.random() * 50 - 25;
+    const baseR = Math.min(255, Math.max(0, parseInt(config.base.slice(1, 3), 16) + brightness));
+    const baseG = Math.min(255, Math.max(0, parseInt(config.base.slice(3, 5), 16) + brightness));
+    const baseB = Math.min(255, Math.max(0, parseInt(config.base.slice(5, 7), 16) + brightness));
+    ctx.fillStyle = `rgb(${baseR},${baseG},${baseB})`;
+    ctx.fillRect(x, y, 2, 2);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -250,14 +251,15 @@ export function createWallTexture(level: LevelType = 'level1', seed: number = Ma
     }
   }
 
-  for (let i = 0; i < 3000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const brightness = Math.random() * 25 - 12;
-    const baseR = parseInt(config.base.slice(1, 3), 16);
-    const baseG = parseInt(config.base.slice(3, 5), 16);
-    const baseB = parseInt(config.base.slice(5, 7), 16);
-    ctx.fillStyle = `rgb(${Math.min(255, Math.max(0, baseR + brightness))},${Math.min(255, Math.max(0, baseG + brightness))},${Math.min(255, Math.max(0, baseB + brightness))})`;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  for (let i = 0; i < 400; i++) {
+    const x = Math.floor(Math.random() * size);
+    const y = Math.floor(Math.random() * size);
+    const brightness = Math.random() * 40 - 20;
+    const baseR = Math.min(255, Math.max(0, parseInt(config.base.slice(1, 3), 16) + brightness));
+    const baseG = Math.min(255, Math.max(0, parseInt(config.base.slice(3, 5), 16) + brightness));
+    const baseB = Math.min(255, Math.max(0, parseInt(config.base.slice(5, 7), 16) + brightness));
+    ctx.fillStyle = `rgb(${baseR},${baseG},${baseB})`;
     ctx.fillRect(x, y, 2, 2);
   }
 
@@ -384,14 +386,15 @@ export function createCeilingTexture(level: LevelType = 'level1', seed: number =
     }
   }
 
-  for (let i = 0; i < 2000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const brightness = Math.random() * 15 + 5;
-    const baseR = parseInt(config.base.slice(1, 3), 16);
-    const baseG = parseInt(config.base.slice(3, 5), 16);
-    const baseB = parseInt(config.base.slice(5, 7), 16);
-    ctx.fillStyle = `rgb(${Math.min(255, Math.max(0, baseR + brightness))},${Math.min(255, Math.max(0, baseG + brightness))},${Math.min(255, Math.max(0, baseB + brightness))})`;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  for (let i = 0; i < 300; i++) {
+    const x = Math.floor(Math.random() * size);
+    const y = Math.floor(Math.random() * size);
+    const brightness = Math.random() * 25 + 5;
+    const baseR = Math.min(255, Math.max(0, parseInt(config.base.slice(1, 3), 16) + brightness));
+    const baseG = Math.min(255, Math.max(0, parseInt(config.base.slice(3, 5), 16) + brightness));
+    const baseB = Math.min(255, Math.max(0, parseInt(config.base.slice(5, 7), 16) + brightness));
+    ctx.fillStyle = `rgb(${baseR},${baseG},${baseB})`;
     ctx.fillRect(x, y, 2, 2);
   }
 

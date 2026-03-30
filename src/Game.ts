@@ -6,9 +6,10 @@ import { AudioManager } from './systems/AudioManager';
 import { HorrorEffects } from './systems/HorrorEffects';
 import { UIManager } from './systems/UIManager';
 import { ScoreManager } from './systems/ScoreManager';
+import { ChunkManager } from './systems/ChunkManager';
 import { Player } from './entities/Player';
 import { Enemy } from './entities/Enemy';
-import { CONFIG, POWERUP_STUN_DURATION, DOOR_SPAWN_CHANCE, DOOR_CLOSE_INTERVAL_MIN, DOOR_CLOSE_INTERVAL_MAX, DOOR_CLOSE_DURATION, DOOR_SPEED } from './constants';
+import { CONFIG, POWERUP_STUN_DURATION, DOOR_SPAWN_CHANCE } from './constants';
 import { CellType, EnemyType } from './types';
 import { createFloorTexture, createWallTexture, createCeilingTexture } from './utils/textures';
 
@@ -19,11 +20,13 @@ export class Game {
   private inputManager: InputManager;
   private player: Player;
   private enemies: Enemy[] = [];
+  private enemyPool: Enemy[] = []; // Enemigos pre-creados durante carga, activados al spawnear
   private maze: number[][] = [];
   private mazeGenerator: MazeGenerator;
   private audioManager: AudioManager;
   private horrorEffects: HorrorEffects;
   private uiManager: UIManager;
+  private chunkManager: ChunkManager | null = null;
 
   private clock: THREE.Clock;
   private isActive = false;
@@ -33,7 +36,6 @@ export class Game {
   private gameOver = false;
   private hasWon = false;
 
-  private collidableObjects: THREE.Object3D[] = [];
   private batteries: THREE.Mesh[] = [];
   private coins: THREE.Mesh[] = [];
   private notes: THREE.Mesh[] = [];
@@ -74,6 +76,9 @@ export class Game {
   private minimapCanvas: HTMLCanvasElement | null = null;
   private minimapCtx: CanvasRenderingContext2D | null = null;
   private minimapBaseImageData: ImageData | null = null;
+  private minimapBaseCanvas: HTMLCanvasElement | null = null;   // offscreen: paredes/suelo
+  private minimapStaticCanvas: HTMLCanvasElement | null = null; // offscreen: coins/powerups
+  private minimapStaticDirty = true; // reconstruir capa estática
   private minimapExitCellX = 0;
   private minimapExitCellZ = 0;
   private minimapFrameSkip = 0;
@@ -96,34 +101,21 @@ export class Game {
 
   // Rastro de pisadas
   private footprints: Array<{ mesh: THREE.Mesh; life: number }> = [];
+  private footprintPool: THREE.Mesh[] = [];
   private footprintTimer = 0;
   private footprintLeft = true;
   private footprintTex: THREE.CanvasTexture | null = null;
+  private footprintMat: THREE.MeshBasicMaterial | null = null;
+  private footprintGeo: THREE.PlaneGeometry | null = null;
   private readonly MAX_FOOTPRINTS = 28;
   private readonly FOOTPRINT_LIFETIME = 18;
+  
+  // Throttle para visibility checks (cada 200ms)
+  private visibilityThrottle = 0;
+  private readonly VISIBILITY_THROTTLE_MS = 200;
 
   // ── Sistema de Transiciones Suaves ──────────────────────────────────────────
   private transitionOverlay: HTMLElement | null = null;
-
-  // ── Sistema de Puertas Dinámicas ────────────────────────────────────────────
-  private dynamicDoors: Array<{
-    mesh: THREE.Group;
-    meshCollider: THREE.Mesh;
-    cellX: number;
-    cellZ: number;
-    isClosed: boolean;
-    isClosing: boolean;
-    isOpening: boolean;
-    doorY: number;
-    doorClosedY: number;
-    light: THREE.PointLight;
-    closeTimer: number;
-    openTimer: number;
-  }> = [];
-  private doorCloseInterval = 0;
-  private doorTimer = 0;
-
-
 
   constructor() {
     this.sceneManager = new SceneManager();
@@ -171,28 +163,43 @@ export class Game {
 
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+    // DESHABILITAR INPUT durante carga para evitar acumulación de eventos
+    this.inputManager.disableInput();
+
     // Inicializar sistemas de transición y trail
     this.initTransitionSystem();
 
     this.uiManager.showLoading(true);
     this.uiManager.setLoadingProgress(5, 'Preparando recursos...');
-    await delay(200);
+    await delay(100);
 
     this.uiManager.setLoadingProgress(15, 'Cargando texturas de enemigos...');
     Enemy.preloadTextures();
-    await delay(300);
+    await delay(100);
 
     this.uiManager.setLoadingProgress(25, 'Generando laberinto...');
     this.maze = this.mazeGenerator.generate();
-    await delay(400);
+    await this.yieldToMain();
 
     this.uiManager.setLoadingProgress(40, 'Construyendo entorno...');
-    this.buildMaze();
-    await delay(300);
+    await this.buildMazeChunked();
 
     this.uiManager.setLoadingProgress(60, 'Inicializando mapa...');
     this.initMinimap();
-    await delay(200);
+    await this.yieldToMain();
+
+    // Pre-crear meshes de enemigos durante la carga para evitar spike al spawnear
+    this.uiManager.setLoadingProgress(68, 'Pre-creando enemigos...');
+    await this.prewarmEnemies();
+
+    // Forzar compilación de shaders GLSL ahora (loading screen) en vez de al primer render.
+    // Sin esto, MeshStandardMaterial se compila la primera vez que se ve → bloquea ~2000ms.
+    // Los enemigos están visible=false, así que Three.js los saltaría; los activamos brevemente.
+    this.uiManager.setLoadingProgress(72, 'Compilando shaders...');
+    for (const e of this.enemyPool) e.mesh.visible = true;
+    this.sceneManager.renderer.compile(this.sceneManager.scene, this.sceneManager.camera);
+    for (const e of this.enemyPool) e.mesh.visible = false;
+    await this.yieldToMain();
 
     this.uiManager.setLoadingProgress(75, 'Configurando jugador...');
     this.player.setMaze(this.maze);
@@ -202,30 +209,43 @@ export class Game {
       this.sceneManager.ambientLight.intensity = 0.02;
     }
 
-    await delay(200);
     this.uiManager.setLoadingProgress(85, 'Preparando efectos...');
     this.horrorEffects.setMessageElement(
       document.getElementById('messageOverlay') || document.createElement('div')
     );
 
-    await delay(200);
+    // Pre-inicializar pool de huellas para evitar spike en el primer paso
+    this.initFootprintPool();
+    await this.yieldToMain();
+
+    await this.yieldToMain();
     this.uiManager.setLoadingProgress(95, 'Listo para comenzar...');
     this.setupStartButton();
 
     await delay(300);
     this.uiManager.setLoadingProgress(100, '¡Pulsa para empezar!');
-    await delay(500);
+    await delay(300);
     this.uiManager.showLoading(false);
 
-    await delay(300);
-    this.uiManager.setLoadingProgress(100, '¡Pulsa para empezar!');
-    await delay(500);
-    this.uiManager.showLoading(false);
+    await delay(200);
     
     // Detener audio del menú para evitar conflictos
     this.cleanupMenuAudio();
     
+    // HABILITAR INPUT solo cuando el juego esté completamente listo
+    this.inputManager.enableInput();
+    
     console.log('[Game] Initialization complete - Level:', this.currentLevel);
+  }
+
+  private yieldToMain(): Promise<void> {
+    return new Promise(resolve => {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => resolve(), { timeout: 50 });
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
   }
 
   // ── Sistema de Transiciones Suaves ──────────────────────────────────────────
@@ -438,11 +458,19 @@ export class Game {
     this.animate();
   }
 
-  private buildMaze(): void {
+  private async buildMazeChunked(): Promise<void> {
+    console.log('[Game] Starting chunked maze build...');
+    const startTime = performance.now();
+
+    // Chunk 1: Texturas (puede bloquear, pero es necesario)
+    this.uiManager.setLoadingProgress(42, 'Creando texturas...');
     const floorTexture = createFloorTexture(this.currentLevel);
     const wallTexture = createWallTexture(this.currentLevel);
     const ceilingTexture = createCeilingTexture(this.currentLevel);
+    await this.yieldToMain();
 
+    // Chunk 2: Materials y geometries
+    this.uiManager.setLoadingProgress(44, 'Preparando materiales...');
     const floorMaterial = new THREE.MeshStandardMaterial({ map: floorTexture });
     const wallMaterial = new THREE.MeshStandardMaterial({ map: wallTexture });
     const ceilingMaterial = new THREE.MeshStandardMaterial({ 
@@ -451,13 +479,33 @@ export class Game {
       roughness: 0.9,
       metalness: 0.1
     });
+    await this.yieldToMain();
 
     const unitSize = CONFIG.UNIT_SIZE;
     const wallHeight = CONFIG.WALL_HEIGHT;
-
     const floorGeometry = new THREE.PlaneGeometry(unitSize, unitSize);
     const ceilingGeometry = new THREE.PlaneGeometry(unitSize, unitSize);
     const wallGeometry = new THREE.BoxGeometry(unitSize, wallHeight, unitSize);
+    await this.yieldToMain();
+
+    // Chunk 3: ChunkManager
+    this.uiManager.setLoadingProgress(46, 'Inicializando gestor de chunks...');
+    this.chunkManager = new ChunkManager(this.sceneManager.scene, this.maze, {
+      chunkSize: 5,
+      renderDistance: 3,
+      instanceThreshold: 50
+    });
+    await this.yieldToMain();
+
+    // Chunk 4: Coleccionar posiciones y crear objetos en chunks
+    this.uiManager.setLoadingProgress(48, 'Construyendo maze...');
+    const wallPositions: THREE.Vector3[] = [];
+    const floorPositions: THREE.Vector3[] = [];
+    const ceilingPositions: THREE.Vector3[] = [];
+
+    const totalCells = this.maze.length * this.maze[0].length;
+    let processedCells = 0;
+    const CHUNK_SIZE = 100;
 
     for (let z = 0; z < this.maze.length; z++) {
       for (let x = 0; x < this.maze[z].length; x++) {
@@ -465,25 +513,11 @@ export class Game {
         const posX = x * unitSize;
         const posZ = z * unitSize;
 
-        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.set(posX, 0, posZ);
-        floor.receiveShadow = true;
-        this.sceneManager.scene.add(floor);
-
-        const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
-        ceiling.rotation.x = Math.PI / 2;
-        ceiling.position.set(posX, wallHeight, posZ);
-        ceiling.receiveShadow = true;
-        this.sceneManager.scene.add(ceiling);
+        floorPositions.push(new THREE.Vector3(posX, 0, posZ));
+        ceilingPositions.push(new THREE.Vector3(posX, wallHeight, posZ));
 
         if (cell === CellType.WALL) {
-          const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-          wall.position.set(posX, wallHeight / 2, posZ);
-          wall.castShadow = true;
-          wall.receiveShadow = true;
-          this.sceneManager.scene.add(wall);
-          this.collidableObjects.push(wall);
+          wallPositions.push(new THREE.Vector3(posX, wallHeight / 2, posZ));
         }
 
         if (cell === CellType.BATTERY) {
@@ -567,7 +601,6 @@ export class Game {
           photoCanvas.width = 160;
           photoCanvas.height = 120;
           const ctx = photoCanvas.getContext('2d')!;
-          
           const photoTypes = [
             { bg: '#1a1a2e', text: 'EQUIPO A', sub: '12/03/1998', color: '#0ff' },
             { bg: '#2d1b1b', text: 'DESAPARECIDOS', sub: 'NUNCA ENCONTRADOS', color: '#f00' },
@@ -576,14 +609,12 @@ export class Game {
             { bg: '#2d2d1b', text: 'ADVERTENCIA', sub: 'NO ENTRAR', color: '#ff0' },
           ];
           const type = photoTypes[Math.floor(Math.random() * photoTypes.length)];
-          
           ctx.fillStyle = type.bg;
           ctx.fillRect(0, 0, 160, 120);
           ctx.fillStyle = '#333';
           ctx.fillRect(8, 8, 144, 80);
           ctx.fillStyle = '#111';
           ctx.fillRect(12, 12, 136, 72);
-          
           if (Math.random() > 0.5) {
             ctx.fillStyle = '#222';
             for (let i = 0; i < 3; i++) {
@@ -599,18 +630,15 @@ export class Game {
             ctx.arc(80, 18, 18, 0, Math.PI * 2);
             ctx.fill();
           }
-          
           ctx.fillStyle = type.color;
           ctx.font = 'bold 12px monospace';
           ctx.fillText(type.text, 15, 105);
           ctx.font = '7px monospace';
           ctx.fillStyle = '#666';
           ctx.fillText(type.sub, 15, 116);
-          
           ctx.fillStyle = type.color;
           ctx.font = '6px monospace';
           ctx.fillText('ARCHIVO', 130, 115);
-          
           const photoTexture = new THREE.CanvasTexture(photoCanvas);
           const photoMaterial = new THREE.MeshBasicMaterial({ map: photoTexture, side: THREE.DoubleSide });
           const photo = new THREE.Mesh(photoGeometry, photoMaterial);
@@ -661,25 +689,20 @@ export class Game {
         }
 
         if (cell === CellType.RENDIJA) {
-          // Pared base (igual que WALL, sin añadir a collidableObjects — Player usa maze array)
           const rendijaWall = new THREE.Mesh(wallGeometry, wallMaterial);
           rendijaWall.position.set(posX, wallHeight / 2, posZ);
           rendijaWall.castShadow = true;
           rendijaWall.receiveShadow = true;
           this.sceneManager.scene.add(rendijaWall);
 
-          // Determinar orientación: ¿pasillo a izquierda/derecha (horizontal) o arriba/abajo (vertical)?
           const leftEmpty  = this.maze[z]?.[x - 1] !== CellType.WALL && this.maze[z]?.[x - 1] !== CellType.RENDIJA;
           const rightEmpty = this.maze[z]?.[x + 1] !== CellType.WALL && this.maze[z]?.[x + 1] !== CellType.RENDIJA;
           const isHorizontal = leftEmpty || rightEmpty;
 
-          // Textura de grieta: franja oscura con brillo anaranjado
           const cc = document.createElement('canvas');
           cc.width = 32; cc.height = 256;
           const ctx = cc.getContext('2d')!;
           ctx.clearRect(0, 0, 32, 256);
-
-          // Núcleo negro de la grieta
           ctx.strokeStyle = 'rgba(0,0,0,1)';
           ctx.lineWidth = 6;
           ctx.beginPath();
@@ -689,7 +712,6 @@ export class Game {
           ctx.lineTo(15, 252);
           ctx.stroke();
 
-          // Glow naranja-rojo
           const grd = ctx.createLinearGradient(16, 0, 16, 256);
           grd.addColorStop(0,    'rgba(255,80,0,0)');
           grd.addColorStop(0.1,  'rgba(255,100,10,0.7)');
@@ -700,7 +722,6 @@ export class Game {
           ctx.lineWidth = 3;
           ctx.stroke();
 
-          // Grietas secundarias
           ctx.strokeStyle = 'rgba(200,60,0,0.5)';
           ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.moveTo(13, 55); ctx.lineTo(4, 70); ctx.stroke();
@@ -715,33 +736,26 @@ export class Game {
             side: THREE.DoubleSide,
           });
 
-          // Poner el crack en ambas caras visibles de la pared
-          // isHorizontal = pasillo corre en X (vecinos a izq/dcha) → caras visibles son las X faces → desplazar en X, rotar para mirar ±X
-          // !isHorizontal = pasillo corre en Z (vecinos arriba/abajo) → caras visibles son las Z faces → desplazar en Z, rotar para mirar ±Z
           const halfU = unitSize * 0.501;
           const crackGeomInst = new THREE.PlaneGeometry(unitSize * 0.18, wallHeight * 0.9);
           for (const sign of [-1, 1]) {
             const crackMesh = new THREE.Mesh(crackGeomInst, crackMat);
             if (isHorizontal) {
-              // Caras que miran en ±X (el pasillo está a izquierda/derecha en X)
               crackMesh.position.set(posX + sign * halfU, wallHeight / 2, posZ);
               crackMesh.rotation.y = Math.PI / 2;
             } else {
-              // Caras que miran en ±Z (el pasillo está arriba/abajo en Z)
               crackMesh.position.set(posX, wallHeight / 2, posZ + sign * halfU);
               crackMesh.rotation.y = 0;
             }
             this.sceneManager.scene.add(crackMesh);
           }
 
-          // Luz naranja tenue que delata la rendija
           const rendijaLight = new THREE.PointLight(0xff4400, 1.2, 4);
           rendijaLight.position.set(posX, wallHeight * 0.45, posZ);
           this.sceneManager.scene.add(rendijaLight);
         }
 
         if (cell === CellType.HIDING_SPOT) {
-          // Ataúd empotrado en la pared más cercana
           const coffinDirs = [
             { dx: 0,  dz: -1, angle: 0 },
             { dx: 1,  dz:  0, angle: -Math.PI / 2 },
@@ -761,7 +775,6 @@ export class Game {
           const cx = posX + chosenDir.dx * wallOff;
           const cz = posZ + chosenDir.dz * wallOff;
 
-          // Textura de madera oscura
           const wc = document.createElement('canvas');
           wc.width = 64; wc.height = 128;
           const wctx = wc.getContext('2d')!;
@@ -770,10 +783,6 @@ export class Game {
             wctx.strokeStyle = `rgba(50,25,8,${0.25 + Math.random() * 0.35})`;
             wctx.lineWidth = 1;
             wctx.beginPath(); wctx.moveTo(0, gi * 13); wctx.lineTo(64, gi * 13 + (Math.random() * 4 - 2)); wctx.stroke();
-          }
-          for (let pi = 0; pi < 3; pi++) {
-            wctx.strokeStyle = 'rgba(0,0,0,0.5)'; wctx.lineWidth = 2;
-            wctx.beginPath(); wctx.moveTo(pi * 22, 0); wctx.lineTo(pi * 22, 128); wctx.stroke();
           }
           const woodTex = new THREE.CanvasTexture(wc);
 
@@ -786,7 +795,6 @@ export class Game {
           coffinMesh.castShadow = true;
           this.sceneManager.scene.add(coffinMesh);
 
-          // Cruz en la cara frontal
           const faceDir = new THREE.Vector3(-chosenDir.dx, 0, -chosenDir.dz);
           const crossMat = new THREE.MeshBasicMaterial({ color: 0x3a1800 });
           const crossPos = new THREE.Vector3(cx + faceDir.x * (cD / 2 + 0.012), cH * 0.62, cz + faceDir.z * (cD / 2 + 0.012));
@@ -796,7 +804,6 @@ export class Game {
           crossV2.position.copy(crossPos); crossV2.rotation.y = chosenDir.angle;
           this.sceneManager.scene.add(crossH2); this.sceneManager.scene.add(crossV2);
 
-          // Tenue resplandor en la base para visibilidad
           const glowMesh = new THREE.Mesh(
             new THREE.PlaneGeometry(cW + 0.3, cD + 0.3),
             new THREE.MeshBasicMaterial({ color: 0x1a0800, transparent: true, opacity: 0.5, depthWrite: false })
@@ -808,11 +815,9 @@ export class Game {
         }
 
         if (cell === CellType.EXIT) {
-          // Grupo con pivote en el borde izquierdo de la puerta para que gire al abrirse
           const doorGroup = new THREE.Group();
           doorGroup.position.set(posX - unitSize * 0.35, 0, posZ);
 
-          // Hoja de la puerta
           const doorMesh = new THREE.Mesh(
             new THREE.BoxGeometry(unitSize * 0.72, wallHeight * 0.92, 0.1),
             new THREE.MeshStandardMaterial({
@@ -825,7 +830,6 @@ export class Game {
           doorMesh.position.set(unitSize * 0.35, wallHeight * 0.46, 0);
           doorGroup.add(doorMesh);
 
-          // Marco luminoso verde
           const frameMat = new THREE.MeshBasicMaterial({ color: 0x00ff44 });
           const frameTop = new THREE.Mesh(new THREE.BoxGeometry(unitSize * 0.8, 0.06, 0.12), frameMat);
           frameTop.position.set(unitSize * 0.35, wallHeight * 0.94, 0);
@@ -837,7 +841,6 @@ export class Game {
           frameR.position.set(unitSize * 0.72, wallHeight * 0.46, 0);
           doorGroup.add(frameR);
 
-          // Luz verde sobre la puerta
           const exitLight = new THREE.PointLight(0x00ff44, 1.5, 8, 2);
           exitLight.position.set(unitSize * 0.35, wallHeight + 0.3, 0);
           doorGroup.add(exitLight);
@@ -847,7 +850,6 @@ export class Game {
           this.exitWorldPos.set(posX, wallHeight / 2, posZ);
         }
 
-        // Nivel 4: sin luces de techo — apagón total
         if (cell === CellType.CEILING_LIGHT && this.currentLevel !== 'level4') {
           const lightBulb = new THREE.Mesh(
             new THREE.SphereGeometry(0.15, 8, 8),
@@ -864,7 +866,6 @@ export class Game {
           this.ceilingLightMeshes.push(ceilingLight);
         }
 
-        // Guardar posiciones caminables para spawn de fantasmas
         if (cell !== CellType.WALL && cell !== CellType.EXIT && x > 2 && z > 2 &&
             x < this.maze[z].length - 2 && z < this.maze.length - 2) {
           this.emptyWalkablePositions.push(new THREE.Vector3(posX, 0, posZ));
@@ -882,262 +883,110 @@ export class Game {
           }
         }
 
-        // Nivel 4: sin luces parpadeantes
         if (cell !== CellType.WALL && this.currentLevel !== 'level4' && Math.random() < 0.1) {
           this.horrorEffects.addFlickeringLight(
             new THREE.Vector3(posX, wallHeight - 0.5, posZ)
           );
         }
 
-        // Puertas dinámicas
-        if (cell === CellType.DOOR) {
-          const isHorizontalPassage = (this.maze[z]?.[x - 1] !== 1 && this.maze[z]?.[x + 1] !== 1);
-          this.createDoorMesh(x, z, posX, posZ, unitSize, wallHeight, isHorizontalPassage);
+        processedCells++;
+        if (processedCells % CHUNK_SIZE === 0) {
+          const progress = 48 + Math.round((processedCells / totalCells) * 10);
+          this.uiManager.setLoadingProgress(progress, `Construyendo maze... ${Math.round((processedCells / totalCells) * 100)}%`);
+          await this.yieldToMain();
         }
       }
     }
 
-    // Cuadros de miedo en las paredes
+    // Chunk 5: InstancedMeshes
+    this.uiManager.setLoadingProgress(56, 'Creando meshes...');
+    this.createInstancedFloors(floorPositions, floorMaterial, floorGeometry);
+    await this.yieldToMain();
+    
+    this.uiManager.setLoadingProgress(57, 'Creando ceilings...');
+    this.createInstancedCeilings(ceilingPositions, ceilingMaterial, ceilingGeometry);
+    await this.yieldToMain();
+    
+    this.uiManager.setLoadingProgress(58, 'Creando paredes...');
+    this.createInstancedWalls(wallPositions, wallMaterial, wallGeometry);
+    await this.yieldToMain();
+
+    // Chunk 6: Scary pictures y arrows
+    this.uiManager.setLoadingProgress(59, 'Añadiendo detalles...');
     this.addScaryPictures();
-
-    // Flechas de pista pintadas en las paredes (solo visibles con linterna)
+    await this.yieldToMain();
+    
     this.addExitArrows();
-
-    // Inicializar timers de puertas dinámicas
-    this.doorCloseInterval = DOOR_CLOSE_INTERVAL_MIN + Math.random() * (DOOR_CLOSE_INTERVAL_MAX - DOOR_CLOSE_INTERVAL_MIN);
-    this.doorTimer = 0;
-  }
-
-  private createDoorMesh(cellX: number, cellZ: number, posX: number, posZ: number, unitSize: number, wallHeight: number, isHorizontalPassage: boolean = true): void {
-    const doorGroup = new THREE.Group();
     
-    if (isHorizontalPassage) {
-      doorGroup.rotation.y = Math.PI / 2;
-    }
-    
-    // ── Estilo Castillo Medieval ─────────────────────────────────────────────
-    
-    // Puerta de madera gruesa
-    const woodMat = new THREE.MeshStandardMaterial({
-      color: 0x5c3a21,
-      roughness: 0.9,
-      metalness: 0.0,
-      emissive: new THREE.Color(0x1a0a00),
-      emissiveIntensity: 0.15
-    });
-
-    // Rastrillo de hierro (la barrera que baja)
-    const ironMat = new THREE.MeshStandardMaterial({
-      color: 0x3a3a3a,
-      roughness: 0.4,
-      metalness: 0.9
-    });
-
-    const doorWidth = unitSize * 0.92;
-    const doorDepth = unitSize * 0.12;
-    const gateHeight = wallHeight * 0.85;
-    const gateY = wallHeight + gateHeight / 2; // Empieza ARRIBA (abierta)
-
-    // Rastrillo (rejilla de barras de hierro)
-    const gateMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(doorWidth, gateHeight, doorDepth),
-      ironMat
-    );
-    gateMesh.position.set(posX, gateY, posZ);
-    gateMesh.castShadow = true;
-    gateMesh.receiveShadow = true;
-    doorGroup.add(gateMesh);
-
-    // Barras verticales del rastrillo
-    const numBars = 7;
-    const barSpacing = doorWidth / (numBars + 1);
-    for (let i = 1; i <= numBars; i++) {
-      const barMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, gateHeight, 8),
-        ironMat
-      );
-      barMesh.position.set(
-        posX - doorWidth / 2 + i * barSpacing,
-        gateY,
-        posZ
-      );
-      barMesh.castShadow = true;
-      doorGroup.add(barMesh);
-    }
-
-    // Barra horizontal superior del rastrillo
-    const topBar = new THREE.Mesh(
-      new THREE.BoxGeometry(doorWidth + 0.1, 0.12, doorDepth + 0.1),
-      ironMat
-    );
-    topBar.position.set(posX, gateY + gateHeight / 2 - 0.06, posZ);
-    doorGroup.add(topBar);
-
-    // Piedras decorativas en los laterales (jambas de castillo)
-    const stoneMat = new THREE.MeshStandardMaterial({
-      color: 0x6b6b6b,
-      roughness: 0.95,
-      metalness: 0.0
-    });
-
-    // Jambas izquierda
-    const jambGeo = new THREE.BoxGeometry(0.3, wallHeight * 0.9, doorDepth + 0.3);
-    const jambL = new THREE.Mesh(jambGeo, stoneMat);
-    jambL.position.set(posX - doorWidth / 2 - 0.2, wallHeight / 2, posZ);
-    jambL.castShadow = true;
-    doorGroup.add(jambL);
-
-    const jambR = new THREE.Mesh(jambGeo, stoneMat);
-    jambR.position.set(posX + doorWidth / 2 + 0.2, wallHeight / 2, posZ);
-    jambR.castShadow = true;
-    doorGroup.add(jambR);
-
-    // Dientes de sierra en la parte inferior del rastrillo
-    for (let i = 0; i < 5; i++) {
-      const toothGeo = new THREE.BoxGeometry(0.15, 0.25, doorDepth);
-      const tooth = new THREE.Mesh(toothGeo, ironMat);
-      tooth.position.set(
-        posX - doorWidth / 2 + 0.3 + i * (doorWidth - 0.6) / 4,
-        gateY - gateHeight / 2 - 0.1,
-        posZ
-      );
-      tooth.castShadow = true;
-      doorGroup.add(tooth);
-    }
-
-    // Luz indicadora (verde = arriba/abierta, roja = abajo/cerrada)
-    const indicatorLight = new THREE.PointLight(0x00ff00, 0.6, 5);
-    indicatorLight.position.set(posX, wallHeight - 0.4, posZ);
-    doorGroup.add(indicatorLight);
-
-    // Linterna/antorcha en el lateral
-    const torchLight = new THREE.PointLight(0xff6600, 0.4, 4);
-    torchLight.position.set(posX - doorWidth / 2 - 0.5, wallHeight * 0.6, posZ);
-    doorGroup.add(torchLight);
-
-    // Indicador de riesgo en el suelo
-    const warningMat = new THREE.MeshBasicMaterial({
-      color: 0xff3300,
-      transparent: true,
-      opacity: 0.7
-    });
-    const warningLine = new THREE.Mesh(
-      new THREE.BoxGeometry(doorWidth - 0.3, 0.08, doorDepth + 0.15),
-      warningMat
-    );
-    warningLine.position.set(posX, 0.04, posZ);
-    doorGroup.add(warningLine);
-
-    this.sceneManager.scene.add(doorGroup);
-
-    this.dynamicDoors.push({
-      mesh: doorGroup,
-      meshCollider: gateMesh,
-      cellX,
-      cellZ,
-      isClosed: false,
-      isClosing: false,
-      isOpening: false,
-      doorY: gateY, // Posición arriba (abierta)
-      doorClosedY: gateHeight / 2, // Posición abajo (cerrada)
-      light: indicatorLight,
-      closeTimer: 0,
-      openTimer: 0
-    });
+    const elapsed = performance.now() - startTime;
+    console.log(`[Game] Maze built in ${elapsed.toFixed(0)}ms`);
   }
 
-  private updateDynamicDoors(delta: number): void {
-    if (this.dynamicDoors.length === 0) return;
-
-    // Timer para cierre aleatorio de puertas
-    this.doorTimer += delta * 1000;
-
-    if (this.doorTimer >= this.doorCloseInterval) {
-      this.doorTimer = 0;
-      this.doorCloseInterval = DOOR_CLOSE_INTERVAL_MIN + Math.random() * (DOOR_CLOSE_INTERVAL_MAX - DOOR_CLOSE_INTERVAL_MIN);
-
-      // Elegir una puerta aleatoria que esté abierta
-      const openDoors = this.dynamicDoors.filter(d => !d.isClosed && !d.isClosing);
-      if (openDoors.length > 0) {
-        const door = openDoors[Math.floor(Math.random() * openDoors.length)];
-        door.isClosing = true;
-        door.closeTimer = 0;
-        
-        // Sonido de puerta cerrándose
-        this.audioManager.playDoorCreak();
-        
-        console.log('[Game] Door closing at cell:', door.cellX, door.cellZ);
+  private createInstancedWalls(positions: THREE.Vector3[], material: THREE.MeshStandardMaterial, geometry: THREE.BoxGeometry): void {
+    if (positions.length < 50) {
+      for (const pos of positions) {
+        const wall = new THREE.Mesh(geometry, material);
+        wall.position.copy(pos);
+        wall.castShadow = true;
+        wall.receiveShadow = true;
+        this.sceneManager.scene.add(wall);
       }
+      console.log(`[Game] Created ${positions.length} individual walls (below threshold)`);
+      return;
     }
 
-    // Actualizar estado de cada puerta
-    for (const door of this.dynamicDoors) {
-      if (door.isClosing) {
-        door.closeTimer += delta * 1000;
-        
-        // Animación de cierre - la puerta baja suavemente
-        const closeProgress = Math.min(door.closeTimer / 1000, 1);
-        const easedProgress = 1 - Math.pow(1 - closeProgress, 3); // Ease out cubic
-        const newY = door.doorY - (door.doorY - door.doorClosedY) * easedProgress;
-        door.mesh.position.y = newY;
-        
-        if (door.closeTimer >= 1000) {
-          door.isClosing = false;
-          door.isClosed = true;
-          
-          // Cambiar luz indicadora a rojo
-          if (door.light) door.light.color.setHex(0xff0000);
-          
-          // Añadir collider
-          this.addDoorCollider(door);
-        }
-      }
+    const instancedMesh = new THREE.InstancedMesh(geometry, material, positions.length);
+    const matrix = new THREE.Matrix4();
 
-      if (door.isOpening) {
-        door.openTimer += delta * 1000;
-        
-        // Animación de apertura - la puerta sube suavemente
-        const openProgress = Math.min(door.openTimer / 1000, 1);
-        const easedProgress = 1 - Math.pow(1 - openProgress, 3);
-        const newY = door.doorClosedY + (door.doorY - door.doorClosedY) * easedProgress;
-        door.mesh.position.y = newY;
-        
-        if (door.openTimer >= 1000) {
-          door.isOpening = false;
-          door.isClosed = false;
-          
-          // Cambiar luz indicadora a verde
-          if (door.light) door.light.color.setHex(0x00ff00);
-          
-          // Quitar collider
-          this.removeDoorCollider(door);
-        }
-      }
-
-      // Las puertas se abren automáticamente después de un tiempo
-      if (door.isClosed && !door.isOpening) {
-        door.closeTimer += delta * 1000;
-        if (door.closeTimer >= DOOR_CLOSE_DURATION) {
-          door.isOpening = true;
-          door.openTimer = 0;
-          door.closeTimer = 0;
-          this.audioManager.playDoorCreak();
-        }
-      }
+    for (let i = 0; i < positions.length; i++) {
+      matrix.setPosition(positions[i]);
+      instancedMesh.setMatrixAt(i, matrix);
     }
+
+    instancedMesh.instanceMatrix.needsUpdate = true;
+    instancedMesh.castShadow = true;
+    instancedMesh.receiveShadow = true;
+    instancedMesh.frustumCulled = true;
+
+    this.sceneManager.scene.add(instancedMesh);
+
+    console.log(`[Game] Created instanced mesh with ${positions.length} walls (optimized)`);
   }
 
-  private addDoorCollider(door: { meshCollider: THREE.Mesh }): void {
-    if (!this.collidableObjects.includes(door.meshCollider)) {
-      this.collidableObjects.push(door.meshCollider);
+  private createInstancedFloors(positions: THREE.Vector3[], material: THREE.MeshStandardMaterial, geometry: THREE.PlaneGeometry): void {
+    const instancedMesh = new THREE.InstancedMesh(geometry, material, positions.length);
+    const matrix = new THREE.Matrix4();
+
+    for (let i = 0; i < positions.length; i++) {
+      matrix.makeRotationX(-Math.PI / 2);
+      matrix.setPosition(positions[i]);
+      instancedMesh.setMatrixAt(i, matrix);
     }
+
+    instancedMesh.instanceMatrix.needsUpdate = true;
+    instancedMesh.receiveShadow = true;
+    instancedMesh.frustumCulled = true;
+
+    this.sceneManager.scene.add(instancedMesh);
+    console.log(`[Game] Created instanced mesh with ${positions.length} floors`);
   }
 
-  private removeDoorCollider(door: { meshCollider: THREE.Mesh }): void {
-    const index = this.collidableObjects.indexOf(door.meshCollider);
-    if (index > -1) {
-      this.collidableObjects.splice(index, 1);
+  private createInstancedCeilings(positions: THREE.Vector3[], material: THREE.MeshStandardMaterial, geometry: THREE.PlaneGeometry): void {
+    const instancedMesh = new THREE.InstancedMesh(geometry, material, positions.length);
+    const matrix = new THREE.Matrix4();
+
+    for (let i = 0; i < positions.length; i++) {
+      matrix.makeRotationX(Math.PI / 2);
+      matrix.setPosition(positions[i]);
+      instancedMesh.setMatrixAt(i, matrix);
     }
+
+    instancedMesh.instanceMatrix.needsUpdate = true;
+    instancedMesh.receiveShadow = true;
+    instancedMesh.frustumCulled = true;
+
+    this.sceneManager.scene.add(instancedMesh);
+    console.log(`[Game] Created instanced mesh with ${positions.length} ceilings`);
   }
 
   /** BFS desde la salida → mapa de distancias mínimas por celda caminable. */
@@ -1668,95 +1517,106 @@ export class Game {
     return new THREE.CanvasTexture(c);
   }
 
-  private addFootprint(): void {
-    if (!this.footprintTex) this.footprintTex = this.createFootprintTexture();
-
-    const mat = new THREE.MeshBasicMaterial({
+  private initFootprintPool(): void {
+    this.footprintTex = this.createFootprintTexture();
+    this.footprintMat = new THREE.MeshBasicMaterial({
       map: this.footprintTex,
       transparent: true,
       opacity: 0.55,
       depthWrite: false,
     });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.38), mat);
+    this.footprintGeo = new THREE.PlaneGeometry(0.22, 0.38);
 
-    // Offset lateral alternando pie izquierdo/derecho
+    for (let i = 0; i < this.MAX_FOOTPRINTS; i++) {
+      const mesh = new THREE.Mesh(this.footprintGeo, this.footprintMat);
+      mesh.visible = false;
+      this.sceneManager.scene.add(mesh);
+      this.footprintPool.push(mesh);
+    }
+  }
+
+  private addFootprint(): void {
+    if (!this.footprintGeo || !this.footprintMat) return; // Pool no listo (no debería pasar)
+
+    if (!this.footprintPool.length) {
+      // Pool vacío: reutilizar la huella más antigua
+      const old = this.footprints.shift()!;
+      this.footprintPool.push(old.mesh);
+    }
+
+    const mesh = this.footprintPool.pop()!;
+
     const sideOffset = this.footprintLeft ? 0.16 : -0.16;
     const rx = Math.cos(this.player.yaw) * sideOffset;
     const rz = -Math.sin(this.player.yaw) * sideOffset;
 
     mesh.position.set(this.player.position.x + rx, 0.012, this.player.position.z + rz);
-    // Orientación: aplana sobre el suelo y rota en la dirección de marcha
-    mesh.rotation.set(0, this.player.yaw, 0);
-    mesh.rotateX(-Math.PI / 2);
+    // -PI/2 para tumbarlo en el suelo, yaw para orientarlo en la dirección del jugador
+    mesh.rotation.set(-Math.PI / 2, this.player.yaw, 0);
+    mesh.visible = true;
 
     this.footprintLeft = !this.footprintLeft;
-    this.sceneManager.scene.add(mesh);
     this.footprints.push({ mesh, life: this.FOOTPRINT_LIFETIME });
-
-    if (this.footprints.length > this.MAX_FOOTPRINTS) {
-      const old = this.footprints.shift()!;
-      this.sceneManager.scene.remove(old.mesh);
-      old.mesh.geometry.dispose();
-      (old.mesh.material as THREE.MeshBasicMaterial).dispose();
-    }
   }
 
   private updateFootprints(delta: number): void {
     for (let i = this.footprints.length - 1; i >= 0; i--) {
       const fp = this.footprints[i];
       fp.life -= delta;
-      (fp.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, fp.life / this.FOOTPRINT_LIFETIME) * 0.55;
       if (fp.life <= 0) {
-        this.sceneManager.scene.remove(fp.mesh);
-        fp.mesh.geometry.dispose();
-        (fp.mesh.material as THREE.MeshBasicMaterial).dispose();
+        fp.mesh.visible = false;
+        this.footprintPool.push(fp.mesh);
         this.footprints.splice(i, 1);
       }
     }
   }
 
+  private getEnemyTypesForLevel(): EnemyType[] {
+    switch (this.currentLevel) {
+      case 'level1':   return [EnemyType.STALKER];
+      case 'level2':   return [EnemyType.RUNNER, EnemyType.STALKER];
+      case 'level3':   return [EnemyType.STALKER, EnemyType.TELEPORTER];
+      case 'level4':   return [EnemyType.RUNNER, EnemyType.RUNNER, EnemyType.STALKER];
+      case 'ultimate': return [EnemyType.RUNNER, EnemyType.STALKER, EnemyType.TELEPORTER];
+      default:         return [];
+    }
+  }
+
+  /** Crea los meshes de los enemigos durante la carga (pantalla de carga visible).
+   *  Al spawnear solo hay que reposicionar y hacer visible — zero geometry creation en gameplay. */
+  private async prewarmEnemies(): Promise<void> {
+    const types = this.getEnemyTypesForLevel();
+    const farPos = new THREE.Vector3(-9999, 0, -9999);
+    for (const type of types) {
+      const enemy = new Enemy(type, farPos, this.sceneManager.scene, this.maze);
+      enemy.mesh.visible = false;
+      this.enemyPool.push(enemy);
+      await this.yieldToMain(); // ceder el hilo entre cada enemigo
+    }
+  }
+
   private doSpawnEnemies(): void {
     if (this.monsterSpawned) return;
+    this.monsterSpawned = true;
 
-    let types: EnemyType[] = [];
-    
-    switch (this.currentLevel) {
-      case 'level1':
-        types = [EnemyType.STALKER];
-        break;
-      case 'level2':
-        types = [EnemyType.RUNNER, EnemyType.STALKER];
-        break;
-      case 'level3':
-        types = [EnemyType.STALKER, EnemyType.TELEPORTER];
-        break;
-      case 'level4':
-        types = [EnemyType.RUNNER, EnemyType.RUNNER, EnemyType.STALKER];
-        break;
-      case 'ultimate':
-        types = [EnemyType.RUNNER, EnemyType.STALKER, EnemyType.TELEPORTER];
-        break;
-    }
-    
-    // Crear cada enemigo en un frame separado para no congelar el hilo principal
-    types.forEach((type, index) => {
+    // Los meshes ya están creados en enemyPool — solo reposicionar y activar
+    this.enemyPool.forEach((enemy, index) => {
       setTimeout(() => {
         if (!this.isActive) return;
         const pos = this.mazeGenerator.findRandomEmptyPosition(8);
         if (pos) {
-          const enemy = new Enemy(
-            type,
-            new THREE.Vector3(pos.x * CONFIG.UNIT_SIZE, 0, pos.z * CONFIG.UNIT_SIZE),
-            this.sceneManager.scene,
-            this.maze
-          );
+          const spawnX = pos.x * CONFIG.UNIT_SIZE;
+          const spawnZ = pos.z * CONFIG.UNIT_SIZE;
+          enemy.position.set(spawnX, 0, spawnZ);
+          enemy.mesh.position.set(spawnX, 0, spawnZ);
+          enemy.mesh.visible = true;
           this.enemies.push(enemy);
         }
       }, index * 80);
     });
 
-    this.monsterSpawned = true;
-    console.log('[Game] Enemies spawned for level:', this.currentLevel);
+    this.enemyPool = [];
+    console.log('[Game] Enemies activated for level:', this.currentLevel);
   }
 
   private checkBatteryCollection(): void {
@@ -1815,6 +1675,7 @@ export class Game {
         if (dist < CONFIG.UNIT_SIZE * 0.8) {
           this.sceneManager.scene.remove(coin);
           this.coins.splice(i, 1);
+          this.invalidateMinimapStatic();
           this.score += 10;
           this.statsCoinsCollected++;
           this.audioManager.playItemPickup();
@@ -1839,6 +1700,7 @@ export class Game {
           this.maze[cellZ][cellX] = CellType.EMPTY;
           this.sceneManager.scene.remove(powerUp);
           this.powerUps.splice(i, 1);
+          this.invalidateMinimapStatic();
           
           this.audioManager.playPowerUpPickup();
           
@@ -1907,6 +1769,9 @@ export class Game {
       
       this.player.position.x = newX;
       this.player.position.z = newZ;
+      
+      // Consumir el flag para evitar teleports múltiples
+      this.inputManager.keys.interact = false;
       
       console.log('[Game] Used rendija! Teleported to:', this.nearbyRendija.exitX, this.nearbyRendija.exitZ);
     }
@@ -2176,6 +2041,14 @@ export class Game {
     }
 
     this.minimapBaseImageData = offCtx.getImageData(0, 0, size, size);
+    // Guardar también el canvas offscreen para drawImage (más rápido que putImageData)
+    this.minimapBaseCanvas = offscreen;
+
+    // Canvas offscreen para la capa estática (coins/powerups) — se reconstruye solo al cambiar
+    this.minimapStaticCanvas = document.createElement('canvas');
+    this.minimapStaticCanvas.width = size;
+    this.minimapStaticCanvas.height = size;
+    this.minimapStaticDirty = true;
 
     // Canvas secundario para la capa de niebla (se actualiza solo cuando el jugador se mueve)
     this.fogCanvas = document.createElement('canvas');
@@ -2237,8 +2110,76 @@ export class Game {
     this.fogCtx.globalAlpha = 1;
   }
 
+  /** Marca la capa estática (coins/powerups) para que se reconstruya en el próximo frame del minimap */
+  invalidateMinimapStatic(): void {
+    this.minimapStaticDirty = true;
+  }
+
+  private rebuildMinimapStaticLayer(size: number, cellPx: number): void {
+    if (!this.minimapStaticCanvas) return;
+    const sCtx = this.minimapStaticCanvas.getContext('2d')!;
+    sCtx.clearRect(0, 0, size, size);
+
+    // Nivel 2: monedas restantes como puntos dorados
+    if (this.currentLevel === 'level2') {
+      sCtx.fillStyle = 'rgba(255, 215, 0, 0.95)';
+      for (const coin of this.coins) {
+        const cx = coin.position.x / CONFIG.UNIT_SIZE;
+        const cz = coin.position.z / CONFIG.UNIT_SIZE;
+        sCtx.beginPath();
+        sCtx.arc(cx * cellPx, cz * cellPx, cellPx * 0.45, 0, Math.PI * 2);
+        sCtx.fill();
+      }
+      if (this.score >= this.targetScore) {
+        sCtx.fillStyle = 'rgba(0, 240, 90, 1)';
+        sCtx.beginPath();
+        sCtx.arc(
+          this.minimapExitCellX * cellPx,
+          this.minimapExitCellZ * cellPx,
+          cellPx * 0.8, 0, Math.PI * 2
+        );
+        sCtx.fill();
+      }
+    }
+
+    // Power-ups
+    for (const powerUp of this.powerUps) {
+      const pux = powerUp.position.x / CONFIG.UNIT_SIZE;
+      const puz = powerUp.position.z / CONFIG.UNIT_SIZE;
+      const cellType = powerUp.userData.cellType;
+
+      if (cellType === CellType.POWER_SPEED) {
+        sCtx.fillStyle = 'rgba(255, 136, 0, 0.95)';
+      } else if (cellType === CellType.POWER_INVISIBLE) {
+        sCtx.fillStyle = 'rgba(0, 255, 255, 0.95)';
+      } else if (cellType === CellType.POWER_STUN) {
+        sCtx.fillStyle = 'rgba(255, 215, 0, 0.95)';
+      } else if (cellType === CellType.POWER_SANITY) {
+        sCtx.fillStyle = 'rgba(200, 100, 255, 0.95)';
+      } else {
+        sCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      }
+
+      const cx = pux * cellPx;
+      const cz = puz * cellPx;
+      const r = cellPx * 0.5;
+      sCtx.beginPath();
+      sCtx.moveTo(cx, cz - r);
+      sCtx.lineTo(cx + r, cz);
+      sCtx.lineTo(cx, cz + r);
+      sCtx.lineTo(cx - r, cz);
+      sCtx.closePath();
+      sCtx.fill();
+      sCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+      sCtx.lineWidth = 0.5;
+      sCtx.stroke();
+    }
+
+    this.minimapStaticDirty = false;
+  }
+
   private updateMinimap(): void {
-    if (!this.minimapCtx || !this.minimapCanvas || !this.minimapBaseImageData) return;
+    if (!this.minimapCtx || !this.minimapCanvas) return;
 
     // Throttle: draw every 3 frames
     this.minimapFrameSkip++;
@@ -2253,99 +2194,52 @@ export class Game {
     // Actualizar fog of war con posición actual
     this.updateFogOfWar();
 
-    // 1) Laberinto completo (base)
-    ctx.putImageData(this.minimapBaseImageData, 0, 0);
-
-    // Nivel 2: monedas restantes como puntos dorados
-    if (this.currentLevel === 'level2') {
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.95)';
-      for (const coin of this.coins) {
-        const cx = coin.position.x / CONFIG.UNIT_SIZE;
-        const cz = coin.position.z / CONFIG.UNIT_SIZE;
-        ctx.beginPath();
-        ctx.arc(cx * cellPx, cz * cellPx, cellPx * 0.45, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // Revelar salida cuando el score llegue al objetivo
-      if (this.score >= this.targetScore) {
-        ctx.fillStyle = 'rgba(0, 240, 90, 1)';
-        ctx.beginPath();
-        ctx.arc(
-          this.minimapExitCellX * cellPx,
-          this.minimapExitCellZ * cellPx,
-          cellPx * 0.8, 0, Math.PI * 2
-        );
-        ctx.fill();
-      }
+    // 1) Base del laberinto — drawImage es GPU blit, mucho más rápido que putImageData
+    if (this.minimapBaseCanvas) {
+      ctx.drawImage(this.minimapBaseCanvas, 0, 0);
+    } else if (this.minimapBaseImageData) {
+      ctx.putImageData(this.minimapBaseImageData, 0, 0);
     }
 
-    // Power-ups en el mapa
-    for (const powerUp of this.powerUps) {
-      const pux = powerUp.position.x / CONFIG.UNIT_SIZE;
-      const puz = powerUp.position.z / CONFIG.UNIT_SIZE;
-      const cellType = powerUp.userData.cellType;
-      
-      // Color según tipo
-      let color = 'rgba(255, 255, 255, 0.9)'; // Default: blanco
-      if (cellType === CellType.POWER_SPEED) {
-        color = 'rgba(255, 136, 0, 0.95)'; // Naranja para velocidad
-      } else if (cellType === CellType.POWER_INVISIBLE) {
-        color = 'rgba(0, 255, 255, 0.95)'; // Cian para invisibilidad
-      } else if (cellType === CellType.POWER_STUN) {
-        color = 'rgba(255, 215, 0, 0.95)'; // Amarillo para stun
-      } else if (cellType === CellType.POWER_SANITY) {
-        color = 'rgba(200, 100, 255, 0.95)'; // Púrpura para cordura
-      }
-      
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      // Diamante en vez de círculo
-      const cx = pux * cellPx;
-      const cz = puz * cellPx;
-      const r = cellPx * 0.5;
-      ctx.moveTo(cx, cz - r);
-      ctx.lineTo(cx + r, cz);
-      ctx.lineTo(cx, cz + r);
-      ctx.lineTo(cx - r, cz);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Borde blanco
-      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
+    // 2) Capa estática (coins/powerups) — solo se recalcula cuando cambia algo
+    if (this.minimapStaticDirty) {
+      this.rebuildMinimapStaticLayer(size, cellPx);
+    }
+    if (this.minimapStaticCanvas) {
+      ctx.drawImage(this.minimapStaticCanvas, 0, 0);
     }
 
-    // 2) Capa de niebla de guerra encima del laberinto (antes de los iconos dinámicos)
+    // 3) Fog of war
     if (this.fogCanvas) {
       ctx.drawImage(this.fogCanvas, 0, 0);
     }
 
-    // Enemigos: puntos rojos (solo si están en zona revelada)
+    // 4) Enemigos — solo visibles cuando están muy cerca (≤5 celdas)
+    const ENEMY_REVEAL_DIST = 5 * CONFIG.UNIT_SIZE;
     for (const enemy of this.enemies) {
+      const dx = enemy.position.x - this.player.position.x;
+      const dz = enemy.position.z - this.player.position.z;
+      if (dx * dx + dz * dz > ENEMY_REVEAL_DIST * ENEMY_REVEAL_DIST) continue;
+
       const ex = enemy.position.x / CONFIG.UNIT_SIZE;
       const ez = enemy.position.z / CONFIG.UNIT_SIZE;
       ctx.fillStyle = 'rgba(230, 20, 20, 0.95)';
       ctx.beginPath();
       ctx.arc(ex * cellPx, ez * cellPx, cellPx * 0.7, 0, Math.PI * 2);
       ctx.fill();
-      // Borde blanco para contraste
       ctx.strokeStyle = 'rgba(255,255,255,0.3)';
       ctx.lineWidth = 0.5;
       ctx.stroke();
     }
 
-    // Jugador: triángulo amarillo con dirección
+    // 5) Jugador: triángulo amarillo con dirección
     const px = this.player.position.x / CONFIG.UNIT_SIZE;
     const pz = this.player.position.z / CONFIG.UNIT_SIZE;
     const r = cellPx * 1.1;
 
     ctx.save();
     ctx.translate(px * cellPx, pz * cellPx);
-    // yaw=0 → cámara apunta -Z (norte en canvas = arriba). Negamos para que
-    // la rotación canvas (CW) coincida con la dirección real de la cámara.
     ctx.rotate(-this.player.yaw);
-    // Sombra para legibilidad
     ctx.shadowColor = 'rgba(0,0,0,0.8)';
     ctx.shadowBlur = 2;
     ctx.fillStyle = this.player.isHiding ? 'rgba(100,180,255,1)' : 'rgba(255, 230, 60, 1)';
@@ -2360,7 +2254,7 @@ export class Game {
     ctx.stroke();
     ctx.restore();
 
-    // Leyenda en esquina inferior izquierda del canvas
+    // 6) Leyenda (texto cacheado — ctx.font solo una vez)
     ctx.font = `${Math.max(5, cellPx * 1.2)}px monospace`;
     ctx.fillStyle = 'rgba(255,230,60,0.9)';
     ctx.fillText('● TÚ', 2, size - 20);
@@ -2464,6 +2358,7 @@ export class Game {
 
     requestAnimationFrame(this.animate);
 
+    const frameStart = performance.now();
     const delta = Math.min(this.clock.getDelta(), 0.1);
 
     this.monsterSpawnTimer += delta * 1000;
@@ -2471,15 +2366,69 @@ export class Game {
       this.doSpawnEnemies();
     }
 
-    // Aplicar estado de puertas cerradas al jugador
-    this.player.closedDoors = this.dynamicDoors.filter(d => d.isClosed || d.isClosing);
+    const playerUpdateStart = performance.now();
     this.player.update(delta);
+    const playerUpdateTime = performance.now() - playerUpdateStart;
+    if (playerUpdateTime > 8) {
+      console.warn(`[PERF] player.update() tardó ${playerUpdateTime.toFixed(2)}ms`);
+    }
+    
     this.checkBatteryCollection();
     this.updatePowerUpVisuals(delta);
     
     // ── Rendijas (atajos secretos) ──────────────────────────────────────────────
     this.checkRendijaInteraction();
     this.uiManager.updateRendijaHint(this.nearbyRendija !== null);
+
+    if (this.chunkManager) {
+      this.chunkManager.update(this.player.position.x, this.player.position.z);
+    }
+
+    // Throttle visibility checks
+    this.visibilityThrottle += delta * 1000;
+    if (this.visibilityThrottle >= this.VISIBILITY_THROTTLE_MS) {
+      this.visibilityThrottle = 0;
+      
+      const playerPos = this.player.position;
+      const maxDist = CONFIG.FOG_FAR * CONFIG.UNIT_SIZE * 0.9;
+      const mediumDist = CONFIG.FOG_FAR * CONFIG.UNIT_SIZE * 0.6;
+      
+      if (this.batteries.length > 0) {
+        for (const battery of this.batteries) {
+          battery.visible = battery.position.distanceTo(playerPos) < mediumDist;
+        }
+      }
+      
+      if (this.powerUps.length > 0) {
+        for (const powerUp of this.powerUps) {
+          powerUp.visible = powerUp.position.distanceTo(playerPos) < mediumDist;
+        }
+      }
+      
+      if (this.notes.length > 0) {
+        for (const note of this.notes) {
+          note.visible = note.position.distanceTo(playerPos) < maxDist;
+        }
+      }
+      
+      if (this.photos.length > 0) {
+        for (const photo of this.photos) {
+          photo.visible = photo.position.distanceTo(playerPos) < maxDist;
+        }
+      }
+      
+      if (this.bloodStains.length > 0) {
+        for (const stain of this.bloodStains) {
+          stain.visible = stain.position.distanceTo(playerPos) < maxDist;
+        }
+      }
+      
+      if (this.ceilingLightMeshes.length > 0) {
+        for (const light of this.ceilingLightMeshes) {
+          light.visible = light.position.distanceTo(playerPos) < maxDist;
+        }
+      }
+    }
 
     // ── Estadísticas ─────────────────────────────────────────────────────────
     this.statsDistanceWalked += this.player.position.distanceTo(this.statsLastPos);
@@ -2504,6 +2453,7 @@ export class Game {
     const sanityBonus = this.player.sanity < 30 ? 1.3 : (this.player.sanity < 50 ? 1.15 : 1.0);
     const isEffectivelyHidden = this.player.isHiding || this.player.isPlayerInvisible();
     
+    const enemyUpdateStart = performance.now();
     for (const enemy of this.enemies) {
       const dist = enemy.update(delta, this.player.position, isEffectivelyHidden, sanityBonus);
       closestEnemyDist = Math.min(closestEnemyDist, dist);
@@ -2530,6 +2480,10 @@ export class Game {
         return;
       }
     }
+    const enemyUpdateTime = performance.now() - enemyUpdateStart;
+    if (enemyUpdateTime > 10) {
+      console.warn(`[PERF] Enemies update() tardó ${enemyUpdateTime.toFixed(2)}ms (${this.enemies.length} enemigos)`);
+    }
 
     // Susto contado: enemigo muy cerca pero el jugador sobrevive
     if (closestEnemyDist < 2.5 && !this.player.isHiding && !this._wasCloseToEnemy) {
@@ -2548,9 +2502,6 @@ export class Game {
       this.footprintTimer = 0;
     }
     this.updateFootprints(delta);
-
-    // ── Puertas Dinámicas ─────────────────────────────────────────────────────
-    this.updateDynamicDoors(delta);
 
     // Guardar distancia para los mini-sustos
     this.lastClosestEnemyDist = closestEnemyDist;
@@ -2633,9 +2584,14 @@ export class Game {
       this.sceneManager.updateFog(CONFIG.FOG_NEAR, CONFIG.FOG_FAR);
     }
 
+    const horrorStart = performance.now();
     this.horrorEffects.update(delta);
     this.horrorEffects.updateGhosts(this.player.position, delta);
     this.sceneManager.updateShake(delta);
+    const horrorTime = performance.now() - horrorStart;
+    if (horrorTime > 5) {
+      console.warn(`[PERF] horrorEffects.update() tardó ${horrorTime.toFixed(2)}ms`);
+    }
 
     // ── Mini-sustos ambientales ────────────────────────────────────────────
     this.ambientScareTimer += delta;
@@ -2651,24 +2607,25 @@ export class Game {
       this.playerStepTimer = 0;
     }
 
-    this.uiManager.updateStamina(this.player.stamina);
-    this.uiManager.updateBattery(this.player.battery);
-    this.uiManager.updateSanity(this.player.sanity, CONFIG.SANITY_MAX);
-    this.uiManager.updateHiding(this.player.isHiding, this.player.canHide);
-    this.uiManager.updatePowerUps(this.player.speedBoostTimer, this.player.invisibilityTimer);
+    if (this.uiManager.shouldUpdateUI(delta)) {
+      this.uiManager.updateStamina(this.player.stamina);
+      this.uiManager.updateBattery(this.player.battery);
+      this.uiManager.updateSanity(this.player.sanity, CONFIG.SANITY_MAX);
+      this.uiManager.updateHiding(this.player.isHiding, this.player.canHide);
+      this.uiManager.updatePowerUps(this.player.speedBoostTimer, this.player.invisibilityTimer);
 
-    // Actualizar objetivo dinámicamente
-    if (this.currentLevel === 'level2') {
-      const remaining = this.targetScore - this.score;
-      const pct = Math.round((this.score / this.targetScore) * 100);
-      if (this.score >= this.targetScore) {
-        this.uiManager.updateLevelObjective(
-          '<span class="obj-title">OBJETIVO</span>✅ ¡Ahora encuentra la <strong style="color:#00ff88">SALIDA VERDE</strong>!'
-        );
-      } else {
-        this.uiManager.updateLevelObjective(
-          `<span class="obj-title">OBJETIVO</span>💰 Faltan <strong>${remaining}</strong> pts (${pct}%)`
-        );
+      if (this.currentLevel === 'level2') {
+        const remaining = this.targetScore - this.score;
+        const pct = Math.round((this.score / this.targetScore) * 100);
+        if (this.score >= this.targetScore) {
+          this.uiManager.updateLevelObjective(
+            '<span class="obj-title">OBJETIVO</span>✅ ¡Ahora encuentra la <strong style="color:#00ff88">SALIDA VERDE</strong>!'
+          );
+        } else {
+          this.uiManager.updateLevelObjective(
+            `<span class="obj-title">OBJETIVO</span>💰 Faltan <strong>${remaining}</strong> pts (${pct}%)`
+          );
+        }
       }
     }
 
@@ -2742,6 +2699,12 @@ export class Game {
     }
 
     this.updateMinimap();
+    
+    const frameTime = performance.now() - frameStart;
+    if (frameTime > 20) {
+      console.warn(`[PERF] Frame completo tardó ${frameTime.toFixed(2)}ms (objetivo: <16.67ms para 60fps)`);
+    }
+    
     this.sceneManager.render();
   };
 }

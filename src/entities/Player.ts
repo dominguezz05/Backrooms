@@ -27,6 +27,12 @@ export class Player {
   private audioManager: AudioManager | null = null;
   private lastFlashlightState = false;
   private exitWorldPos: THREE.Vector3 | null = null;
+  
+  private _vForward = new THREE.Vector3();
+  private _vRight = new THREE.Vector3();
+  private _vMoveDir = new THREE.Vector3();
+  private _vNewPos = new THREE.Vector3();
+  private _vTemp = new THREE.Vector3();
 
   constructor(sceneManager: SceneManager, inputManager: InputManager) {
     this.sceneManager = sceneManager;
@@ -140,7 +146,6 @@ export class Player {
         this.stamina -= CONFIG.STAMINA_DRAIN_RATE * delta;
         this.stamina = Math.max(0, this.stamina);
       } else {
-        // Recuperar stamina caminando (no esprintando)
         this.stamina += CONFIG.STAMINA_RECOVERY_RATE * delta;
         this.stamina = Math.min(CONFIG.STAMINA_MAX, this.stamina);
       }
@@ -148,37 +153,26 @@ export class Player {
       const baseSpeed = this.isSprinting ? CONFIG.SPRINT_SPEED : CONFIG.WALK_SPEED;
       const speed = baseSpeed * this.getSpeedMultiplier();
 
-      const forward = new THREE.Vector3(
-        -Math.sin(this.yaw),
-        0,
-        -Math.cos(this.yaw)
-      );
-      const right = new THREE.Vector3(
-        Math.cos(this.yaw),
-        0,
-        -Math.sin(this.yaw)
-      );
+      this._vForward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+      this._vRight.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
-      const moveDir = forward.multiplyScalar(input.y).add(right.multiplyScalar(input.x));
-      moveDir.normalize().multiplyScalar(speed * delta);
+      this._vMoveDir.copy(this._vForward).multiplyScalar(input.y);
+      this._vMoveDir.add(this._vRight.multiplyScalar(input.x));
+      this._vMoveDir.normalize().multiplyScalar(speed * delta);
 
-      const newPos = this.position.clone();
-      newPos.x += moveDir.x;
-      newPos.z += moveDir.z;
+      this._vNewPos.set(this.position.x + this._vMoveDir.x, this.position.y, this.position.z + this._vMoveDir.z);
 
-      if (!this.checkWallCollision(newPos)) {
-        this.position.x = newPos.x;
-        this.position.z = newPos.z;
+      if (!this.checkWallCollision(this._vNewPos)) {
+        this.position.x = this._vNewPos.x;
+        this.position.z = this._vNewPos.z;
       } else {
-        const newPosX = this.position.clone();
-        newPosX.x += moveDir.x;
-        if (!this.checkWallCollision(newPosX)) {
-          this.position.x = newPosX.x;
+        this._vTemp.set(this.position.x + this._vMoveDir.x, this.position.y, this.position.z);
+        if (!this.checkWallCollision(this._vTemp)) {
+          this.position.x = this._vTemp.x;
         }
-        const newPosZ = this.position.clone();
-        newPosZ.z += moveDir.z;
-        if (!this.checkWallCollision(newPosZ)) {
-          this.position.z = newPosZ.z;
+        this._vTemp.set(this.position.x, this.position.y, this.position.z + this._vMoveDir.z);
+        if (!this.checkWallCollision(this._vTemp)) {
+          this.position.z = this._vTemp.z;
         }
       }
     } else if (!this.isSprinting && this.stamina < CONFIG.STAMINA_MAX) {
@@ -190,29 +184,24 @@ export class Player {
 
   private checkWallCollision(pos: THREE.Vector3): boolean {
     const r = 0.70;
-    const checks = [
-      { x: pos.x + r, z: pos.z },
-      { x: pos.x - r, z: pos.z },
-      { x: pos.x,     z: pos.z + r },
-      { x: pos.x,     z: pos.z - r },
-    ];
-
-    for (const pt of checks) {
-      const cellX = Math.round(pt.x / CONFIG.UNIT_SIZE);
-      const cellZ = Math.round(pt.z / CONFIG.UNIT_SIZE);
-      if (cellZ < 0 || cellZ >= this.maze.length ||
-          cellX < 0 || cellX >= this.maze[0].length) {
-        return true;
-      }
-      const cell = this.maze[cellZ][cellX];
-      if (cell === CellType.WALL || cell === CellType.RENDIJA) return true;
-      
-      for (const door of this.closedDoors) {
-        if (door.cellX === cellX && door.cellZ === cellZ && door.isClosed) {
-          return true;
-        }
-      }
-    }
+    const unitSize = CONFIG.UNIT_SIZE;
+    
+    const x0 = Math.round((pos.x + r) / unitSize);
+    const x1 = Math.round((pos.x - r) / unitSize);
+    const z0 = Math.round((pos.z + r) / unitSize);
+    const z1 = Math.round((pos.z - r) / unitSize);
+    
+    const rows = this.maze.length;
+    const cols = this.maze[0].length;
+    
+    if (x0 < 0 || x0 >= cols || z0 < 0 || z0 >= rows) return true;
+    if (x1 < 0 || x1 >= cols || z1 < 0 || z1 >= rows) return true;
+    
+    if (this.maze[z0][x0] === CellType.WALL || this.maze[z0][x0] === CellType.RENDIJA) return true;
+    if (this.maze[z0][x1] === CellType.WALL || this.maze[z0][x1] === CellType.RENDIJA) return true;
+    if (this.maze[z1][x0] === CellType.WALL || this.maze[z1][x0] === CellType.RENDIJA) return true;
+    if (this.maze[z1][x1] === CellType.WALL || this.maze[z1][x1] === CellType.RENDIJA) return true;
+    
     return false;
   }
 

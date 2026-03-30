@@ -29,6 +29,8 @@ export class InputManager {
   private pauseCallbacks: PauseCallback[] = [];
   private pausePressed = false;
   private _pausedByGame = false;
+  private _inputEnabled = false;
+  private _moveInput = new THREE.Vector2();
 
   constructor() {
     this.keys = {
@@ -58,6 +60,19 @@ export class InputManager {
     }
   }
 
+  enableInput(): void {
+    this._inputEnabled = true;
+  }
+
+  disableInput(): void {
+    this._inputEnabled = false;
+    this.reset();
+  }
+
+  isInputEnabled(): boolean {
+    return this._inputEnabled;
+  }
+
   onPause(callback: PauseCallback): void {
     this.pauseCallbacks.push(callback);
   }
@@ -76,6 +91,8 @@ export class InputManager {
 
   private setupKeyboard(): void {
     window.addEventListener('keydown', (e) => {
+      if (!this._inputEnabled) return;
+      
       switch (e.code) {
         case 'KeyW':
         case 'ArrowUp':
@@ -117,6 +134,8 @@ export class InputManager {
     });
 
     window.addEventListener('keyup', (e) => {
+      if (!this._inputEnabled) return;
+      
       switch (e.code) {
         case 'KeyW':
         case 'ArrowUp':
@@ -176,7 +195,7 @@ export class InputManager {
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (this.isPointerLocked) {
+      if (this.isPointerLocked && this._inputEnabled) {
         this.mouseMovement.x += e.movementX;
         this.mouseMovement.y += e.movementY;
       }
@@ -185,6 +204,7 @@ export class InputManager {
 
   private setupTouch(): void {
     window.addEventListener('touchstart', (e) => {
+      if (!this._inputEnabled) return;
       for (const touch of e.changedTouches) {
         const x = touch.clientX;
         const isLeftSide = x < window.innerWidth / 2;
@@ -202,6 +222,7 @@ export class InputManager {
     });
 
     window.addEventListener('touchmove', (e) => {
+      if (!this._inputEnabled) return;
       for (const touch of e.changedTouches) {
         if (touch.identifier === this.moveTouchId) {
           const dx = touch.clientX - this.touchStartX;
@@ -219,6 +240,7 @@ export class InputManager {
     });
 
     window.addEventListener('touchend', (e) => {
+      if (!this._inputEnabled) return;
       for (const touch of e.changedTouches) {
         if (touch.identifier === this.moveTouchId) {
           this.moveTouchId = null;
@@ -239,15 +261,15 @@ export class InputManager {
 
   getMovementInput(): THREE.Vector2 {
     if (this.isTouchDevice) {
-      return new THREE.Vector2(this.moveVector.x, -this.moveVector.y);
+      return this._moveInput.set(this.moveVector.x, -this.moveVector.y);
     }
 
-    const input = new THREE.Vector2(0, 0);
-    if (this.keys.forward) input.y += 1;
-    if (this.keys.backward) input.y -= 1;
-    if (this.keys.left) input.x -= 1;
-    if (this.keys.right) input.x += 1;
-    return input.normalize();
+    this._moveInput.set(0, 0);
+    if (this.keys.forward) this._moveInput.y += 1;
+    if (this.keys.backward) this._moveInput.y -= 1;
+    if (this.keys.left) this._moveInput.x -= 1;
+    if (this.keys.right) this._moveInput.x += 1;
+    return this._moveInput.normalize();
   }
 
   consumeMouseMovement(): { x: number; y: number } {

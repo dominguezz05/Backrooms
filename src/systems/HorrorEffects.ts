@@ -61,26 +61,41 @@ export class HorrorEffects {
     this.updateFOV(delta);
   }
 
+  private lastLightUpdate = 0;
+  private flickerTime = 0;
+  private lightsInDangerMode = false;
+
   private updateLights(_delta: number): void {
-    const p = this.enemyProximityFactor; // 0..1
+    const now = performance.now();
+    if (now - this.lastLightUpdate < 50) return;
+    this.lastLightUpdate = now;
+    
+    this.flickerTime += 0.05;
+    const p = this.enemyProximityFactor;
+    const speedMult = 1 + p * 4;
+    const amountMult = 1 + p * 3;
+    
+    const danger = p > 0.05;
+    // Solo cambia el color si el modo cambió (danger↔normal) para evitar setRGB cada 50ms
+    if (danger !== this.lightsInDangerMode) {
+      this.lightsInDangerMode = danger;
+      if (!danger) {
+        for (let i = 0; i < this.lights.length; i++) {
+          this.lights[i].color.set(0xffffaa);
+        }
+      }
+    }
+
     for (let i = 0; i < this.lights.length; i++) {
       const light = this.lights[i];
       const data = this.lightData[i];
-      // Con enemigo cerca: parpadeo más rápido y cantidad mayor
-      const speedMult = 1 + p * 4;
-      const amountMult = 1 + p * 3;
-      const flicker = Math.sin(Date.now() * 0.001 * data.flickerSpeed * speedMult) * data.flickerAmount * amountMult;
-      const randomFlicker = Math.random() * data.flickerAmount * 0.5 * amountMult;
-      light.intensity = Math.max(0, data.baseIntensity + flicker + randomFlicker);
+      const flicker = Math.sin(this.flickerTime * data.flickerSpeed * speedMult) * data.flickerAmount * amountMult;
+      light.intensity = Math.max(0, data.baseIntensity + flicker);
 
-      // Tinte rojizo progresivo cuando el enemigo se acerca
-      if (p > 0.05) {
-        const r = Math.round(255 * Math.min(1, 1.0));
-        const g = Math.round(255 * Math.max(0, 1.0 - p * 0.85));
-        const b = Math.round(255 * Math.max(0, 0.67 - p * 0.67));
-        light.color.setRGB(r / 255, g / 255, b / 255);
-      } else {
-        light.color.set(0xffffaa);
+      if (danger) {
+        const g = Math.max(0, 1.0 - p * 0.85);
+        const b = Math.max(0, 0.67 - p * 0.67);
+        light.color.setRGB(1, g, b);
       }
     }
   }
@@ -97,6 +112,8 @@ export class HorrorEffects {
     }
   }
 
+  private lastFovUpdate = 0;
+
   private updateFOV(delta: number): void {
     this.fovTimer += delta;
 
@@ -105,8 +122,15 @@ export class HorrorEffects {
       this.fovTarget = 75 + (Math.random() - 0.5) * 10;
     }
 
-    this.camera.fov += (this.fovTarget - this.camera.fov) * 0.02;
-    this.camera.updateProjectionMatrix();
+    const now = performance.now();
+    if (now - this.lastFovUpdate > 100) {
+      const diff = this.fovTarget - this.camera.fov;
+      if (Math.abs(diff) > 0.01) {
+        this.camera.fov += diff * 0.02;
+        this.camera.updateProjectionMatrix();
+      }
+      this.lastFovUpdate = now;
+    }
   }
 
   // ── API pública: figuras fantasma ─────────────────────────────────────────
@@ -153,20 +177,22 @@ export class HorrorEffects {
 
   /** Llamar cada frame desde Game.ts para gestionar el ciclo de vida del fantasma. */
   updateGhosts(playerPos: THREE.Vector3, delta: number): void {
-    for (let i = this.ghosts.length - 1; i >= 0; i--) {
-      const g = this.ghosts[i];
-      g.timer -= delta;
+    if (this.ghosts.length === 0) return;
+    
+    const ghost = this.ghosts[0];
+    ghost.timer -= delta;
 
-      const dist = playerPos.distanceTo(g.group.position);
-      if (dist < 4.5 || g.timer <= 0) {
-        this.scene.remove(g.group);
-        this.ghosts.splice(i, 1);
-        continue;
-      }
-
-      // Leve flote vertical
-      g.group.position.y = Math.sin(Date.now() * 0.0018) * 0.08;
+    const dx = playerPos.x - ghost.group.position.x;
+    const dz = playerPos.z - ghost.group.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    
+    if (dist < 4.5 || ghost.timer <= 0) {
+      this.scene.remove(ghost.group);
+      this.ghosts = [];
+      return;
     }
+
+    ghost.group.position.y = Math.sin(performance.now() * 0.0018) * 0.08;
   }
 
   triggerImmediateMessage(): void {
