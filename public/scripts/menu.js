@@ -639,6 +639,71 @@ function initModals() {
   document.getElementById('btnOptions').addEventListener('click', () => openModal('modalOptions'));
 }
 
+// ════ SISTEMA DE NIVELES Y DESBLOQUEOS ════
+const LEVELS_DATA = [
+  { id: 'level1',   param: '1',       icon: '🔊', name: 'NIVEL 1 — LA BÚSQUEDA',  desc: 'Encuentra la salida verde',        extra: '' },
+  { id: 'level2',   param: '2',       icon: '💰', name: 'NIVEL 2 — EL BOTÍN',      desc: 'Recoge 100 puntos en monedas',     extra: '' },
+  { id: 'level3',   param: '3',       icon: '🚪', name: 'NIVEL 3 — SALAS ABIERTAS',desc: 'Pasillos amplios, sin rincones',   extra: '' },
+  { id: 'level4',   param: '4',       icon: '🔦', name: 'NIVEL 4 — APAGÓN TOTAL',  desc: 'Solo tu linterna ilumina',         extra: '' },
+  { id: 'ultimate', param: 'ultimate',icon: '🔥', name: 'ULTIMATE — SUPERVIVENCIA',desc: '3 enemigos, sin piedad',           extra: 'level-ultimate' },
+];
+
+function getUnlockedLevels() {
+  try { return JSON.parse(localStorage.getItem('backrooms_unlocks') || '["level1"]'); }
+  catch { return ['level1']; }
+}
+
+function getCompletedLevels() {
+  try {
+    const stats = JSON.parse(localStorage.getItem('backrooms_stats') || '{}');
+    const completed = stats.levelsCompleted || {};
+    return Object.keys(completed).filter(k => completed[k] > 0);
+  } catch { return []; }
+}
+
+function initLevels() {
+  const list = document.querySelector('.level-list');
+  if (!list) return;
+
+  const unlocked  = getUnlockedLevels();
+  const completed = getCompletedLevels();
+  const diff = sessionStorage.getItem('difficulty') || 'normal';
+
+  list.innerHTML = LEVELS_DATA.map(lv => {
+    const isUnlocked  = unlocked.includes(lv.id);
+    const isCompleted = completed.includes(lv.id);
+    const badge = isCompleted ? '<span class="level-done-badge">✓</span>' : '';
+
+    if (isUnlocked) {
+      return `<a href="game.html?level=${lv.param}&diff=${diff}" class="level-card ${lv.extra}" data-level="${lv.id}">
+        ${badge}
+        <span class="level-icon">${lv.icon}</span>
+        <div class="level-info">
+          <div class="level-name">${lv.name}</div>
+          <div class="level-desc">${lv.desc}</div>
+        </div>
+      </a>`;
+    } else {
+      return `<div class="level-card locked ${lv.extra}">
+        <span class="level-icon">🔒</span>
+        <div class="level-info">
+          <div class="level-name">${lv.name}</div>
+          <div class="level-desc level-locked-hint">Completa el nivel anterior para desbloquear</div>
+        </div>
+      </div>`;
+    }
+  }).join('');
+
+  // Al cambiar dificultad, regen los hrefs para que lleven el diff correcto
+  list._refreshDiff = () => {
+    const d = sessionStorage.getItem('difficulty') || 'normal';
+    list.querySelectorAll('.level-card[data-level]').forEach(card => {
+      const lvParam = LEVELS_DATA.find(l => l.id === card.dataset.level)?.param;
+      if (lvParam) card.href = `game.html?level=${lvParam}&diff=${d}`;
+    });
+  };
+}
+
 // ════ DIFICULTAD ════
 const DIFF_DESCS = {
   easy: "Enemigos lentos, batería dura más, cordura estable. Ideal para aprender.",
@@ -659,6 +724,9 @@ function initDifficulty() {
       btn.classList.add('active');
       sessionStorage.setItem('difficulty', btn.dataset.diff);
       updateDiffDesc(btn.dataset.diff);
+      // Actualizar hrefs de niveles con la nueva dificultad
+      const list = document.querySelector('.level-list');
+      if (list && list._refreshDiff) list._refreshDiff();
     });
   });
   
@@ -831,6 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initHeadphonesModal();
   initLightning();
   initModals();
+  initLevels();
   initDifficulty();
   initScores();
   initOptions();

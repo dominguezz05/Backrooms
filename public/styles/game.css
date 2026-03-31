@@ -886,21 +886,54 @@
   font-weight: bold;
 }
 
-#restartButton {
+/* ── Botones de fin de partida ── */
+.end-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.end-btn {
   font-family: var(--font-title);
-  font-size: 1.5em;
-  padding: 15px 40px;
-  background: #4d0208;
-  color: #fff;
-  border: 2px solid #ff0000;
+  font-size: 1.2em;
+  padding: 12px 28px;
   border-radius: 5px;
   cursor: pointer;
   text-decoration: none;
+  letter-spacing: 2px;
+  transition: background 0.15s, transform 0.12s;
+  border: 2px solid;
 }
 
-#restartButton:hover {
-  background: #6a020b;
-  transform: scale(1.05);
+.end-retry {
+  background: #4d0208;
+  color: #fff;
+  border-color: #ff2222;
+}
+.end-retry:hover { background: #700a12; transform: scale(1.05); }
+
+.end-next {
+  background: #003d1a;
+  color: #fff;
+  border-color: #00ff88;
+  font-size: 1.3em;
+  padding: 14px 34px;
+}
+.end-next:hover { background: #005a28; transform: scale(1.06); }
+
+.end-menu {
+  background: #1a1a2e;
+  color: #aaa;
+  border-color: #445;
+}
+.end-menu:hover { background: #252545; color: #ddd; transform: scale(1.03); }
+
+/* Estado victoria: h1 y p ya cambian de color vía JS */
+#gameOverOverlay[data-state="victory"] h1 {
+  color: #00ff88;
+  text-shadow: 0 0 30px #00ff88;
 }
 
 /* ════ PAUSE MENU ════ */
@@ -1253,4 +1286,24 @@
 
 #transitionOverlay.fade-out {
   transition: opacity 0.5s ease;
+}
+
+/* ── Botones de calidad gráfica ────────────────────────────── */
+.quality-btn {
+  font-family: var(--font-body);
+  font-size: 0.78em;
+  padding: 5px 11px;
+  background: rgba(30,10,10,0.9);
+  color: #888;
+  border: 1px solid rgba(120,40,40,0.4);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 1px;
+}
+.quality-btn:hover { background: rgba(60,20,20,0.95); color: #ccc; }
+.quality-btn.active {
+  background: rgba(140,30,30,0.9);
+  border-color: rgba(220,80,80,0.8);
+  color: #fff;
 }

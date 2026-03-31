@@ -10,31 +10,23 @@ export class SceneManager {
   shadowsEnabled: boolean = true;
 
   constructor() {
+    const quality = (localStorage.getItem('graphicsQuality') ?? 'medium') as 'low' | 'medium' | 'high';
+
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
-    this.scene.fog = new THREE.Fog(
-      0x000000,
-      CONFIG.FOG_NEAR * CONFIG.UNIT_SIZE,
-      CONFIG.FOG_FAR * CONFIG.UNIT_SIZE
-    );
+    this.scene.fog = new THREE.Fog(0x000000, CONFIG.FOG_NEAR * CONFIG.UNIT_SIZE, CONFIG.FOG_FAR * CONFIG.UNIT_SIZE);
 
-    this.camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.25,
-      1000
-    );
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.25, 1000);
     this.camera.rotation.order = 'YXZ';
 
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: quality === 'high',
       powerPreference: 'high-performance',
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.BasicShadowMap;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.shadowMap.enabled = false;
     document.body.appendChild(this.renderer.domElement);
+    this.applyQuality(quality);
 
     this.ambientLight = new THREE.AmbientLight(0x151515, 0.5);
     this.scene.add(this.ambientLight);
@@ -59,6 +51,19 @@ export class SceneManager {
 
   isShadowsEnabled(): boolean {
     return this.shadowsEnabled;
+  }
+
+  applyQuality(preset: 'low' | 'medium' | 'high'): void {
+    const cfg = {
+      low:    { pixelRatio: 0.75, fogFar: 10 },
+      medium: { pixelRatio: 1.0,  fogFar: 18 },
+      high:   { pixelRatio: Math.min(window.devicePixelRatio, 1.5), fogFar: 24 },
+    }[preset];
+    this.renderer.setPixelRatio(cfg.pixelRatio);
+    if (this.scene.fog instanceof THREE.Fog) {
+      this.scene.fog.far = cfg.fogFar * CONFIG.UNIT_SIZE;
+    }
+    localStorage.setItem('graphicsQuality', preset);
   }
 
   // ── Camera Shake ──────────────────────────────────────────────────────────

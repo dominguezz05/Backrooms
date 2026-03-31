@@ -28,6 +28,14 @@ export class AudioManager {
   private proximityLfo: OscillatorNode | null = null;
   private powerUpNoiseBuffer: AudioBuffer | null = null;
 
+  // Buffers pre-generados — creados en init(), reutilizados en cada llamada
+  private footstepPlayerBuffer: AudioBuffer | null = null;      // playPlayerFootstep
+  private footstepBehindBuffer: AudioBuffer | null = null;      // playFootstepsBehind
+  private monsterBangRunnerBuffer: AudioBuffer | null = null;   // playMonsterFootstep runner
+  private monsterBangStalkerBuffer: AudioBuffer | null = null;  // playMonsterFootstep stalker/default
+  private monsterBangTeleBuffer: AudioBuffer | null = null;     // playMonsterFootstep teleporter
+  private dripBuffer: AudioBuffer | null = null;                // playDripSound
+
   setPlayerName(name: string): void {
     this.playerName = name;
     console.log('[AudioManager] Player name set:', this.playerName);
@@ -251,6 +259,54 @@ export class AudioManager {
       const t = i / bufSize;
       bufData[i] = (Math.random() * 2 - 1) * Math.exp(-t * 12) * 0.15;
     }
+
+    // ── Pre-generar buffers de pasos y goteo ────────────────────────────────
+    const sr = this.context.sampleRate;
+
+    // Paso del jugador (0.06 s, exp decay * 40)
+    const fpSize = Math.ceil(sr * 0.06);
+    this.footstepPlayerBuffer = this.context.createBuffer(1, fpSize, sr);
+    { const d = this.footstepPlayerBuffer.getChannelData(0);
+      for (let i = 0; i < fpSize; i++) d[i] = (Math.random() * 2 - 1) * 0.4 * Math.exp(-(i / fpSize) * 40); }
+
+    // Paso detrás — variante más grave (0.08 s, exp decay * 25)
+    const fbSize = Math.ceil(sr * 0.08);
+    this.footstepBehindBuffer = this.context.createBuffer(1, fbSize, sr);
+    { const d = this.footstepBehindBuffer.getChannelData(0);
+      for (let i = 0; i < fbSize; i++) d[i] = (Math.random() * 2 - 1) * 0.5 * Math.exp(-(i / fbSize) * 25); }
+
+    // Monstruo runner (0.06 s, tono agudo + ruido)
+    const mRSize = Math.ceil(sr * 0.06);
+    this.monsterBangRunnerBuffer = this.context.createBuffer(1, mRSize, sr);
+    { const d = this.monsterBangRunnerBuffer.getChannelData(0);
+      for (let i = 0; i < mRSize; i++) {
+        const t = i / mRSize;
+        d[i] = ((Math.random() * 2 - 1) * 0.6 + Math.sin(t * 80 * Math.PI * 2) * 0.4) * Math.exp(-t * 30);
+      } }
+
+    // Monstruo stalker/default (0.12 s, grave)
+    const mSSize = Math.ceil(sr * 0.12);
+    this.monsterBangStalkerBuffer = this.context.createBuffer(1, mSSize, sr);
+    { const d = this.monsterBangStalkerBuffer.getChannelData(0);
+      for (let i = 0; i < mSSize; i++) {
+        const t = i / mSSize;
+        d[i] = ((Math.random() * 2 - 1) * 0.6 + Math.sin(t * 80 * Math.PI * 2) * 0.4) * Math.exp(-t * 30);
+      } }
+
+    // Monstruo teleporter (0.10 s, intermedio)
+    const mTSize = Math.ceil(sr * 0.10);
+    this.monsterBangTeleBuffer = this.context.createBuffer(1, mTSize, sr);
+    { const d = this.monsterBangTeleBuffer.getChannelData(0);
+      for (let i = 0; i < mTSize; i++) {
+        const t = i / mTSize;
+        d[i] = ((Math.random() * 2 - 1) * 0.6 + Math.sin(t * 80 * Math.PI * 2) * 0.4) * Math.exp(-t * 30);
+      } }
+
+    // Goteo (0.20 s, decay rápido)
+    const drSize = Math.ceil(sr * 0.20);
+    this.dripBuffer = this.context.createBuffer(1, drSize, sr);
+    { const d = this.dripBuffer.getChannelData(0);
+      for (let i = 0; i < drSize; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-(i / drSize) * 50); }
 
     this.loadOptions();
 
@@ -641,37 +697,25 @@ export class AudioManager {
   playMonsterFootstep(position: THREE.Vector3, enemyType: string = 'stalker'): void {
     if (!this.context || !this.sfxGain || !this.listener) return;
 
-    let duration: number;
     let volume: number;
-    
+    let pregenBuffer: AudioBuffer | null;
+
     switch (enemyType) {
       case 'runner':
-        duration = 0.06;
         volume = 0.5;
+        pregenBuffer = this.monsterBangRunnerBuffer;
         break;
       case 'teleporter':
-        duration = 0.1;
         volume = 0.35;
+        pregenBuffer = this.monsterBangTeleBuffer;
         break;
       default:
-        duration = 0.12;
         volume = 0.3;
-    }
-
-    const bufferSize = this.context.sampleRate * duration;
-    const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
-    const data = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-      const t = i / bufferSize;
-      const envelope = Math.exp(-t * 30);
-      const noise = (Math.random() * 2 - 1);
-      const tone = Math.sin(t * 80 * Math.PI * 2) * 0.4;
-      data[i] = (noise * 0.6 + tone) * envelope;
+        pregenBuffer = this.monsterBangStalkerBuffer;
     }
 
     const source = this.context.createBufferSource();
-    source.buffer = buffer;
+    source.buffer = pregenBuffer;
 
     const panner = this.context.createPanner();
     panner.panningModel = 'HRTF';
@@ -760,18 +804,8 @@ export class AudioManager {
   playPlayerFootstep(): void {
     if (!this.context || !this.sfxGain) return;
 
-    const bufferSize = this.context.sampleRate * 0.06;
-    const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
-    const data = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-      const t = i / bufferSize;
-      const envelope = Math.exp(-t * 40);
-      data[i] = (Math.random() * 2 - 1) * 0.4 * envelope;
-    }
-
     const source = this.context.createBufferSource();
-    source.buffer = buffer;
+    source.buffer = this.footstepPlayerBuffer;
 
     const filter = this.context.createBiquadFilter();
     filter.type = 'lowpass';
@@ -927,22 +961,12 @@ export class AudioManager {
     if (!this.context || !this.sfxGain) return;
 
     const now = this.context.currentTime;
-    
+
     for (let i = 0; i < 3; i++) {
       const delay = i * 0.35 + Math.random() * 0.1;
-      
-      const bufferSize = this.context.sampleRate * 0.08;
-      const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
-      const data = buffer.getChannelData(0);
-
-      for (let j = 0; j < bufferSize; j++) {
-        const t = j / bufferSize;
-        const envelope = Math.exp(-t * 25);
-        data[j] = (Math.random() * 2 - 1) * 0.5 * envelope;
-      }
 
       const source = this.context.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = this.footstepBehindBuffer;
 
       const filter = this.context.createBiquadFilter();
       filter.type = 'lowpass';
@@ -1423,23 +1447,19 @@ export class AudioManager {
     osc.stop(now + 0.2);
     osc.onended = () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect(); };
 
-    if (Math.random() < 0.4) {
-      setTimeout(() => {
-        const osc2 = this.context!.createOscillator();
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(1000 + Math.random() * 600, this.context!.currentTime);
-        osc2.frequency.exponentialRampToValueAtTime(150, this.context!.currentTime + 0.1);
-
-        const gain2 = this.context!.createGain();
-        gain2.gain.setValueAtTime(0.1, this.context!.currentTime);
-        gain2.gain.exponentialRampToValueAtTime(0.001, this.context!.currentTime + 0.12);
-
-        osc2.connect(gain2);
-        gain2.connect(panner);
-        osc2.start();
-        osc2.stop(this.context!.currentTime + 0.15);
-        osc2.onended = () => { osc2.disconnect(); gain2.disconnect(); };
-      }, 100 + Math.random() * 200);
+    if (Math.random() < 0.4 && this.dripBuffer) {
+      // Segunda gota usando buffer pre-generado — sin setTimeout, scheduleado directo
+      const delay = (100 + Math.random() * 200) / 1000;
+      const src2 = this.context.createBufferSource();
+      src2.buffer = this.dripBuffer;
+      const g2 = this.context.createGain();
+      g2.gain.setValueAtTime(0, now + delay);
+      g2.gain.linearRampToValueAtTime(0.07, now + delay + 0.01);
+      g2.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.18);
+      src2.connect(g2);
+      g2.connect(panner);
+      src2.start(now + delay);
+      src2.onended = () => { src2.disconnect(); g2.disconnect(); };
     }
   }
 
@@ -1780,5 +1800,177 @@ export class AudioManager {
     filter.connect(gain);
     gain.connect(this.ambientGain);
     noise.start();
+  }
+
+  /** Gemido fantasmal: oscilador bajo con vibrato y fade-out lento. */
+  playGhostMoan(): void {
+    if (!this.context || !this.sfxGain) return;
+    const now = this.context.currentTime;
+
+    const osc = this.context.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(180 + Math.random() * 40, now);
+    osc.frequency.linearRampToValueAtTime(140 + Math.random() * 30, now + 2.5);
+
+    // Vibrato
+    const lfo = this.context.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 4 + Math.random() * 2;
+    const lfoGain = this.context.createGain();
+    lfoGain.gain.value = 6;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.15, now + 0.6);
+    gain.gain.linearRampToValueAtTime(0.08, now + 2.0);
+    gain.gain.linearRampToValueAtTime(0, now + 3.2);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now);
+    lfo.start(now);
+    osc.stop(now + 3.2);
+    lfo.stop(now + 3.2);
+    osc.onended = () => { gain.disconnect(); lfoGain.disconnect(); };
+  }
+
+  /** Beep de batería baja: doble pitido corto y agudo. */
+  playLowBatteryBeep(): void {
+    if (!this.context || !this.sfxGain) return;
+    const now = this.context.currentTime;
+    for (let i = 0; i < 2; i++) {
+      const t = now + i * 0.18;
+      const osc = this.context.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 880;
+      const gain = this.context.createGain();
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.09, t + 0.01);
+      gain.gain.linearRampToValueAtTime(0, t + 0.12);
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(t);
+      osc.stop(t + 0.13);
+      osc.onended = () => { gain.disconnect(); };
+    }
+  }
+
+  /** Sonido de teléfono sonando: trino doble clásico. */
+  playPhoneRing(): void {
+    if (!this.context || !this.sfxGain) return;
+    const now = this.context.currentTime;
+    const freqs = [480, 620];
+    for (let ring = 0; ring < 2; ring++) {
+      const t0 = now + ring * 0.5;
+      for (let j = 0; j < 2; j++) {
+        const t = t0 + j * 0.18;
+        const osc = this.context.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freqs[j % 2];
+        const gain = this.context.createGain();
+        gain.gain.setValueAtTime(0.13, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.15);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start(t);
+        osc.stop(t + 0.16);
+        osc.onended = () => { gain.disconnect(); };
+      }
+    }
+  }
+
+  /**
+   * Buildup de tensión al contestar el teléfono.
+   * Dura ~2.8s: click → silencio → estática creciente → respiración → pico.
+   * El jumpscare real (screech) lo lanza Game.ts en el momento exacto.
+   */
+  playPhoneAnswer(): void {
+    if (!this.context || !this.sfxGain) return;
+    const now = this.context.currentTime;
+    const sr = this.context.sampleRate;
+
+    // ── Click mecánico de descolgar ────────────────────────────────────────
+    const clickBuf = this.context.createBuffer(1, Math.floor(sr * 0.05), sr);
+    const cd = clickBuf.getChannelData(0);
+    for (let i = 0; i < cd.length; i++) cd[i] = (Math.random() * 2 - 1) * Math.exp(-i / 40);
+    const click = this.context.createBufferSource();
+    click.buffer = clickBuf;
+    const cg = this.context.createGain(); cg.gain.value = 0.5;
+    click.connect(cg); cg.connect(this.sfxGain); click.start(now);
+
+    // ── Estática de línea telefónica: crece de 0 a 0.22 en 2s ────────────
+    const staticSize = Math.floor(sr * 2.8);
+    const staticBuf = this.context.createBuffer(1, staticSize, sr);
+    const sd = staticBuf.getChannelData(0);
+    for (let i = 0; i < staticSize; i++) sd[i] = (Math.random() * 2 - 1);
+    const staticSrc = this.context.createBufferSource();
+    staticSrc.buffer = staticBuf;
+    const staticFilter = this.context.createBiquadFilter();
+    staticFilter.type = 'bandpass';
+    staticFilter.frequency.value = 2200;
+    staticFilter.Q.value = 0.8;
+    const staticGain = this.context.createGain();
+    staticGain.gain.setValueAtTime(0.02, now + 0.3);
+    staticGain.gain.linearRampToValueAtTime(0.14, now + 1.4);
+    staticGain.gain.linearRampToValueAtTime(0.30, now + 2.5);
+    staticSrc.connect(staticFilter);
+    staticFilter.connect(staticGain);
+    staticGain.connect(this.sfxGain);
+    staticSrc.start(now + 0.3);
+
+    // ── Tono grave de "alguien respirando al otro lado" ───────────────────
+    const breathOsc = this.context.createOscillator();
+    breathOsc.type = 'sine';
+    breathOsc.frequency.setValueAtTime(85, now + 0.8);
+    breathOsc.frequency.linearRampToValueAtTime(70, now + 2.8);
+    const breathLfo = this.context.createOscillator();
+    breathLfo.type = 'sine';
+    breathLfo.frequency.value = 0.9; // ritmo respiración
+    const breathLfoGain = this.context.createGain();
+    breathLfoGain.gain.value = 12;
+    breathLfo.connect(breathLfoGain);
+    breathLfoGain.connect(breathOsc.frequency);
+    const breathGain = this.context.createGain();
+    breathGain.gain.setValueAtTime(0, now + 0.8);
+    breathGain.gain.linearRampToValueAtTime(0.12, now + 1.5);
+    breathGain.gain.linearRampToValueAtTime(0.22, now + 2.6);
+    breathOsc.connect(breathGain);
+    breathGain.connect(this.sfxGain);
+    breathOsc.start(now + 0.8);
+    breathLfo.start(now + 0.8);
+    breathOsc.stop(now + 2.8);
+    breathLfo.stop(now + 2.8);
+
+    // ── Tono agudo inquietante que sube al final ──────────────────────────
+    const riseOsc = this.context.createOscillator();
+    riseOsc.type = 'sawtooth';
+    riseOsc.frequency.setValueAtTime(300, now + 1.8);
+    riseOsc.frequency.exponentialRampToValueAtTime(900, now + 2.8);
+    const riseGain = this.context.createGain();
+    riseGain.gain.setValueAtTime(0, now + 1.8);
+    riseGain.gain.linearRampToValueAtTime(0.08, now + 2.4);
+    riseGain.gain.linearRampToValueAtTime(0.18, now + 2.8);
+    riseOsc.connect(riseGain);
+    riseGain.connect(this.sfxGain);
+    riseOsc.start(now + 1.8);
+    riseOsc.stop(now + 2.8);
+    riseOsc.onended = () => {
+      breathGain.disconnect(); breathLfoGain.disconnect();
+      staticGain.disconnect(); riseGain.disconnect();
+    };
+
+    // Osc agudo inquietante
+    const osc = this.context.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, now + 0.1);
+    osc.frequency.linearRampToValueAtTime(180, now + 1.2);
+    const og = this.context.createGain();
+    og.gain.setValueAtTime(0.07, now + 0.1);
+    og.gain.linearRampToValueAtTime(0, now + 1.2);
+    osc.connect(og); og.connect(this.sfxGain);
+    osc.start(now + 0.1); osc.stop(now + 1.2);
+    osc.onended = () => { og.disconnect(); };
   }
 }

@@ -42,7 +42,7 @@ const ENEMY_PROPORTIONS: Record<EnemyType, EnemyProportions> = {
     headDepth: 0.3,
     jawHeight: 0.18,
     shoulderWidth: 0.5,
-    hipWidth: 0.25,
+    hipWidth: 0.25
   },
   [EnemyType.STALKER]: {
     torsoHeight: 1.1,
@@ -62,7 +62,7 @@ const ENEMY_PROPORTIONS: Record<EnemyType, EnemyProportions> = {
     headDepth: 0.4,
     jawHeight: 0.15,
     shoulderWidth: 0.9,
-    hipWidth: 0.5,
+    hipWidth: 0.5
   },
   [EnemyType.TELEPORTER]: {
     torsoHeight: 1.0,
@@ -82,8 +82,8 @@ const ENEMY_PROPORTIONS: Record<EnemyType, EnemyProportions> = {
     headDepth: 0.35,
     jawHeight: 0.15,
     shoulderWidth: 0.6,
-    hipWidth: 0.3,
-  },
+    hipWidth: 0.3
+  }
 };
 
 interface BodyParts {
@@ -161,13 +161,7 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  const bgColors: Record<EnemyType, string> = {
-    [EnemyType.RUNNER]: '#0a0000',
-    [EnemyType.STALKER]: '#050505',
-    [EnemyType.TELEPORTER]: '#0a0015',
-  };
-
-  ctx.fillStyle = bgColors[type];
+  ctx.fillStyle = '#050505';
   ctx.fillRect(0, 0, size, size);
 
   const faceX = size / 2;
@@ -176,16 +170,9 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
   const faceH = size * 0.9;
 
   const faceGrad = ctx.createRadialGradient(faceX, faceY, 0, faceX, faceY, faceW / 2);
-
-  const gradColors: Record<EnemyType, string[]> = {
-    [EnemyType.RUNNER]: ['#3a0000', '#1a0000', '#050000'],
-    [EnemyType.STALKER]: ['#1a1a0a', '#0a0a00', '#000000'],
-    [EnemyType.TELEPORTER]: ['#200030', '#100015', '#050008'],
-  };
-
-  faceGrad.addColorStop(0, gradColors[type][0]);
-  faceGrad.addColorStop(0.6, gradColors[type][1]);
-  faceGrad.addColorStop(1, gradColors[type][2]);
+  faceGrad.addColorStop(0, '#1a1410');
+  faceGrad.addColorStop(0.6, '#0d0b08');
+  faceGrad.addColorStop(1, '#000000');
 
   ctx.fillStyle = faceGrad;
   ctx.beginPath();
@@ -212,15 +199,10 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
   const eyeY = faceY - size * 0.12;
   const eyeSpacing = size * 0.2;
 
-  const eyeGlow: Record<EnemyType, string> = {
-    [EnemyType.RUNNER]: '#ff0000',
-    [EnemyType.STALKER]: '#44ff00',
-    [EnemyType.TELEPORTER]: '#ff00ff',
-  };
-
-  ctx.shadowColor = eyeGlow[type];
-  ctx.shadowBlur = size * 0.25;
-  ctx.fillStyle = eyeGlow[type];
+  // Ojos uniformes sin color de tipo — blanco apagado
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = size * 0.08;
+  ctx.fillStyle = '#c8c0b0';
 
   const eyeShapes: Record<EnemyType, () => void> = {
     [EnemyType.RUNNER]: () => {
@@ -266,7 +248,7 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
       }
       ctx.closePath();
       ctx.fill();
-    },
+    }
   };
 
   eyeShapes[type]();
@@ -306,7 +288,7 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
       ctx.beginPath();
       ctx.arc(faceX + eyeSpacing, eyeY, size * 0.015, 0, Math.PI * 2);
       ctx.fill();
-    },
+    }
   };
 
   pupilShapes[type]();
@@ -323,13 +305,7 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
   const mouthW = size * 0.4;
   const mouthH = size * 0.4;
 
-  const mouthColors: Record<EnemyType, string> = {
-    [EnemyType.RUNNER]: '#1a0000',
-    [EnemyType.STALKER]: '#0a0500',
-    [EnemyType.TELEPORTER]: '#100015',
-  };
-
-  ctx.fillStyle = mouthColors[type];
+  ctx.fillStyle = '#0d0a08';
 
   const mouthShapes: Record<EnemyType, () => void> = {
     [EnemyType.RUNNER]: () => {
@@ -352,18 +328,12 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
       ctx.lineTo(faceX, mouthY + mouthH * 0.3);
       ctx.closePath();
       ctx.fill();
-    },
+    }
   };
 
   mouthShapes[type]();
 
-  const teethColors: Record<EnemyType, string> = {
-    [EnemyType.RUNNER]: '#ff0000',
-    [EnemyType.STALKER]: '#3a3020',
-    [EnemyType.TELEPORTER]: '#aa00ff',
-  };
-
-  ctx.fillStyle = teethColors[type];
+  ctx.fillStyle = '#2a2218'; // Dientes uniformes oscuros
   for (let i = 0; i < 8; i++) {
     const toothX = faceX - mouthW * 0.7 + i * mouthW * 0.2;
     const toothW = size * 0.05 + Math.random() * size * 0.04;
@@ -376,10 +346,10 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
     ctx.fill();
   }
 
-  ctx.strokeStyle = teethColors[type];
+  ctx.strokeStyle = '#1a1510';
   ctx.lineWidth = 4;
-  ctx.shadowColor = teethColors[type];
-  ctx.shadowBlur = 15;
+  ctx.shadowColor = '#1a1510';
+  ctx.shadowBlur = 8;
   for (let i = 0; i < 20; i++) {
     const dripX = faceX - mouthW + Math.random() * mouthW * 2;
     const dripStart = mouthY + mouthH * 0.3;
@@ -391,13 +361,7 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
   }
 
   const noseY = faceY + size * 0.08;
-  const noseColors: Record<EnemyType, string> = {
-    [EnemyType.RUNNER]: '#1a0000',
-    [EnemyType.STALKER]: '#0a0800',
-    [EnemyType.TELEPORTER]: '#150020',
-  };
-
-  ctx.fillStyle = noseColors[type];
+  ctx.fillStyle = '#0d0a08';
   ctx.shadowBlur = 0;
 
   const noseShapes: Record<EnemyType, () => void> = {
@@ -421,7 +385,7 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
       ctx.beginPath();
       ctx.arc(faceX, noseY, size * 0.05, 0, Math.PI * 2);
       ctx.fill();
-    },
+    }
   };
 
   noseShapes[type]();
@@ -440,13 +404,7 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
   ctx.lineTo(faceX + faceW * 0.3, faceY - faceH * 0.32);
   ctx.stroke();
 
-  const bloodColors: Record<EnemyType, string> = {
-    [EnemyType.RUNNER]: 'rgba(180, 0, 0, 0.7)',
-    [EnemyType.STALKER]: 'rgba(80, 60, 20, 0.6)',
-    [EnemyType.TELEPORTER]: 'rgba(120, 0, 150, 0.6)',
-  };
-
-  ctx.fillStyle = bloodColors[type];
+  ctx.fillStyle = 'rgba(30, 20, 14, 0.6)';
   for (let i = 0; i < 30; i++) {
     const bloodX = faceX + (Math.random() - 0.5) * faceW;
     const bloodY = faceY + (Math.random() - 0.3) * faceH;
@@ -482,8 +440,12 @@ export class Enemy {
   private patrolTarget: THREE.Vector3 | null = null;
   private patrolTimer = 0;
   private readonly PATROL_TIMEOUT = 6;
+  private _pathTimer = 0;
+  private _pathCached: THREE.Vector3 | null = null;
+  private readonly _pathInterval = 0.14; // recalcular cada 140ms en vez de cada frame
   private stunTimer = 0;
   private bodyParts: BodyParts | null = null;
+  private _currentLOD: 0 | 1 | 2 = 0; // 0=full, 1=no particles, 2=skeleton-only
 
   static preloadTextures(): void {
     for (const t of [EnemyType.RUNNER, EnemyType.STALKER, EnemyType.TELEPORTER]) {
@@ -514,49 +476,39 @@ export class Enemy {
     const side = isLeft ? -1 : 1;
     const armGroup = new THREE.Group();
 
-    const shoulderGeom = new THREE.SphereGeometry(p.armWidth * 1.2, 8, 6);
-    const shoulderMat = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      roughness: 0.75,
-      metalness: 0.1,
+    const shoulderGeom = new THREE.SphereGeometry(p.armWidth * 1.2, 5, 4);
+    const shoulderMat = new THREE.MeshBasicMaterial({
+      color: bodyColor
     });
     const shoulder = new THREE.Mesh(shoulderGeom, shoulderMat);
     shoulder.scale.set(1, 0.8, 0.9);
-    shoulder.castShadow = true;
     armGroup.add(shoulder);
 
-    const upperArmGeom = new THREE.CylinderGeometry(p.armWidth * 0.85, p.armWidth, p.armLength, 8);
-    const upperArmMat = new THREE.MeshStandardMaterial({
+    const upperArmGeom = new THREE.CylinderGeometry(p.armWidth * 0.85, p.armWidth, p.armLength, 6);
+    const upperArmMat = new THREE.MeshBasicMaterial({
       color: bodyColor,
-      roughness: 0.8,
-      metalness: 0.1,
-      map: veinTexture,
+      map: veinTexture
     });
     const upperArm = new THREE.Mesh(upperArmGeom, upperArmMat);
     upperArm.position.y = -p.armLength / 2 - p.armWidth * 0.3;
-    upperArm.castShadow = true;
     armGroup.add(upperArm);
 
-    const elbowGeom = new THREE.SphereGeometry(p.armWidth * 0.9, 8, 6);
+    const elbowGeom = new THREE.SphereGeometry(p.armWidth * 0.9, 5, 4);
     const elbow = new THREE.Mesh(elbowGeom, shoulderMat.clone());
     elbow.position.y = -p.armLength - p.armWidth * 0.3;
     elbow.scale.set(1.1, 0.7, 1.1);
-    elbow.castShadow = true;
     armGroup.add(elbow);
 
     const forearmGroup = new THREE.Group();
     forearmGroup.position.y = -p.armLength - p.armWidth * 0.3;
 
-    const forearmGeom = new THREE.CylinderGeometry(p.armWidth * 0.7, p.armWidth * 0.6, p.forearmLength, 8);
-    const forearmMat = new THREE.MeshStandardMaterial({
+    const forearmGeom = new THREE.CylinderGeometry(p.armWidth * 0.7, p.armWidth * 0.6, p.forearmLength, 6);
+    const forearmMat = new THREE.MeshBasicMaterial({
       color: bodyColor,
-      roughness: 0.85,
-      metalness: 0.05,
-      map: veinTexture,
+      map: veinTexture
     });
     const forearm = new THREE.Mesh(forearmGeom, forearmMat);
     forearm.position.y = -p.forearmLength / 2;
-    forearm.castShadow = true;
     forearmGroup.add(forearm);
 
     const handGroup = new THREE.Group();
@@ -567,13 +519,10 @@ export class Enemy {
       : this.type === EnemyType.STALKER
         ? new THREE.BoxGeometry(p.handSize * 1.3, p.handSize * 0.7, p.handSize * 1.2)
         : new THREE.SphereGeometry(p.handSize * 0.7, 6, 4);
-    const handMat = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      roughness: 0.7,
-      metalness: 0.15,
+    const handMat = new THREE.MeshBasicMaterial({
+      color: bodyColor
     });
     const hand = new THREE.Mesh(handGeom, handMat);
-    hand.castShadow = true;
     handGroup.add(hand);
 
     const clawsGroup = new THREE.Group();
@@ -584,18 +533,13 @@ export class Enemy {
 
     for (let i = 0; i < clawCount; i++) {
       const clawGeom = new THREE.ConeGeometry(p.handSize * 0.08, p.handSize * 1.2, 4);
-      const clawMat = new THREE.MeshStandardMaterial({
-        color: clawColor,
-        roughness: 0.4,
-        metalness: 0.6,
-        emissive: new THREE.Color(clawColor),
-        emissiveIntensity: 0.3,
+      const clawMat = new THREE.MeshBasicMaterial({
+        color: clawColor
       });
       const claw = new THREE.Mesh(clawGeom, clawMat);
       const spread = (i - (clawCount - 1) / 2) * p.handSize * 0.4;
       claw.position.set(spread, -p.handSize * 0.6, p.handSize * 0.3);
       claw.rotation.x = Math.PI * 0.6;
-      claw.castShadow = true;
       clawsGroup.add(claw);
     }
 
@@ -617,56 +561,45 @@ export class Enemy {
     const side = isLeft ? -1 : 1;
     const legGroup = new THREE.Group();
 
-    const hipGeom = new THREE.SphereGeometry(p.legWidth * 1.3, 8, 6);
-    const hipMat = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      roughness: 0.75,
-      metalness: 0.1,
+    const hipGeom = new THREE.SphereGeometry(p.legWidth * 1.3, 5, 4);
+    const hipMat = new THREE.MeshBasicMaterial({
+      color: bodyColor
     });
     const hip = new THREE.Mesh(hipGeom, hipMat);
     hip.scale.set(0.9, 0.7, 1);
-    hip.castShadow = true;
     legGroup.add(hip);
 
-    const upperLegGeom = new THREE.CylinderGeometry(p.legWidth * 0.9, p.legWidth * 0.85, p.legLength, 8);
-    const upperLegMat = new THREE.MeshStandardMaterial({
+    const upperLegGeom = new THREE.CylinderGeometry(p.legWidth * 0.9, p.legWidth * 0.85, p.legLength, 6);
+    const upperLegMat = new THREE.MeshBasicMaterial({
       color: bodyColor,
-      roughness: 0.8,
-      metalness: 0.1,
-      map: veinTexture,
+      map: veinTexture
     });
     const upperLeg = new THREE.Mesh(upperLegGeom, upperLegMat);
     upperLeg.position.y = -p.legLength / 2;
-    upperLeg.castShadow = true;
     legGroup.add(upperLeg);
 
-    const kneeGeom = new THREE.SphereGeometry(p.legWidth * 0.95, 8, 6);
+    const kneeGeom = new THREE.SphereGeometry(p.legWidth * 0.95, 5, 4);
     const knee = new THREE.Mesh(kneeGeom, hipMat.clone());
     knee.position.y = -p.legLength;
     knee.scale.set(1.1, 0.8, 1.1);
-    knee.castShadow = true;
     legGroup.add(knee);
 
     const lowerLegGroup = new THREE.Group();
     lowerLegGroup.position.y = -p.legLength;
 
-    const lowerLegGeom = new THREE.CylinderGeometry(p.legWidth * 0.8, p.legWidth * 0.7, p.lowerLegLength, 8);
-    const lowerLegMat = new THREE.MeshStandardMaterial({
+    const lowerLegGeom = new THREE.CylinderGeometry(p.legWidth * 0.8, p.legWidth * 0.7, p.lowerLegLength, 6);
+    const lowerLegMat = new THREE.MeshBasicMaterial({
       color: bodyColor,
-      roughness: 0.85,
-      metalness: 0.05,
-      map: veinTexture,
+      map: veinTexture
     });
     const lowerLeg = new THREE.Mesh(lowerLegGeom, lowerLegMat);
     lowerLeg.position.y = -p.lowerLegLength / 2;
-    lowerLeg.castShadow = true;
     lowerLegGroup.add(lowerLeg);
 
-    const ankleGeom = new THREE.SphereGeometry(p.legWidth * 0.75, 6, 4);
+    const ankleGeom = new THREE.SphereGeometry(p.legWidth * 0.75, 5, 4);
     const ankle = new THREE.Mesh(ankleGeom, hipMat.clone());
     ankle.position.y = -p.lowerLegLength;
     ankle.scale.set(0.8, 0.6, 0.8);
-    ankle.castShadow = true;
     lowerLegGroup.add(ankle);
 
     const footGeom = this.type === EnemyType.RUNNER
@@ -674,14 +607,11 @@ export class Enemy {
       : this.type === EnemyType.STALKER
         ? new THREE.BoxGeometry(p.footSize * 1.2, p.footSize * 0.6, p.footSize * 1.5)
         : new THREE.BoxGeometry(p.footSize, p.footSize * 0.4, p.footSize * 1.3);
-    const footMat = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      roughness: 0.7,
-      metalness: 0.15,
+    const footMat = new THREE.MeshBasicMaterial({
+      color: bodyColor
     });
     const foot = new THREE.Mesh(footGeom, footMat);
     foot.position.set(0, -p.lowerLegLength - p.footSize * 0.3, p.footSize * 0.3);
-    foot.castShadow = true;
     lowerLegGroup.add(foot);
 
     legGroup.position.x = side * p.hipWidth / 2;
@@ -696,79 +626,58 @@ export class Enemy {
   ): { group: THREE.Group; jaw: THREE.Mesh } {
     const headGroup = new THREE.Group();
 
-    const neckGeom = new THREE.CylinderGeometry(p.headWidth * 0.35, p.headWidth * 0.4, p.neckLength, 8);
-    const neckMat = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      roughness: 0.8,
-      metalness: 0.1,
+    const neckGeom = new THREE.CylinderGeometry(p.headWidth * 0.35, p.headWidth * 0.4, p.neckLength, 6);
+    const neckMat = new THREE.MeshBasicMaterial({
+      color: bodyColor
     });
     const neck = new THREE.Mesh(neckGeom, neckMat);
     neck.position.y = p.neckLength / 2;
-    neck.castShadow = true;
     headGroup.add(neck);
 
     const skullGeom = new THREE.BoxGeometry(p.headWidth, p.headHeight, p.headDepth);
-    const skullMat = new THREE.MeshStandardMaterial({
-      map: faceTexture,
-      roughness: 0.7,
-      metalness: 0.15,
-      emissive: new THREE.Color(this.getEmissiveColor()),
-      emissiveIntensity: 0.2,
+    const skullMat = new THREE.MeshBasicMaterial({
+      map: faceTexture
     });
     const skull = new THREE.Mesh(skullGeom, skullMat);
     skull.position.y = p.neckLength + p.headHeight / 2;
-    skull.castShadow = true;
     headGroup.add(skull);
 
     const browRidgeGeom = new THREE.BoxGeometry(p.headWidth * 1.1, p.headHeight * 0.15, p.headDepth * 0.4);
-    const browRidgeMat = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      roughness: 0.6,
-      metalness: 0.2,
+    const browRidgeMat = new THREE.MeshBasicMaterial({
+      color: bodyColor
     });
     const browRidge = new THREE.Mesh(browRidgeGeom, browRidgeMat);
     browRidge.position.set(0, p.neckLength + p.headHeight * 0.85, p.headDepth * 0.4);
-    browRidge.castShadow = true;
     headGroup.add(browRidge);
 
     if (this.type === EnemyType.RUNNER) {
       for (let side = -1; side <= 1; side += 2) {
         const hornGeom = new THREE.ConeGeometry(0.05, 0.25, 6);
-        const hornMat = new THREE.MeshStandardMaterial({
-          color: 0x220000,
-          roughness: 0.4,
-          metalness: 0.5,
+        const hornMat = new THREE.MeshBasicMaterial({
+          color: 0x220000
         });
         const horn = new THREE.Mesh(hornGeom, hornMat);
         horn.position.set(side * p.headWidth * 0.6, p.neckLength + p.headHeight * 1.1, -p.headDepth * 0.2);
         horn.rotation.z = side * 0.3;
-        horn.castShadow = true;
         headGroup.add(horn);
       }
     } else if (this.type === EnemyType.STALKER) {
       for (let side = -1; side <= 1; side += 2) {
         const earGeom = new THREE.BoxGeometry(0.08, 0.2, 0.05);
-        const earMat = new THREE.MeshStandardMaterial({
-          color: bodyColor,
-          roughness: 0.7,
-          metalness: 0.1,
+        const earMat = new THREE.MeshBasicMaterial({
+          color: bodyColor
         });
         const ear = new THREE.Mesh(earGeom, earMat);
         ear.position.set(side * p.headWidth * 0.65, p.neckLength + p.headHeight * 0.7, -p.headDepth * 0.3);
         ear.rotation.z = side * 0.4;
-        ear.castShadow = true;
         headGroup.add(ear);
       }
     } else {
       const crystalGeom = new THREE.OctahedronGeometry(0.1, 0);
-      const crystalMat = new THREE.MeshStandardMaterial({
-        color: 0xaa00ff,
-        roughness: 0.2,
-        metalness: 0.8,
-        emissive: new THREE.Color(0x5500aa),
-        emissiveIntensity: 0.5,
+      const crystalMat = new THREE.MeshBasicMaterial({
+        color: 0x1a1410,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.8
       });
       for (let i = 0; i < 3; i++) {
         const crystal = new THREE.Mesh(crystalGeom, crystalMat);
@@ -779,7 +688,6 @@ export class Enemy {
         );
         crystal.rotation.set(Math.random(), Math.random(), Math.random());
         crystal.scale.setScalar(0.5 + Math.random() * 0.5);
-        crystal.castShadow = true;
         headGroup.add(crystal);
       }
     }
@@ -788,23 +696,16 @@ export class Enemy {
     jawGroup.position.y = p.neckLength + p.headHeight * 0.2;
 
     const jawGeom = new THREE.BoxGeometry(p.headWidth * 0.9, p.jawHeight, p.headDepth * 0.7);
-    const jawMat = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      roughness: 0.75,
-      metalness: 0.1,
+    const jawMat = new THREE.MeshBasicMaterial({
+      color: bodyColor
     });
     const jaw = new THREE.Mesh(jawGeom, jawMat);
     jaw.position.y = -p.jawHeight / 2;
-    jaw.castShadow = true;
     jawGroup.add(jaw);
 
     const teethGeom = new THREE.BoxGeometry(p.headWidth * 0.7, p.jawHeight * 0.4, p.headDepth * 0.5);
-    const teethMat = new THREE.MeshStandardMaterial({
-      color: this.getEmissiveColor(),
-      roughness: 0.3,
-      metalness: 0.3,
-      emissive: new THREE.Color(this.getEmissiveColor()),
-      emissiveIntensity: 0.3,
+    const teethMat = new THREE.MeshBasicMaterial({
+      color: this.getEmissiveColor()
     });
     const teeth = new THREE.Mesh(teethGeom, teethMat);
     teeth.position.set(0, p.jawHeight * 0.2, p.headDepth * 0.35);
@@ -823,59 +724,46 @@ export class Enemy {
     const torsoGroup = new THREE.Group();
 
     const chestGeom = new THREE.BoxGeometry(p.torsoWidth, p.torsoHeight * 0.7, p.torsoDepth);
-    const chestMat = new THREE.MeshStandardMaterial({
+    const chestMat = new THREE.MeshBasicMaterial({
       color: bodyColor,
-      roughness: 0.75,
-      metalness: 0.15,
-      map: veinTexture,
+      map: veinTexture
     });
     const chest = new THREE.Mesh(chestGeom, chestMat);
     chest.position.y = p.torsoHeight * 0.15;
-    chest.castShadow = true;
     torsoGroup.add(chest);
 
     const ribcageGeom = new THREE.BoxGeometry(p.torsoWidth * 0.85, p.torsoHeight * 0.5, p.torsoDepth * 0.5);
-    const ribcageMat = new THREE.MeshStandardMaterial({
+    const ribcageMat = new THREE.MeshBasicMaterial({
       color: bodyColor,
-      roughness: 0.8,
-      metalness: 0.1,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.7
     });
     const ribcage = new THREE.Mesh(ribcageGeom, ribcageMat);
     ribcage.position.set(0, p.torsoHeight * 0.25, p.torsoDepth * 0.15);
-    ribcage.castShadow = true;
     torsoGroup.add(ribcage);
 
     const abdomenGeom = new THREE.BoxGeometry(p.torsoWidth * 0.9, p.torsoHeight * 0.4, p.torsoDepth * 0.85);
     const abdomen = new THREE.Mesh(abdomenGeom, chestMat.clone());
     abdomen.position.y = -p.torsoHeight * 0.3;
-    abdomen.castShadow = true;
     torsoGroup.add(abdomen);
 
     if (this.type === EnemyType.STALKER) {
-      const humpGeom = new THREE.SphereGeometry(p.torsoWidth * 0.4, 8, 6);
-      const humpMat = new THREE.MeshStandardMaterial({
-        color: bodyColor,
-        roughness: 0.8,
-        metalness: 0.1,
+      const humpGeom = new THREE.SphereGeometry(p.torsoWidth * 0.4, 5, 4);
+      const humpMat = new THREE.MeshBasicMaterial({
+        color: bodyColor
       });
       const hump = new THREE.Mesh(humpGeom, humpMat);
       hump.position.set(0, p.torsoHeight * 0.4, -p.torsoDepth * 0.6);
       hump.scale.set(1, 0.6, 0.8);
-      hump.castShadow = true;
       torsoGroup.add(hump);
     }
 
     const pelvisGeom = new THREE.BoxGeometry(p.torsoWidth * 0.95, p.torsoHeight * 0.25, p.torsoDepth * 0.75);
-    const pelvisMat = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      roughness: 0.8,
-      metalness: 0.1,
+    const pelvisMat = new THREE.MeshBasicMaterial({
+      color: bodyColor
     });
     const pelvis = new THREE.Mesh(pelvisGeom, pelvisMat);
     pelvis.position.y = -p.torsoHeight * 0.5;
-    pelvis.castShadow = true;
     torsoGroup.add(pelvis);
 
     return torsoGroup;
@@ -934,54 +822,22 @@ export class Enemy {
       leftFoot: leftLegData.foot,
       rightFoot: rightLegData.foot,
       leftClaws: leftArmData.clawsGroup,
-      rightClaws: rightArmData.clawsGroup,
+      rightClaws: rightArmData.clawsGroup
     };
 
-    const glowColors: Record<EnemyType, number> = {
-      [EnemyType.RUNNER]: 0xff0000,
-      [EnemyType.STALKER]: 0x44ff00,
-      [EnemyType.TELEPORTER]: 0xff00ff,
-    };
-
-    const light = new THREE.PointLight(glowColors[this.type], 1.5, 8);
+    // Luz neutra muy tenue — sin color de tipo
+    const light = new THREE.PointLight(0x221a14, 0.6, 5);
     light.position.set(0, totalHeight * 0.7, 0.6);
     light.castShadow = false;
     group.add(light);
-
-    const secondaryLight = new THREE.PointLight(glowColors[this.type], 0.5, 4);
-    secondaryLight.position.set(0, totalHeight * 0.5, 0.3);
-    group.add(secondaryLight);
-
-    const auraSize = p.torsoWidth * 2;
-    const auraGeom = new THREE.PlaneGeometry(auraSize, totalHeight);
-    const auraColors: Record<EnemyType, string> = {
-      [EnemyType.RUNNER]: '#ff0000',
-      [EnemyType.STALKER]: '#22aa00',
-      [EnemyType.TELEPORTER]: '#aa00ff',
-    };
-    const auraMat = new THREE.MeshBasicMaterial({
-      color: auraColors[this.type],
-      transparent: true,
-      opacity: 0.12,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-    });
-    const aura = new THREE.Mesh(auraGeom, auraMat);
-    aura.position.set(0, totalHeight / 2, -0.4);
-    group.add(aura);
-
-    const backAura = new THREE.Mesh(auraGeom.clone(), auraMat.clone());
-    backAura.position.set(0, totalHeight / 2, -0.6);
-    backAura.rotation.y = Math.PI;
-    group.add(backAura);
 
     const floatParticles = new THREE.Group();
     const particleCount = 15;
     const particleGeom = new THREE.SphereGeometry(0.03, 4, 4);
     const particleMat = new THREE.MeshBasicMaterial({
-      color: auraColors[this.type],
+      color: 0x1a1410,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.4
     });
 
     for (let i = 0; i < particleCount; i++) {
@@ -994,7 +850,7 @@ export class Enemy {
       particle.userData = {
         speed: 0.5 + Math.random() * 1,
         offset: Math.random() * Math.PI * 2,
-        radius: 0.3 + Math.random() * 0.3,
+        radius: 0.3 + Math.random() * 0.3
       };
       floatParticles.add(particle);
     }
@@ -1021,6 +877,43 @@ export class Enemy {
         this.speed = CONFIG.TELEPORTER_SPEED;
         this.detectionRange = 12;
         break;
+    }
+  }
+
+  /**
+   * Actualiza el nivel de detalle según la distancia al jugador.
+   * Solo cambia visibilidad cuando el nivel de LOD cambia — sin trabajo cada frame.
+   * LOD 0 (<12 u): detalle completo
+   * LOD 1 (12-22 u): sin partículas flotantes
+   * LOD 2 (>22 u): sin partículas, sin luz puntual, sin antebrazos/manos/garras/piernas inferiores
+   */
+  updateLOD(distToPlayer: number): void {
+    if (!this.mesh.visible) return;
+    const newLOD: 0 | 1 | 2 = distToPlayer < 12 ? 0 : distToPlayer < 22 ? 1 : 2;
+    if (newLOD === this._currentLOD) return;
+    this._currentLOD = newLOD;
+
+    const fp = (this.mesh as THREE.Group & { floatParticles?: THREE.Group }).floatParticles;
+    let ptLight: THREE.PointLight | undefined;
+    this.mesh.traverse(c => { if ((c as THREE.PointLight).isPointLight) ptLight = c as THREE.PointLight; });
+
+    // Partículas — solo visibles en LOD 0
+    if (fp) fp.visible = newLOD === 0;
+
+    // Luz puntual — apagar en LOD 2
+    if (ptLight) ptLight.visible = newLOD < 2;
+
+    // Miembros detallados — solo en LOD 0-1
+    if (this.bodyParts) {
+      const showDetail = newLOD < 2;
+      this.bodyParts.leftForearm.visible   = showDetail;
+      this.bodyParts.rightForearm.visible  = showDetail;
+      this.bodyParts.leftHand.visible      = showDetail;
+      this.bodyParts.rightHand.visible     = showDetail;
+      this.bodyParts.leftClaws.visible     = showDetail;
+      this.bodyParts.rightClaws.visible    = showDetail;
+      this.bodyParts.leftLowerLeg.visible  = showDetail;
+      this.bodyParts.rightLowerLeg.visible = showDetail;
     }
   }
 
@@ -1063,21 +956,19 @@ export class Enemy {
       this.isMoving = false;
       if (this.mesh.children.length > 0) {
         const torso = this.mesh.children[0] as THREE.Mesh;
-        if (torso.material instanceof THREE.MeshStandardMaterial) {
-          torso.material.emissive.setHex(0x888800);
-          torso.material.emissiveIntensity = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+        if (torso.material instanceof THREE.MeshBasicMaterial) {
+          torso.material.color.setHex(0x888800);
         }
       }
       this.animationTime += delta;
-      this.animate(delta);
+      this.animate(delta, playerPos);
       return distToPlayer;
     }
-    
+
     if (this.mesh.children.length > 0) {
       const torso = this.mesh.children[0] as THREE.Mesh;
-      if (torso.material instanceof THREE.MeshStandardMaterial) {
-        torso.material.emissive.setHex(this.getEmissiveColor());
-        torso.material.emissiveIntensity = 0.2;
+      if (torso.material instanceof THREE.MeshBasicMaterial) {
+        torso.material.color.setHex(this.getEmissiveColor());
       }
     }
 
@@ -1105,7 +996,14 @@ export class Enemy {
     const canSeePlayer = distToPlayer < this.detectionRange && this.hasLineOfSight(playerPos);
 
     if (canSeePlayer) {
-      const pathStep = this.findPathStep(playerPos);
+      // Throttle A*: recalcular solo cada _pathInterval segundos o al llegar al waypoint
+      this._pathTimer -= delta;
+      const atWaypoint = this._pathCached && this.position.distanceTo(this._pathCached) < 0.6;
+      if (this._pathTimer <= 0 || atWaypoint) {
+        this._pathTimer = this._pathInterval;
+        this._pathCached = this.findPathStep(playerPos);
+      }
+      const pathStep = this._pathCached;
 
       if (pathStep) {
         const dir = new THREE.Vector3().subVectors(pathStep, this.position);
@@ -1228,12 +1126,12 @@ export class Enemy {
     }
 
     this.animationTime += delta;
-    this.animate(delta);
+    this.animate(delta, playerPos);
 
     return distToPlayer;
   }
 
-  private animate(delta: number): void {
+  private animate(delta: number, playerPos?: THREE.Vector3): void {
     const t = this.animationTime;
     const bp = this.bodyParts;
 
@@ -1274,8 +1172,15 @@ export class Enemy {
 
         bp.leftHand.rotation.z = 0;
         bp.rightHand.rotation.z = 0;
-        this.mesh.position.y = 0;
+        // Subtle breathing: gentle vertical float
+        this.mesh.position.y = Math.sin(t * 1.4) * 0.018;
       }
+    }
+
+    // Runner leans forward when chasing
+    if (this.type === EnemyType.RUNNER && bp && bp.torso) {
+      const targetLean = this.state === 'chase' ? 0.38 : 0.0;
+      bp.torso.rotation.x = THREE.MathUtils.lerp(bp.torso.rotation.x, targetLean, delta * 5);
     }
 
     if (this.type === EnemyType.TELEPORTER) {
@@ -1314,12 +1219,22 @@ export class Enemy {
     }
 
     if (bp && bp.head) {
-      if (this.type === EnemyType.STALKER) {
-        bp.head.rotation.y = Math.sin(t * 0.5) * 0.1;
-      } else if (this.type === EnemyType.RUNNER) {
-        bp.head.rotation.x = Math.sin(t * 2) * 0.08;
-      } else if (this.type === EnemyType.TELEPORTER) {
+      if (this.type === EnemyType.TELEPORTER) {
         bp.head.rotation.y += delta * 0.3;
+      } else if (playerPos) {
+        // Track player: compute angle to player relative to mesh facing direction
+        const dx = playerPos.x - this.mesh.position.x;
+        const dz = playerPos.z - this.mesh.position.z;
+        const worldYaw = Math.atan2(dx, dz);
+        let relYaw = worldYaw - this.mesh.rotation.y;
+        while (relYaw >  Math.PI) relYaw -= Math.PI * 2;
+        while (relYaw < -Math.PI) relYaw += Math.PI * 2;
+        relYaw = Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, relYaw));
+        bp.head.rotation.y = THREE.MathUtils.lerp(bp.head.rotation.y, relYaw, delta * 6);
+        // Keep Runner vertical bob
+        if (this.type === EnemyType.RUNNER) {
+          bp.head.rotation.x = Math.sin(t * 2) * 0.08;
+        }
       }
     }
 
@@ -1376,8 +1291,9 @@ export class Enemy {
       this.mesh.position.copy(this.position);
 
       this.mesh.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-          (child.material as THREE.MeshStandardMaterial).opacity = 0.2;
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+          child.material.transparent = true;
+          child.material.opacity = 0.2;
         }
         if (child instanceof THREE.PointLight) {
           child.intensity = 0.1;
@@ -1386,8 +1302,9 @@ export class Enemy {
 
       setTimeout(() => {
         this.mesh.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-            (child.material as THREE.MeshStandardMaterial).opacity = 1;
+          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+            child.material.opacity = 1;
+            child.material.transparent = false;
           }
           if (child instanceof THREE.PointLight) {
             child.intensity = 0.5;
@@ -1477,67 +1394,69 @@ export class Enemy {
   private findPathStep(targetPos: THREE.Vector3): THREE.Vector3 | null {
     const startX = Math.round(this.position.x / CONFIG.UNIT_SIZE);
     const startZ = Math.round(this.position.z / CONFIG.UNIT_SIZE);
-    const endX = Math.round(targetPos.x / CONFIG.UNIT_SIZE);
-    const endZ = Math.round(targetPos.z / CONFIG.UNIT_SIZE);
+    const endX   = Math.round(targetPos.x / CONFIG.UNIT_SIZE);
+    const endZ   = Math.round(targetPos.z / CONFIG.UNIT_SIZE);
 
     if (startX === endX && startZ === endZ) return null;
     const endCell = this.maze[endZ]?.[endX];
     if (endCell === CellType.WALL || endCell === CellType.RENDIJA) return null;
 
-    interface PathNode {x: number; z: number; g: number; f: number; parent: PathNode | null}
-    const openSet: PathNode[] = [{x: startX, z: startZ, g: 0, f: 0, parent: null}];
-    const closedSet = new Set<string>();
-    const key = (x: number, z: number) => `${x},${z}`;
+    const W = this.maze[0].length;
+    const key = (x: number, z: number) => z * W + x; // clave numérica, sin strings
     const heuristic = (x: number, z: number) => Math.abs(x - endX) + Math.abs(z - endZ);
 
-    let iterations = 0;
-    const maxIterations = 200;
+    interface PathNode { x: number; z: number; g: number; f: number; parent: PathNode | null }
+    const openSet: PathNode[]  = [{ x: startX, z: startZ, g: 0, f: heuristic(startX, startZ), parent: null }];
+    const openMap  = new Map<number, PathNode>();   // lookup O(1) en vez de find() O(n)
+    const closedSet = new Set<number>();
+    openMap.set(key(startX, startZ), openSet[0]);
 
-    while (openSet.length > 0 && iterations < maxIterations) {
-      iterations++;
-      openSet.sort((a, b) => a.f - b.f);
-      const current = openSet.shift()!;
-      const currentKey = key(current.x, current.z);
+    let iterations = 0;
+    const DX = [1, -1, 0,  0];
+    const DZ = [0,  0, 1, -1];
+
+    while (openSet.length > 0 && iterations++ < 200) {
+      // Buscar mínimo f sin sort — O(n) pero sin alocar
+      let minIdx = 0;
+      for (let i = 1; i < openSet.length; i++) {
+        if (openSet[i].f < openSet[minIdx].f) minIdx = i;
+      }
+      const current = openSet[minIdx];
+      // Swap con el último y pop — O(1) en vez de shift() O(n)
+      openSet[minIdx] = openSet[openSet.length - 1];
+      openSet.pop();
 
       if (current.x === endX && current.z === endZ) {
         let node: PathNode | null = current;
-        while (node && node.parent) {
+        while (node?.parent) {
           const prev = node;
           node = node.parent;
-          if (!node.parent || (node.x === startX && node.z === startZ)) {
-            return new THREE.Vector3(prev.x * CONFIG.UNIT_SIZE, 0, prev.z * CONFIG.UNIT_SIZE);
-          }
+          if (!node.parent) return new THREE.Vector3(prev.x * CONFIG.UNIT_SIZE, 0, prev.z * CONFIG.UNIT_SIZE);
         }
         return null;
       }
 
-      closedSet.add(currentKey);
+      const ck = key(current.x, current.z);
+      closedSet.add(ck);
+      openMap.delete(ck);
 
-      const neighbors = [
-        {x: current.x + 1, z: current.z}, {x: current.x - 1, z: current.z},
-        {x: current.x, z: current.z + 1}, {x: current.x, z: current.z - 1},
-      ];
-
-      for (const neighbor of neighbors) {
-        const nKey = key(neighbor.x, neighbor.z);
-        if (closedSet.has(nKey)) continue;
-        if (neighbor.z < 0 || neighbor.z >= this.maze.length) continue;
-        if (neighbor.x < 0 || neighbor.x >= this.maze[0].length) continue;
-        const neighborCell = this.maze[neighbor.z][neighbor.x];
-        if (neighborCell === CellType.WALL || neighborCell === CellType.RENDIJA) continue;
+      for (let d = 0; d < 4; d++) {
+        const nx = current.x + DX[d];
+        const nz = current.z + DZ[d];
+        if (nz < 0 || nz >= this.maze.length || nx < 0 || nx >= W) continue;
+        const cell = this.maze[nz][nx];
+        if (cell === CellType.WALL || cell === CellType.RENDIJA) continue;
+        const nk = key(nx, nz);
+        if (closedSet.has(nk)) continue;
 
         const g = current.g + 1;
-        const f = g + heuristic(neighbor.x, neighbor.z);
-        const existing = openSet.find(n => n.x === neighbor.x && n.z === neighbor.z);
-
+        const existing = openMap.get(nk);
         if (existing) {
-          if (g < existing.g) {
-            existing.g = g;
-            existing.f = f;
-            existing.parent = current;
-          }
+          if (g < existing.g) { existing.g = g; existing.f = g + heuristic(nx, nz); existing.parent = current; }
         } else {
-          openSet.push({x: neighbor.x, z: neighbor.z, g, f, parent: current});
+          const node: PathNode = { x: nx, z: nz, g, f: g + heuristic(nx, nz), parent: current };
+          openSet.push(node);
+          openMap.set(nk, node);
         }
       }
     }
@@ -1640,14 +1559,16 @@ export class Enemy {
   private _eatBiteDone = false;
   private _eatCamera: THREE.PerspectiveCamera | null = null;
   private _eatOnBite: (() => void) | null = null;
+  private _eatOriginalFov = 75;
   static readonly EAT_DURATION = 1.6;
 
   startEatAnimation(camera: THREE.PerspectiveCamera, onBite: () => void): void {
-    this._eatCamera  = camera;
-    this._eatOnBite  = onBite;
-    this._eatTimer   = 0;
-    this._eatActive  = true;
-    this._eatBiteDone = false;
+    this._eatCamera     = camera;
+    this._eatOnBite     = onBite;
+    this._eatTimer      = 0;
+    this._eatActive     = true;
+    this._eatBiteDone   = false;
+    this._eatOriginalFov = camera.fov;
 
     // Colocar el enemigo justo delante de la cámara
     const camDir = new THREE.Vector3();
@@ -1692,6 +1613,11 @@ export class Enemy {
       this._eatCamera.position.x, 0, this._eatCamera.position.z
     ));
 
+    // Zoom in as enemy closes in (FOV narrows from original → original-22)
+    const targetFov = this._eatOriginalFov - t * 22;
+    this._eatCamera.fov = THREE.MathUtils.lerp(this._eatCamera.fov, targetFov, delta * 4);
+    this._eatCamera.updateProjectionMatrix();
+
     // Abrir la mandíbula progresivamente
     if (this.bodyParts) {
       const jawGroup = this.bodyParts.jaw.parent as THREE.Group | null;
@@ -1731,7 +1657,7 @@ export class Enemy {
       if (child instanceof THREE.Mesh) {
         child.geometry.dispose();
         if (child.material instanceof THREE.Material) {
-          if (child.material instanceof THREE.MeshStandardMaterial) {
+          if (child.material instanceof THREE.MeshBasicMaterial) {
             child.material.map?.dispose();
           }
           child.material.dispose();

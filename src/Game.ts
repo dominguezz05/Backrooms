@@ -65,9 +65,23 @@ export class Game {
   private tvStaticTimer = 0;
   private ventGustTimer = 0;
 
+  // ── Batería baja ─────────────────────────────────────────────────────────
+  private _lowBattBeepTimer = 0;
+
+  // ── Rendija hint ──────────────────────────────────────────────────────────
+  private _rendijaHintShown = false;
+
+  // ── Teléfono ──────────────────────────────────────────────────────────────
+  private _phoneMesh: THREE.Mesh | null = null;
+  private _phonePos: THREE.Vector3 | null = null;
+  private _phoneRingTimer = 0;
+  private _phoneAnswered = false;
+  private _phoneHintVisible = false;
+
   // ── Mini-sustos ambientales ────────────────────────────────────────────────
   private ambientScareTimer  = 0;
-  private ambientScareInterval = 35 + Math.random() * 25;   // 35–60 s entre sustos
+  private ambientScareInterval = 18 + Math.random() * 17;   // 18–35 s entre sustos
+  private _shadowTimer = 10 + Math.random() * 8;            // sombra periférica propia: 10–18 s al inicio
   private lastClosestEnemyDist = Infinity;
   private ceilingLightMeshes: THREE.PointLight[] = [];
   private emptyWalkablePositions: THREE.Vector3[] = [];
@@ -127,6 +141,10 @@ export class Game {
     const urlParams = new URLSearchParams(window.location.search);
     const level = urlParams.get('level') || 'level1';
     this.currentLevel = this.getLevelType(level);
+
+    // Dificultad: URL param → sessionStorage → 'normal'
+    const diffParam = urlParams.get('diff');
+    if (diffParam) sessionStorage.setItem('difficulty', diffParam);
     
     const mazeOptions: { openRooms: boolean } = { openRooms: this.currentLevel === 'level3' };
     this.mazeGenerator = new MazeGenerator(CONFIG.MAZE_SIZE, CONFIG.MAZE_SIZE, mazeOptions);
@@ -135,8 +153,9 @@ export class Game {
     this.uiManager = new UIManager();
     this.clock = new THREE.Clock();
     
-    const win = window as Window & { gameAudioManager?: AudioManager };
+    const win = window as Window & { gameAudioManager?: AudioManager; gameSceneManager?: SceneManager };
     win.gameAudioManager = this.audioManager;
+    win.gameSceneManager = this.sceneManager;
 
     this.init();
   }
@@ -192,15 +211,6 @@ export class Game {
     this.uiManager.setLoadingProgress(68, 'Pre-creando enemigos...');
     await this.prewarmEnemies();
 
-    // Forzar compilación de shaders GLSL ahora (loading screen) en vez de al primer render.
-    // Sin esto, MeshStandardMaterial se compila la primera vez que se ve → bloquea ~2000ms.
-    // Los enemigos están visible=false, así que Three.js los saltaría; los activamos brevemente.
-    this.uiManager.setLoadingProgress(72, 'Compilando shaders...');
-    for (const e of this.enemyPool) e.mesh.visible = true;
-    this.sceneManager.renderer.compile(this.sceneManager.scene, this.sceneManager.camera);
-    for (const e of this.enemyPool) e.mesh.visible = false;
-    await this.yieldToMain();
-
     this.uiManager.setLoadingProgress(75, 'Configurando jugador...');
     this.player.setMaze(this.maze);
     this.player.setAudioManager(this.audioManager);
@@ -214,8 +224,16 @@ export class Game {
       document.getElementById('messageOverlay') || document.createElement('div')
     );
 
-    // Pre-inicializar pool de huellas para evitar spike en el primer paso
+    // Pool de huellas ANTES del compile para que su material también quede compilado
     this.initFootprintPool();
+    await this.yieldToMain();
+
+    // Compilar shaders con TODOS los materiales ya en escena (enemies + footprints + maze).
+    // Sin esto Three.js los compila la primera vez que se renderizan → bloquea ~2000ms.
+    this.uiManager.setLoadingProgress(90, 'Compilando shaders...');
+    for (const e of this.enemyPool) e.mesh.visible = true;
+    this.sceneManager.renderer.compile(this.sceneManager.scene, this.sceneManager.camera);
+    for (const e of this.enemyPool) e.mesh.visible = false;
     await this.yieldToMain();
 
     await this.yieldToMain();
@@ -313,6 +331,13 @@ export class Game {
     (window as any).menuMasterGain = null;
     (window as any).thunderAudioContext = null;
     (window as any).thunderMasterGain = null;
+  }
+
+  /** Dispara vibración háptica solo en dispositivos móviles que lo soportan. */
+  private vibrate(pattern: number | number[]): void {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
   }
 
   togglePause(): void {
@@ -471,14 +496,9 @@ export class Game {
 
     // Chunk 2: Materials y geometries
     this.uiManager.setLoadingProgress(44, 'Preparando materiales...');
-    const floorMaterial = new THREE.MeshStandardMaterial({ map: floorTexture });
-    const wallMaterial = new THREE.MeshStandardMaterial({ map: wallTexture });
-    const ceilingMaterial = new THREE.MeshStandardMaterial({ 
-      map: ceilingTexture,
-      color: 0x333333,
-      roughness: 0.9,
-      metalness: 0.1
-    });
+    const floorMaterial = new THREE.MeshLambertMaterial({ map: floorTexture });
+    const wallMaterial = new THREE.MeshLambertMaterial({ map: wallTexture });
+    const ceilingMaterial = new THREE.MeshLambertMaterial({ map: ceilingTexture, color: 0x333333 });
     await this.yieldToMain();
 
     const unitSize = CONFIG.UNIT_SIZE;
@@ -814,36 +834,51 @@ export class Game {
           this.sceneManager.scene.add(glowMesh);
         }
 
-        if (cell === CellType.EXIT) {
+        if (cell === CellType.EXIT && this.currentLevel !== 'level2') {
           const doorGroup = new THREE.Group();
           doorGroup.position.set(posX - unitSize * 0.35, 0, posZ);
 
           const doorMesh = new THREE.Mesh(
             new THREE.BoxGeometry(unitSize * 0.72, wallHeight * 0.92, 0.1),
             new THREE.MeshStandardMaterial({
-              color: 0x003300,
-              emissive: new THREE.Color(0x00aa33),
-              emissiveIntensity: 0.4,
-              roughness: 0.8,
+              color: 0x001a00,
+              emissive: new THREE.Color(0x00ff44),
+              emissiveIntensity: 1.2,
+              roughness: 0.6,
             })
           );
           doorMesh.position.set(unitSize * 0.35, wallHeight * 0.46, 0);
           doorGroup.add(doorMesh);
+          doorGroup.userData.doorMesh = doorMesh; // para animar emissive
 
-          const frameMat = new THREE.MeshBasicMaterial({ color: 0x00ff44 });
-          const frameTop = new THREE.Mesh(new THREE.BoxGeometry(unitSize * 0.8, 0.06, 0.12), frameMat);
+          const frameMat = new THREE.MeshBasicMaterial({ color: 0x44ffaa });
+          const frameTop = new THREE.Mesh(new THREE.BoxGeometry(unitSize * 0.8, 0.08, 0.15), frameMat);
           frameTop.position.set(unitSize * 0.35, wallHeight * 0.94, 0);
           doorGroup.add(frameTop);
-          const frameL = new THREE.Mesh(new THREE.BoxGeometry(0.06, wallHeight * 0.92, 0.12), frameMat);
-          frameL.position.set(0.03, wallHeight * 0.46, 0);
+          const frameL = new THREE.Mesh(new THREE.BoxGeometry(0.08, wallHeight * 0.92, 0.15), frameMat);
+          frameL.position.set(0.04, wallHeight * 0.46, 0);
           doorGroup.add(frameL);
-          const frameR = new THREE.Mesh(new THREE.BoxGeometry(0.06, wallHeight * 0.92, 0.12), frameMat);
+          const frameR = new THREE.Mesh(new THREE.BoxGeometry(0.08, wallHeight * 0.92, 0.15), frameMat);
           frameR.position.set(unitSize * 0.72, wallHeight * 0.46, 0);
           doorGroup.add(frameR);
 
-          const exitLight = new THREE.PointLight(0x00ff44, 1.5, 8, 2);
-          exitLight.position.set(unitSize * 0.35, wallHeight + 0.3, 0);
+          // Luz principal encima de la puerta
+          const exitLight = new THREE.PointLight(0x00ff66, 2.5, 12, 2);
+          exitLight.position.set(unitSize * 0.35, wallHeight + 0.5, 0);
           doorGroup.add(exitLight);
+          doorGroup.userData.exitLight = exitLight; // para pulsar
+
+          // Luz secundaria en el suelo — charco de luz verde
+          const floorLight = new THREE.PointLight(0x00ff44, 1.2, 6, 2);
+          floorLight.position.set(unitSize * 0.35, 0.3, 0.5);
+          doorGroup.add(floorLight);
+
+          // Cartel "SALIDA" sobre la puerta
+          const signMat = new THREE.MeshBasicMaterial({ color: 0x00ff44 });
+          const signGeom = new THREE.BoxGeometry(unitSize * 0.5, 0.25, 0.08);
+          const sign = new THREE.Mesh(signGeom, signMat);
+          sign.position.set(unitSize * 0.35, wallHeight * 0.98, 0.08);
+          doorGroup.add(sign);
 
           this.sceneManager.scene.add(doorGroup);
           this.exitDoor = doorGroup;
@@ -911,6 +946,12 @@ export class Game {
     this.createInstancedWalls(wallPositions, wallMaterial, wallGeometry);
     await this.yieldToMain();
 
+    // Mensajes en paredes: elegir 3-4 paredes con celda vacía adyacente
+    this._spawnWallMessages(wallPositions);
+
+    // Teléfono: colocar en posición aleatoria alejada del spawn
+    this._spawnPhone();
+
     // Chunk 6: Scary pictures y arrows
     this.uiManager.setLoadingProgress(59, 'Añadiendo detalles...');
     this.addScaryPictures();
@@ -922,7 +963,7 @@ export class Game {
     console.log(`[Game] Maze built in ${elapsed.toFixed(0)}ms`);
   }
 
-  private createInstancedWalls(positions: THREE.Vector3[], material: THREE.MeshStandardMaterial, geometry: THREE.BoxGeometry): void {
+  private createInstancedWalls(positions: THREE.Vector3[], material: THREE.MeshLambertMaterial, geometry: THREE.BoxGeometry): void {
     if (positions.length < 50) {
       for (const pos of positions) {
         const wall = new THREE.Mesh(geometry, material);
@@ -953,7 +994,7 @@ export class Game {
     console.log(`[Game] Created instanced mesh with ${positions.length} walls (optimized)`);
   }
 
-  private createInstancedFloors(positions: THREE.Vector3[], material: THREE.MeshStandardMaterial, geometry: THREE.PlaneGeometry): void {
+  private createInstancedFloors(positions: THREE.Vector3[], material: THREE.MeshLambertMaterial, geometry: THREE.PlaneGeometry): void {
     const instancedMesh = new THREE.InstancedMesh(geometry, material, positions.length);
     const matrix = new THREE.Matrix4();
 
@@ -971,7 +1012,7 @@ export class Game {
     console.log(`[Game] Created instanced mesh with ${positions.length} floors`);
   }
 
-  private createInstancedCeilings(positions: THREE.Vector3[], material: THREE.MeshStandardMaterial, geometry: THREE.PlaneGeometry): void {
+  private createInstancedCeilings(positions: THREE.Vector3[], material: THREE.MeshLambertMaterial, geometry: THREE.PlaneGeometry): void {
     const instancedMesh = new THREE.InstancedMesh(geometry, material, positions.length);
     const matrix = new THREE.Matrix4();
 
@@ -1017,6 +1058,222 @@ export class Game {
       }
     }
     return dist;
+  }
+
+  /** Coloca 3 mensajes de texto aterrador en paredes del laberinto. */
+  private _spawnWallMessages(wallPositions: THREE.Vector3[]): void {
+    const unit = CONFIG.UNIT_SIZE;
+    const dirs = [
+      new THREE.Vector3( 1, 0, 0),
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3( 0, 0, 1),
+      new THREE.Vector3( 0, 0,-1),
+    ];
+    const placed: THREE.Vector3[] = [];
+    const shuffled = wallPositions.slice().sort(() => Math.random() - 0.5);
+
+    for (const wp of shuffled) {
+      if (placed.length >= 3) break;
+      // Comprobar que hay celda caminable adyacente
+      for (const dir of dirs) {
+        const nx = Math.round((wp.x + dir.x * unit) / unit);
+        const nz = Math.round((wp.z + dir.z * unit) / unit);
+        if (this.maze[nz]?.[nx] === 0) {
+          // Esta cara tiene suelo frente a ella — colocar mensaje
+          const surfacePos = wp.clone();
+          surfacePos.y = 0; // spawnWallMessage ajusta la Y internamente
+          // Asegurarse de no poner dos muy juntos
+          if (placed.every(p => p.distanceTo(surfacePos) > unit * 4)) {
+            this.horrorEffects.spawnWallMessage(
+              new THREE.Vector3(wp.x, 0, wp.z),
+              dir.clone()
+            );
+            placed.push(surfacePos);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  /** Coloca un teléfono en una celda walkable alejada del spawn. */
+  private _spawnPhone(): void {
+    const candidates = this.emptyWalkablePositions.filter(p =>
+      p.distanceTo(this.player.position) > CONFIG.UNIT_SIZE * 7
+    );
+    if (candidates.length === 0) return;
+    const pos = candidates[Math.floor(Math.random() * candidates.length)].clone();
+
+    const group = new THREE.Group();
+    group.position.set(pos.x, 0, pos.z);
+
+    // ── Pedestal (tablita) ─────────────────────────────────────────────────
+    const tableGeo = new THREE.BoxGeometry(0.55, 0.06, 0.45);
+    const tableMat = new THREE.MeshBasicMaterial({ color: 0x2a1a0a });
+    const table = new THREE.Mesh(tableGeo, tableMat);
+    table.position.y = 0.48;
+    group.add(table);
+
+    // ── Cuerpo del teléfono ────────────────────────────────────────────────
+    const bodyGeo = new THREE.BoxGeometry(0.38, 0.13, 0.28);
+    const bodyMat = new THREE.MeshBasicMaterial({ color: 0x151515 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.585;
+    group.add(body);
+
+    // ── Auricular descolgado, ligeramente inclinado ────────────────────────
+    const recvGeo = new THREE.BoxGeometry(0.30, 0.07, 0.09);
+    const recvMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
+    const recv = new THREE.Mesh(recvGeo, recvMat);
+    recv.position.set(0.02, 0.665, 0);
+    recv.rotation.z = 0.18;
+    group.add(recv);
+
+    // ── Cable colgante ─────────────────────────────────────────────────────
+    const cableGeo = new THREE.BoxGeometry(0.02, 0.22, 0.02);
+    const cable = new THREE.Mesh(cableGeo, recvMat);
+    cable.position.set(-0.08, 0.38, 0);
+    group.add(cable);
+
+    // ── Luz roja parpadeante (indicador de llamada entrante) ───────────────
+    const redDotGeo = new THREE.SphereGeometry(0.025, 5, 4);
+    const redDotMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+    const redDot = new THREE.Mesh(redDotGeo, redDotMat);
+    redDot.position.set(0.16, 0.655, 0.14);
+    group.add(redDot);
+    group.userData.redDot = redDot;
+
+    const glow = new THREE.PointLight(0xff3300, 1.2, 5);
+    glow.position.set(0, 0.8, 0);
+    group.add(glow);
+    group.userData.glow = glow;
+
+    this.sceneManager.scene.add(group);
+    this._phoneMesh = group as unknown as THREE.Mesh;
+    this._phonePos = pos.clone();
+    this._phoneRingTimer = 4 + Math.random() * 6;
+    this._phoneAnswered = false;
+  }
+
+  private _updatePhone(delta: number): void {
+    if (!this._phoneMesh || this._phoneAnswered) return;
+
+    const group = this._phoneMesh as unknown as THREE.Group;
+    const glow = group.userData.glow as THREE.PointLight | undefined;
+    const redDot = group.userData.redDot as THREE.Mesh | undefined;
+    const t = performance.now();
+
+    // Parpadeo rojo sincronizado con el timbre (rápido cuando cerca)
+    const dist = this.player.position.distanceTo(group.position);
+    const blinkRate = dist < 6 ? 0.012 : 0.006;
+    const blinkVal = Math.sin(t * blinkRate) > 0 ? 1 : 0;
+    if (glow) glow.intensity = blinkVal * (1.0 + Math.sin(t * 0.003) * 0.3);
+    if (redDot) (redDot.material as THREE.MeshBasicMaterial).color.setHex(blinkVal ? 0xff2200 : 0x330000);
+
+    // Timbrar periódicamente — más frecuente al acercarse
+    this._phoneRingTimer -= delta;
+    if (this._phoneRingTimer <= 0) {
+      this._phoneRingTimer = dist < 8 ? (2.5 + Math.random() * 1.5) : (4 + Math.random() * 4);
+      if (dist < 20) this.audioManager.playPhoneRing();
+    }
+
+    // Hint de interacción
+    const phoneHintEl = document.getElementById('phoneHint');
+    if (dist < 2.6) {
+      if (!this._phoneHintVisible) {
+        this._phoneHintVisible = true;
+        if (phoneHintEl) phoneHintEl.style.display = 'block';
+      }
+      if (this.inputManager.keys.interact) {
+        this.inputManager.keys.interact = false;
+        this._answerPhone();
+      }
+    } else if (this._phoneHintVisible && dist > 3.2) {
+      this._phoneHintVisible = false;
+      if (phoneHintEl) phoneHintEl.style.display = 'none';
+    }
+  }
+
+  private _answerPhone(): void {
+    if (!this._phoneMesh) return;
+    this._phoneAnswered = true;
+    this._phoneHintVisible = false;
+
+    const phoneHintEl = document.getElementById('phoneHint');
+    if (phoneHintEl) phoneHintEl.style.display = 'none';
+
+    // Apagar la luz del teléfono
+    const group = this._phoneMesh as unknown as THREE.Group;
+    const glow = group.userData.glow as THREE.PointLight | undefined;
+    if (glow) glow.intensity = 0;
+
+    const flash = document.getElementById('screenFlash') as HTMLDivElement | null;
+    const doFlash = (color: string, ms: number, op = 0.8) => {
+      if (!flash) return;
+      flash.style.background = color;
+      flash.style.transition = 'none';
+      flash.style.opacity = String(op);
+      void flash.offsetWidth;
+      flash.style.transition = `opacity ${ms}ms ease-out`;
+      flash.style.opacity = '0';
+    };
+    const doChromatic = () => {
+      const cv = document.querySelector('canvas');
+      if (!cv) return;
+      cv.style.transition = 'filter 0s';
+      cv.style.filter = 'drop-shadow(-6px 0 4px rgba(255,0,0,0.9)) drop-shadow(6px 0 4px rgba(0,80,255,0.9))';
+      setTimeout(() => {
+        cv.style.transition = 'filter 0.5s ease-out';
+        cv.style.filter = 'none';
+        setTimeout(() => { cv.style.transition = ''; }, 550);
+      }, 90);
+    };
+
+    // ── Fase 1 (0s): click + estática creciente ────────────────────────────
+    this.audioManager.playPhoneAnswer();
+
+    // ── Fase 2 (0.6s): mensaje inquietante + luz de techo parpadea ─────────
+    setTimeout(() => {
+      this.horrorEffects.showMessage('...', 2500);
+      this.triggerLightScare?.();
+    }, 600);
+
+    // ── Fase 3 (1.4s): temblor de cámara suave ────────────────────────────
+    setTimeout(() => {
+      this.sceneManager.startCameraShake(0.05, 1.2);
+    }, 1400);
+
+    // ── Fase 4 (2.0s): parpadeo rojo suave, presagio ──────────────────────
+    setTimeout(() => {
+      doFlash('#880000', 300, 0.45);
+    }, 2000);
+
+    // ── FASE PICO (2.8s): jumpscare completo ──────────────────────────────
+    setTimeout(() => {
+      doFlash('#ff0000', 80, 1.0);
+      this.audioManager.playJumpscareSound();
+      this.sceneManager.startCameraShake(0.28, 0.7);
+      doChromatic();
+      this.horrorEffects.showMessage('TE LLAMARÉ CUANDO MUERAS', 3500);
+    }, 2800);
+
+    // ── Fase final (4s): limpiar ───────────────────────────────────────────
+    setTimeout(() => {
+      if (this._phoneMesh) {
+        this.sceneManager.scene.remove(this._phoneMesh as unknown as THREE.Group);
+        this._phoneMesh = null;
+      }
+      this.horrorEffects.hideMessage();
+    }, 5000);
+  }
+
+  /** Susto: rastro de huellas de sangre detrás del jugador. */
+  private triggerBloodTrail(): void {
+    const camDir = new THREE.Vector3();
+    this.sceneManager.camera.getWorldDirection(camDir);
+    camDir.y = 0;
+    camDir.normalize();
+    this.horrorEffects.spawnBloodTrail(this.player.position.clone(), camDir);
   }
 
   /** Flechas pintadas en las paredes que indican la ruta real del laberinto hacia la salida.
@@ -1337,51 +1594,73 @@ export class Game {
 
     const elapsed = (Date.now() - this.gameStartTime) / 1000;
     const mins = Math.floor(elapsed / 60);
-    const secs = Math.floor(elapsed % 60);
-    
+
     const score = this.currentLevel === 'level2' ? this.score : Math.max(0, 1000 - Math.floor(elapsed * 10));
     const isTop3 = ScoreManager.saveHighscore(this.currentLevel, score, elapsed);
-    
+
     const stats = ScoreManager.getStats();
     stats.totalVictories++;
-    stats.totalCoins += this.statsCoinsCollected;
-    stats.totalBatteries += this.statsBatteriesCollected;
-    if (!stats.levelsCompleted[this.currentLevel]) {
-      stats.levelsCompleted[this.currentLevel] = 0;
-    }
+    stats.totalCoins      += this.statsCoinsCollected;
+    stats.totalBatteries  += this.statsBatteriesCollected;
+    if (!stats.levelsCompleted[this.currentLevel]) stats.levelsCompleted[this.currentLevel] = 0;
     stats.levelsCompleted[this.currentLevel]++;
     ScoreManager.saveStats(stats);
-    
-    if (mins < 2 && this.currentLevel === 'level1') {
-      ScoreManager.unlockAchievement('speedrunner');
-    }
+
+    if (mins < 2 && this.currentLevel === 'level1') ScoreManager.unlockAchievement('speedrunner');
     ScoreManager.unlockAchievement('first_escape');
 
+    // Desbloquear siguiente nivel
+    const nextLevelId = ScoreManager.unlockNextLevel(this.currentLevel);
+
     const subtexts: Partial<Record<LevelType, string>> = {
-      level2: '¡Recogiste todas las monedas! Conseguiste escapar.',
+      level2: '¡Recogiste todas las monedas!',
     };
     const subtext = subtexts[this.currentLevel] ?? '¡Lograste escapar de los Backrooms!';
 
-    // Fade transition to victory screen
-    this.transitionFade(() => {
-      const overlay = document.getElementById('gameOverOverlay');
-      const title = overlay?.querySelector('h1');
-      const text = overlay?.querySelector('p');
-      const btn = document.getElementById('restartButton') as HTMLAnchorElement | null;
+    const nextNames: Record<string, string> = {
+      level2:   'NIVEL 2 →',
+      level3:   'NIVEL 3 →',
+      level4:   'NIVEL 4 →',
+      ultimate: 'ULTIMATE →',
+    };
 
+    this.transitionFade(() => {
+      const overlay  = document.getElementById('gameOverOverlay');
+      const title    = overlay?.querySelector('h1') as HTMLElement | null;
+      const text     = overlay?.querySelector('p')  as HTMLElement | null;
+      const retryBtn = document.getElementById('retryButton')     as HTMLAnchorElement | null;
+      const nextBtn  = document.getElementById('nextLevelButton') as HTMLAnchorElement | null;
+      const menuBtn  = document.getElementById('menuButton')      as HTMLAnchorElement | null;
+
+      if (overlay) overlay.dataset.state = 'victory';
       if (title) { title.textContent = message; title.style.color = '#00ff88'; }
       if (text) {
-        let finalText = subtext;
-        if (isTop3) {
-          finalText += ` ¡NUEVO RÉCORD #${score}!`;
+        text.textContent = subtext + (isTop3 ? ` ¡RÉCORD #${score}!` : '');
+        text.style.color = '#88ffcc';
+      }
+
+      // Botón reintentar — visible en victoria también (replay para mejor puntuación)
+      if (retryBtn) {
+        const diff = sessionStorage.getItem('difficulty') || 'normal';
+        retryBtn.href = `game.html?level=${this.currentLevel}&diff=${diff}`;
+        retryBtn.textContent = 'REINTENTAR';
+        retryBtn.style.display = 'inline-block';
+      }
+
+      // Botón siguiente nivel
+      if (nextBtn) {
+        if (nextLevelId) {
+          const diff = sessionStorage.getItem('difficulty') || 'normal';
+          nextBtn.href = `game.html?level=${nextLevelId}&diff=${diff}`;
+          nextBtn.textContent = nextNames[nextLevelId] ?? 'SIGUIENTE →';
+          nextBtn.style.display = 'inline-block';
+        } else {
+          nextBtn.style.display = 'none'; // ultimate completado, no hay más
         }
-        text.textContent = finalText;
       }
-      if (btn) {
-        btn.textContent = 'VOLVER AL MENÚ';
-        btn.href = 'index.html';
-        btn.style.borderColor = '#00ff88';
-      }
+
+      if (menuBtn) menuBtn.style.display = 'inline-block';
+
       this.showStats(true);
       if (overlay) overlay.classList.add('active');
     }, 400, 600);
@@ -1409,9 +1688,10 @@ export class Game {
     ScoreManager.saveStats(stats);
     ScoreManager.unlockAchievement('first_death');
 
-    // Flash rojo inmediato + sonido
+    // Flash rojo inmediato + sonido + vibración háptica
     doFlash('#cc0000', 80);
     this.audioManager.playJumpscareSound();
+    this.vibrate([200, 80, 300, 80, 500]);
 
     // Apagar linterna — oscuridad total
     this.sceneManager.toggleFlashlight(false);
@@ -1422,6 +1702,17 @@ export class Game {
       // Momento de la mordida: flash rojo fuerte + segundo sonido
       doFlash('#ff0000', 350, 0.9);
       this.audioManager.playJumpscareSound();
+      // Aberración cromática: separación RGB en el canvas
+      const cv = document.querySelector('canvas');
+      if (cv) {
+        cv.style.transition = 'filter 0s';
+        cv.style.filter = 'drop-shadow(-5px 0 3px rgba(255,0,0,0.85)) drop-shadow(5px 0 3px rgba(0,80,255,0.85))';
+        setTimeout(() => {
+          cv.style.transition = 'filter 0.45s ease-out';
+          cv.style.filter = 'none';
+          setTimeout(() => { cv.style.transition = ''; }, 500);
+        }, 80);
+      }
     });
 
     // Overlay rojo que se oscurece durante la animación
@@ -1462,6 +1753,7 @@ export class Game {
         eatOverlay.style.background = 'rgba(0,0,0,1)';
         setTimeout(() => {
           document.body.removeChild(eatOverlay);
+          this.setupDefeatButtons();
           this.showStats(false);
           if (gameOverOverlay) gameOverOverlay.classList.add('active');
           document.exitPointerLock();
@@ -1469,6 +1761,24 @@ export class Game {
       }
     };
     requestAnimationFrame(eatLoop);
+  }
+
+  /** Pone los botones del overlay en modo derrota: Reintentar + Menú, sin Siguiente. */
+  private setupDefeatButtons(): void {
+    const overlay  = document.getElementById('gameOverOverlay');
+    const retryBtn = document.getElementById('retryButton')     as HTMLAnchorElement | null;
+    const nextBtn  = document.getElementById('nextLevelButton') as HTMLAnchorElement | null;
+    const menuBtn  = document.getElementById('menuButton')      as HTMLAnchorElement | null;
+
+    if (overlay) overlay.dataset.state = 'defeat';
+    if (retryBtn) {
+      const diff = sessionStorage.getItem('difficulty') || 'normal';
+      retryBtn.href = `game.html?level=${this.currentLevel}&diff=${diff}`;
+      retryBtn.textContent = 'REINTENTAR';
+      retryBtn.style.display = 'inline-block';
+    }
+    if (nextBtn)  nextBtn.style.display  = 'none';
+    if (menuBtn)  menuBtn.style.display  = 'inline-block';
   }
 
   private triggerSanityGameOver(): void {
@@ -1489,6 +1799,7 @@ export class Game {
 
     // Fade transition
     this.transitionFade(() => {
+      this.setupDefeatButtons();
       this.showStats(false);
       if (gameOverOverlay) {
         gameOverOverlay.classList.add('active');
@@ -1635,6 +1946,7 @@ export class Game {
           this.player.collectBattery();
           this.statsBatteriesCollected++;
           this.audioManager.playItemPickup();
+          this.vibrate(60);
           this.showPickupMessage('¡BATERÍA! +40%');
           console.log('[Game] Battery collected! New battery level:', this.player.battery);
         }
@@ -1679,6 +1991,7 @@ export class Game {
           this.score += 10;
           this.statsCoinsCollected++;
           this.audioManager.playItemPickup();
+          this.vibrate(25);
           this.showPickupMessage(`+10 — ${this.score}/${this.targetScore}`);
           if (this.score === 80) this.horrorEffects.showMessage('¡CASI! 2 monedas más', 2000);
           if (this.score === 90) this.horrorEffects.showMessage('¡ÚLTIMA MONEDA!', 2000);
@@ -1703,7 +2016,8 @@ export class Game {
           this.invalidateMinimapStatic();
           
           this.audioManager.playPowerUpPickup();
-          
+          this.vibrate([80, 40, 80]);
+
           switch (cellType) {
             case CellType.POWER_SPEED:
               this.player.activateSpeedBoost();
@@ -1733,47 +2047,29 @@ export class Game {
   private checkRendijaInteraction(): void {
     const px = Math.round(this.player.position.x / CONFIG.UNIT_SIZE);
     const pz = Math.round(this.player.position.z / CONFIG.UNIT_SIZE);
-    
+
     this.nearbyRendija = null;
-    
-    const directions: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-    
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dz = -1; dz <= 1; dz++) {
-        const checkX = px + dx;
-        const checkZ = pz + dz;
-        
-        if (checkZ >= 0 && checkZ < this.maze.length && 
-            checkX >= 0 && checkX < this.maze[0].length) {
-          if (this.maze[checkZ][checkX] === CellType.RENDIJA) {
-            const exit = this.mazeGenerator.getRendijaExit(checkX, checkZ, px, pz);
-            if (exit) {
-              const distToRendija = Math.sqrt(
-                Math.pow((checkX - px) * CONFIG.UNIT_SIZE, 2) +
-                Math.pow((checkZ - pz) * CONFIG.UNIT_SIZE, 2)
-              );
-              if (distToRendija < 2.5) {
-                this.nearbyRendija = { x: checkX, z: checkZ, exitX: exit.x, exitZ: exit.z };
-                break;
-              }
-            }
-          }
-        }
+
+    // Solo mirar las 4 celdas adyacentes (no diagonales)
+    const adj: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    for (const [dx, dz] of adj) {
+      const checkX = px + dx;
+      const checkZ = pz + dz;
+
+      if (checkZ < 0 || checkZ >= this.maze.length || checkX < 0 || checkX >= this.maze[0].length) continue;
+      if (this.maze[checkZ][checkX] !== CellType.RENDIJA) continue;
+
+      const exit = this.mazeGenerator.getRendijaExit(checkX, checkZ, px, pz);
+      if (exit) {
+        this.nearbyRendija = { x: checkX, z: checkZ, exitX: exit.x, exitZ: exit.z };
+        break;
       }
-      if (this.nearbyRendija) break;
     }
-    
+
     if (this.nearbyRendija && this.inputManager.keys.interact) {
-      const newX = this.nearbyRendija.exitX * CONFIG.UNIT_SIZE;
-      const newZ = this.nearbyRendija.exitZ * CONFIG.UNIT_SIZE;
-      
-      this.player.position.x = newX;
-      this.player.position.z = newZ;
-      
-      // Consumir el flag para evitar teleports múltiples
+      this.player.position.x = this.nearbyRendija.exitX * CONFIG.UNIT_SIZE;
+      this.player.position.z = this.nearbyRendija.exitZ * CONFIG.UNIT_SIZE;
       this.inputManager.keys.interact = false;
-      
-      console.log('[Game] Used rendija! Teleported to:', this.nearbyRendija.exitX, this.nearbyRendija.exitZ);
     }
   }
 
@@ -2270,19 +2566,27 @@ export class Game {
 
   /** Elige un susto aleatorio y lo ejecuta (solo si el enemigo no está ya encima). */
   private triggerAmbientScare(): void {
-    if (this.lastClosestEnemyDist < 9) return;   // el enemigo ya da miedo solo
+    if (this.lastClosestEnemyDist < 9) return;
 
     const roll = Math.random();
-    if (roll < 0.34) {
+    if (roll < 0.40) {
       this.triggerGhostScare();
-    } else if (roll < 0.67) {
+    } else if (roll < 0.44) {
       this.triggerLightScare();
-    } else {
+    } else if (roll < 0.62) {
       this.triggerBangScare();
+    } else if (roll < 0.78) {
+      // Pasos detrás cuando no hay nadie
+      this.audioManager.playFootstepsBehind();
+    } else if (roll < 0.90) {
+      // Rastro de sangre
+      this.triggerBloodTrail();
+    } else {
+      // Sombra periférica
+      this.horrorEffects.triggerPeripheralShadow();
     }
 
-    // Reiniciar interval con variedad
-    this.ambientScareInterval = 30 + Math.random() * 30;
+    this.ambientScareInterval = 25 + Math.random() * 25;
     this.ambientScareTimer = 0;
   }
 
@@ -2290,16 +2594,34 @@ export class Game {
   private triggerGhostScare(): void {
     if (this.emptyWalkablePositions.length === 0) return;
 
-    // Buscar posición que esté 10-20 unidades del jugador
-    const candidates = this.emptyWalkablePositions.filter(p => {
-      const d = this.player.position.distanceTo(p);
-      return d >= 10 && d <= 22;
+    const px = this.player.position.x;
+    const pz = this.player.position.z;
+
+    // Candidatos a 10-20 unidades, con línea de visión básica (no hay pared directa)
+    const candidates = this.emptyWalkablePositions.filter(pos => {
+      const d = this.player.position.distanceTo(pos);
+      if (d < 10 || d > 20) return false;
+      // Comprobación rápida: celda de destino no está bloqueada
+      const cx = Math.round(pos.x / CONFIG.UNIT_SIZE);
+      const cz = Math.round(pos.z / CONFIG.UNIT_SIZE);
+      return this.maze[cz]?.[cx] !== undefined && this.maze[cz][cx] !== 1;
     });
     if (candidates.length === 0) return;
 
-    const spawnPos = candidates[Math.floor(Math.random() * candidates.length)];
-    this.horrorEffects.spawnGhostFigure(spawnPos, this.player.position);
-    // Sin sonido propio — el silencio es el susto
+    // Preferir posiciones en la dirección en que mira el jugador
+    const camDir = new THREE.Vector3();
+    this.sceneManager.camera.getWorldDirection(camDir);
+    const withDot = candidates.map(p => ({
+      pos: p,
+      dot: camDir.dot(new THREE.Vector3(p.x - px, 0, p.z - pz).normalize()),
+    }));
+    withDot.sort((a, b) => b.dot - a.dot);
+    // Elegir uno de los 5 mejores para variedad
+    const pick = withDot[Math.floor(Math.random() * Math.min(5, withDot.length))];
+
+    this.horrorEffects.spawnGhostFigure(pick.pos, this.player.position);
+    // Gemido fantasmal con pequeño delay (para que el jugador lo vea antes de oírlo)
+    setTimeout(() => this.audioManager.playGhostMoan(), 800);
   }
 
   /** Susto 2: una luz del techo se apaga y vuelve con zumbido */
@@ -2379,6 +2701,25 @@ export class Game {
     // ── Rendijas (atajos secretos) ──────────────────────────────────────────────
     this.checkRendijaInteraction();
     this.uiManager.updateRendijaHint(this.nearbyRendija !== null);
+    // Hint la primera vez que el jugador está cerca de una rendija
+    if (this.nearbyRendija && !this._rendijaHintShown) {
+      this._rendijaHintShown = true;
+      this.horrorEffects.showMessage('✨ Algo brilla en la pared... [E para cruzar]', 4000);
+    }
+
+    // ── Batería baja: beep doble cada 3s ─────────────────────────────────────
+    if (this.player.battery < 20 && this.player.isFlashlightOn) {
+      this._lowBattBeepTimer -= delta;
+      if (this._lowBattBeepTimer <= 0) {
+        this._lowBattBeepTimer = 3.0;
+        this.audioManager.playLowBatteryBeep();
+      }
+    } else {
+      this._lowBattBeepTimer = 0;
+    }
+
+    // ── Teléfono ──────────────────────────────────────────────────────────────
+    this._updatePhone(delta);
 
     if (this.chunkManager) {
       this.chunkManager.update(this.player.position.x, this.player.position.z);
@@ -2456,7 +2797,18 @@ export class Game {
     const enemyUpdateStart = performance.now();
     for (const enemy of this.enemies) {
       const dist = enemy.update(delta, this.player.position, isEffectivelyHidden, sanityBonus);
+      enemy.updateLOD(dist);
       closestEnemyDist = Math.min(closestEnemyDist, dist);
+
+      // Susto: enemigo peligrosamente cerca (umbral > kill range de 2.8) pero el jugador vivo
+      if (dist < 4.5 && !this.player.isHiding) {
+        if (!this._wasCloseToEnemy) {
+          this.statsCloseCallsEnemies++;
+          this._wasCloseToEnemy = true;
+        }
+      } else if (dist >= 4.5) {
+        this._wasCloseToEnemy = false;
+      }
 
       this.enemyStepTimer += delta;
       const stepInterval = enemy.type === 'runner' ? 0.25 : (enemy.type === 'teleporter' ? 0.4 : 0.5);
@@ -2483,14 +2835,6 @@ export class Game {
     const enemyUpdateTime = performance.now() - enemyUpdateStart;
     if (enemyUpdateTime > 10) {
       console.warn(`[PERF] Enemies update() tardó ${enemyUpdateTime.toFixed(2)}ms (${this.enemies.length} enemigos)`);
-    }
-
-    // Susto contado: enemigo muy cerca pero el jugador sobrevive
-    if (closestEnemyDist < 2.5 && !this.player.isHiding && !this._wasCloseToEnemy) {
-      this.statsCloseCallsEnemies++;
-      this._wasCloseToEnemy = true;
-    } else if (closestEnemyDist >= 2.5) {
-      this._wasCloseToEnemy = false;
     }
 
     // ── Pisadas ───────────────────────────────────────────────────────────────
@@ -2599,6 +2943,15 @@ export class Game {
       this.triggerAmbientScare();
     }
 
+    // ── Sombra periférica: timer propio, independiente del pool ────────────
+    this._shadowTimer -= delta;
+    if (this._shadowTimer <= 0) {
+      this._shadowTimer = 15 + Math.random() * 13; // cada 15-28 s
+      if (this.lastClosestEnemyDist > 6) {          // no si el enemigo está encima
+        this.horrorEffects.triggerPeripheralShadow();
+      }
+    }
+
     this.playerStepTimer += delta;
     const isPlayerMoving = this.inputManager.keys.forward || this.inputManager.keys.backward || 
                           this.inputManager.keys.left || this.inputManager.keys.right;
@@ -2658,6 +3011,9 @@ export class Game {
     if (this.currentLevel === 'level2') {
       this.uiManager.updateScore(this.score, this.targetScore);
     }
+    if (this.currentLevel === 'ultimate') {
+      this.uiManager.updateSurvivalTimer((Date.now() - this.gameStartTime) / 1000);
+    }
 
     let winCondition = false;
     let winMessage = '';
@@ -2695,6 +3051,22 @@ export class Game {
       if (this.exitDoorOpen && this.exitDoorAngle < Math.PI / 2) {
         this.exitDoorAngle = Math.min(Math.PI / 2, this.exitDoorAngle + delta * 2.5);
         this.exitDoor.rotation.y = this.exitDoorAngle;
+      }
+
+      // Pulso de luz verde — sinusoide lenta más rápida cuando el jugador se acerca
+      const proximityFactor = Math.max(0, 1 - distToExit / (CONFIG.UNIT_SIZE * 10));
+      const pulseSpeed = 1.2 + proximityFactor * 3.0;
+      const pulseBase  = 2.0 + proximityFactor * 1.5;
+      const pulseAmp   = 0.8 + proximityFactor * 1.0;
+      const pulse = pulseBase + Math.sin(this.clock.elapsedTime * pulseSpeed) * pulseAmp;
+
+      const exitLight = this.exitDoor.userData.exitLight as THREE.PointLight | undefined;
+      if (exitLight) exitLight.intensity = pulse;
+
+      const doorMesh = this.exitDoor.userData.doorMesh as THREE.Mesh | undefined;
+      if (doorMesh && (doorMesh.material as THREE.MeshStandardMaterial).emissiveIntensity !== undefined) {
+        (doorMesh.material as THREE.MeshStandardMaterial).emissiveIntensity =
+          0.9 + Math.sin(this.clock.elapsedTime * pulseSpeed * 0.8) * 0.4;
       }
     }
 

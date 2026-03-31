@@ -187,6 +187,17 @@ export class UIManager {
     }
   }
 
+  updateSurvivalTimer(elapsedSecs: number): void {
+    if (!this.scoreElement) return;
+    const mins = Math.floor(elapsedSecs / 60);
+    const secs = Math.floor(elapsedSecs % 60);
+    const text = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
+    if (this.scoreElement.textContent !== text) {
+      this.scoreElement.textContent = text;
+      this.scoreElement.style.color = elapsedSecs >= 120 ? '#ff4444' : elapsedSecs >= 60 ? '#ff8800' : '#44ff88';
+    }
+  }
+
   setLevelObjective(html: string): void {
     if (this.levelObjective) {
       this.levelObjective.innerHTML = html;

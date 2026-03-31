@@ -126,6 +126,12 @@
       <span class="rendija-sub">Atajo al otro lado</span>
     </div>
     <div id="pickupMessage"></div>
+    <div id="phoneHint" style="display:none;position:fixed;bottom:22%;left:50%;transform:translateX(-50%);
+      background:rgba(10,5,0,0.82);border:1px solid #664400;color:#cc8800;font-family:monospace;
+      font-size:0.95em;padding:8px 18px;border-radius:4px;pointer-events:none;z-index:3000;
+      letter-spacing:1px;text-align:center;">
+      ☎️ &nbsp;<strong>[E]</strong>&nbsp; Contestar
+    </div>
 
     <div id="noteOverlay">
       <h2 id="noteTitle">NOTA</h2>
@@ -155,7 +161,11 @@
         <div class="stat-row"><span>⚰ ATAÚD</span><span id="statHide">0</span></div>
         <div class="stat-row" id="statCoinsRow" style="display:none"><span>💰 MONEDAS</span><span id="statCoins">0</span></div>
       </div>
-      <a id="restartButton" href="game.html">REINTENTAR</a>
+      <div class="end-buttons">
+        <a id="retryButton"      href="game.html"  class="end-btn end-retry">REINTENTAR</a>
+        <a id="nextLevelButton"  href="game.html"  class="end-btn end-next"  style="display:none">SIGUIENTE →</a>
+        <a id="menuButton"       href="index.html" class="end-btn end-menu">MENÚ</a>
+      </div>
     </div>
 
     <!-- PAUSE MENU -->
@@ -182,6 +192,18 @@
             <input type="range" id="sensitivity" min="1" max="10" value="5">
             <span class="setting-value" id="sensitivityVal">5</span>
           </div>
+        </div>
+        <div class="pause-section">
+          <h3>─── GRÁFICOS ───</h3>
+          <div class="setting-row" style="gap:6px">
+            <span>Calidad</span>
+            <div style="display:flex;gap:5px;margin-left:auto">
+              <button class="quality-btn" data-q="low">BAJA</button>
+              <button class="quality-btn" data-q="medium">MEDIA</button>
+              <button class="quality-btn" data-q="high">ALTA</button>
+            </div>
+          </div>
+          <p style="font-size:0.65em;color:#666;margin:4px 0 0;text-align:center">Resolución y niebla se aplican en tiempo real</p>
         </div>
         <hr class="pause-divider">
         <button class="pause-btn" id="resumeBtn">CONTINUAR [P]</button>
@@ -524,10 +546,12 @@
       
       window.addEventListener('resize', drawJumpscareFace);
 
-      // Preservar el nivel actual en el botón de reintentar
-      const _currentLevel = new URLSearchParams(window.location.search).get('level') || '1';
-      const _restartBtn = document.getElementById('restartButton');
-      if (_restartBtn) _restartBtn.href = `game.html?level=${_currentLevel}`;
+      // Inicializar botón reintentar con nivel y dificultad actuales
+      const _urlParams = new URLSearchParams(window.location.search);
+      const _currentLevel = _urlParams.get('level') || '1';
+      const _currentDiff  = _urlParams.get('diff')  || sessionStorage.getItem('difficulty') || 'normal';
+      const _retryBtn = document.getElementById('retryButton');
+      if (_retryBtn) _retryBtn.href = `game.html?level=${_currentLevel}&diff=${_currentDiff}`;
 
       // ===== PAUSE MENU & HIGHSCORES =====
       (function() {
@@ -737,6 +761,29 @@
           sfxVolume: parseInt(sfxVol?.value || '80'),
           sensitivity: parseInt(sens?.value || '5')
         });
+
+        // ── Calidad gráfica ────────────────────────────────────────────────
+        const qualityBtns = document.querySelectorAll('.quality-btn');
+        function updateQualityButtons(q) {
+          qualityBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.q === q));
+        }
+        updateQualityButtons(localStorage.getItem('graphicsQuality') || 'medium');
+
+        qualityBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            const q = btn.dataset.q;
+            localStorage.setItem('graphicsQuality', q);
+            updateQualityButtons(q);
+            if (window.gameSceneManager) window.gameSceneManager.applyQuality(q);
+          });
+        });
+
+        // Re-marcar botón activo cada vez que se abre el menú de pausa
+        const _origShowPause = window.showPauseMenu;
+        window.showPauseMenu = () => {
+          _origShowPause?.();
+          updateQualityButtons(localStorage.getItem('graphicsQuality') || 'medium');
+        };
       })();
     </script>
     <script type="module" src="/src/main.ts"></script>

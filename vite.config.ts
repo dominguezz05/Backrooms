@@ -21,11 +21,12 @@ export default defineConfig({
       'Content-Security-Policy': [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-        "style-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: blob:",
         "media-src 'self' blob:",
         "worker-src 'self' blob:",
-        "connect-src 'self' ws: wss:",   // Vite HMR websocket
+        "connect-src 'self' ws: wss:",
       ].join('; '),
     },
   },

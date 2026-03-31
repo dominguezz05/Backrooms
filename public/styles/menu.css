@@ -599,6 +599,34 @@
   background: linear-gradient(135deg, rgba(100, 15, 15, 0.95), rgba(150, 30, 30, 0.95));
 }
 
+/* ── Nivel bloqueado ── */
+.level-card.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.6);
+}
+
+.level-locked-hint {
+  color: #664 !important;
+  font-style: italic;
+}
+
+/* ── Nivel completado — posición relativa para el badge ── */
+.level-card {
+  position: relative;
+}
+
+.level-done-badge {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 1rem;
+  color: #00ff88;
+  font-weight: bold;
+  text-shadow: 0 0 8px rgba(0,255,136,0.7);
+}
+
 /* ════ MODAL OPCIONES ════ */
 .options-section {
   margin-bottom: 15px;

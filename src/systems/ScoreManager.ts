@@ -35,9 +35,38 @@ const ACHIEVEMENTS_LIST: Omit<Achievement, 'unlocked' | 'unlockedAt'>[] = [
   { id: 'closecall', name: 'Afortunado', description: 'Escapa de un enemigo 10 veces' },
 ];
 
+const LEVEL_PROGRESSION: Record<string, string> = {
+  level1: 'level2',
+  level2: 'level3',
+  level3: 'level4',
+  level4: 'ultimate',
+};
+
 export class ScoreManager {
   private static readonly HIGHSCORES_KEY = 'backrooms_highscores';
   private static readonly STATS_KEY = 'backrooms_stats';
+  private static readonly UNLOCKS_KEY  = 'backrooms_unlocks';
+
+  static getUnlockedLevels(): string[] {
+    try {
+      const data = localStorage.getItem(this.UNLOCKS_KEY);
+      return data ? JSON.parse(data) : ['level1'];
+    } catch {
+      return ['level1'];
+    }
+  }
+
+  /** Desbloquea el nivel siguiente al completado. Devuelve el id del nivel desbloqueado, o null si ya no hay más. */
+  static unlockNextLevel(completedLevel: string): string | null {
+    const next = LEVEL_PROGRESSION[completedLevel];
+    if (!next) return null;
+    const unlocked = this.getUnlockedLevels();
+    if (!unlocked.includes(next)) {
+      unlocked.push(next);
+      localStorage.setItem(this.UNLOCKS_KEY, JSON.stringify(unlocked));
+    }
+    return next;
+  }
 
   static getHighscores(level: string): HighscoreEntry[] {
     const data = localStorage.getItem(this.HIGHSCORES_KEY);
