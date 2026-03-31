@@ -110,41 +110,85 @@ interface BodyParts {
   rightClaws: THREE.Group;
 }
 
-function createVeinTexture(type: EnemyType): THREE.CanvasTexture {
+function createVeinTexture(_type: EnemyType): THREE.CanvasTexture {
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.fillStyle = 'rgb(18, 14, 12)'; // Color base uniforme oscuro
+  // Base: carne en descomposición, marrón rojizo oscuro
+  ctx.fillStyle = 'rgb(22, 10, 8)';
   ctx.fillRect(0, 0, size, size);
 
-  ctx.strokeStyle = '#0d0a08'; // Venas uniformes, apenas visibles
-  ctx.lineWidth = 2;
+  // Variación de tono de piel — manchas irregulares
+  for (let i = 0; i < 40; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = Math.random() * 22 + 6;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(${35 + Math.random() * 20}, ${8 + Math.random() * 8}, ${5 + Math.random() * 5}, 0.45)`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  for (let i = 0; i < 12; i++) {
+  // Venas rojas visibles
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 18; i++) {
+    ctx.strokeStyle = `rgba(${80 + Math.random() * 40}, ${4 + Math.random() * 6}, ${4 + Math.random() * 4}, ${0.6 + Math.random() * 0.35})`;
+    ctx.lineWidth = Math.random() * 2 + 0.8;
     ctx.beginPath();
     let x = Math.random() * size;
     let y = Math.random() * size;
     ctx.moveTo(x, y);
-
-    for (let j = 0; j < 8; j++) {
-      x += (Math.random() - 0.5) * 40;
-      y += Math.random() * 30 + 10;
+    for (let j = 0; j < 10; j++) {
+      x += (Math.random() - 0.5) * 30;
+      y += (Math.random() - 0.5) * 30;
       ctx.lineTo(x, y);
     }
     ctx.stroke();
   }
 
-  ctx.fillStyle = `rgba(${type === EnemyType.RUNNER ? '60, 0, 0' : type === EnemyType.STALKER ? '0, 50, 0' : '50, 0, 60'}, 0.3)`;
-  for (let i = 0; i < 20; i++) {
+  // Fibras musculares — líneas finas diagonales
+  ctx.lineWidth = 0.6;
+  for (let i = 0; i < 25; i++) {
+    ctx.strokeStyle = `rgba(45, 10, 6, ${0.3 + Math.random() * 0.3})`;
+    ctx.beginPath();
+    const sx = Math.random() * size;
+    const sy = Math.random() * size;
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + (Math.random() - 0.5) * 60, sy + Math.random() * 50 + 10);
+    ctx.stroke();
+  }
+
+  // Manchas de sangre oscura y pústulas
+  for (let i = 0; i < 12; i++) {
     const x = Math.random() * size;
     const y = Math.random() * size;
-    const r = Math.random() * 15 + 5;
+    const r = Math.random() * 8 + 3;
+    ctx.fillStyle = `rgba(${55 + Math.random() * 20}, 0, 0, ${0.5 + Math.random() * 0.4})`;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  // Grietas / fisuras en la piel
+  ctx.strokeStyle = 'rgba(8, 2, 2, 0.7)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) {
+    ctx.beginPath();
+    let x = Math.random() * size;
+    let y = Math.random() * size;
+    ctx.moveTo(x, y);
+    for (let j = 0; j < 5; j++) {
+      x += (Math.random() - 0.5) * 18;
+      y += (Math.random() - 0.5) * 18;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -169,25 +213,41 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
   const faceW = size * 0.75;
   const faceH = size * 0.9;
 
+  // Piel de cara con tono carne podrida más visible
   const faceGrad = ctx.createRadialGradient(faceX, faceY, 0, faceX, faceY, faceW / 2);
-  faceGrad.addColorStop(0, '#1a1410');
-  faceGrad.addColorStop(0.6, '#0d0b08');
-  faceGrad.addColorStop(1, '#000000');
+  faceGrad.addColorStop(0, '#2e1a10');
+  faceGrad.addColorStop(0.5, '#1c0e08');
+  faceGrad.addColorStop(1, '#050202');
 
   ctx.fillStyle = faceGrad;
   ctx.beginPath();
   ctx.ellipse(faceX, faceY, faceW / 2, faceH / 2, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = '#1a0000';
-  ctx.lineWidth = 12;
+  ctx.strokeStyle = '#3a0000';
+  ctx.lineWidth = 14;
   ctx.stroke();
 
+  // Manchas de piel podrida / heridas
+  for (let i = 0; i < 12; i++) {
+    const px = faceX + (Math.random() - 0.5) * faceW * 0.85;
+    const py = faceY + (Math.random() - 0.5) * faceH * 0.85;
+    const pr = Math.random() * 18 + 5;
+    const pg = ctx.createRadialGradient(px, py, 0, px, py, pr);
+    pg.addColorStop(0, `rgba(${50 + Math.random() * 20}, ${5 + Math.random() * 5}, 3, 0.55)`);
+    pg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Cicatrices / arañazos profundos oscuros
   ctx.shadowColor = '#000';
-  ctx.shadowBlur = 30;
+  ctx.shadowBlur = 20;
   for (let i = 0; i < 15; i++) {
-    ctx.strokeStyle = Math.random() > 0.5 ? '#1a0000' : '#0a0000';
-    ctx.lineWidth = 3 + Math.random() * 6;
+    ctx.strokeStyle = Math.random() > 0.4 ? 'rgba(55,0,0,0.8)' : 'rgba(15,5,3,0.9)';
+    ctx.lineWidth = 2 + Math.random() * 5;
     ctx.beginPath();
     const startX = faceX + (Math.random() - 0.5) * faceW * 0.9;
     const startY = faceY + (Math.random() - 0.5) * faceH * 0.9;
@@ -195,14 +255,15 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
     ctx.lineTo(startX + (Math.random() - 0.5) * size * 0.4, startY + (Math.random() - 0.5) * size * 0.3);
     ctx.stroke();
   }
+  ctx.shadowBlur = 0;
 
   const eyeY = faceY - size * 0.12;
   const eyeSpacing = size * 0.2;
 
-  // Ojos uniformes sin color de tipo — blanco apagado
+  // Ojos uniformes — blanco brillante con fuerte glow
   ctx.shadowColor = '#ffffff';
-  ctx.shadowBlur = size * 0.08;
-  ctx.fillStyle = '#c8c0b0';
+  ctx.shadowBlur = size * 0.18;
+  ctx.fillStyle = '#ffffff';
 
   const eyeShapes: Record<EnemyType, () => void> = {
     [EnemyType.RUNNER]: () => {
@@ -333,7 +394,7 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
 
   mouthShapes[type]();
 
-  ctx.fillStyle = '#2a2218'; // Dientes uniformes oscuros
+  ctx.fillStyle = '#c8b888'; // Dientes hueso amarillento
   for (let i = 0; i < 8; i++) {
     const toothX = faceX - mouthW * 0.7 + i * mouthW * 0.2;
     const toothW = size * 0.05 + Math.random() * size * 0.04;
@@ -346,19 +407,23 @@ function createScaryFaceTexture(type: EnemyType): THREE.CanvasTexture {
     ctx.fill();
   }
 
-  ctx.strokeStyle = '#1a1510';
+  // Sangre roja visible goteando de la boca
+  ctx.strokeStyle = '#8b0000';
   ctx.lineWidth = 4;
-  ctx.shadowColor = '#1a1510';
-  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#cc0000';
+  ctx.shadowBlur = 10;
   for (let i = 0; i < 20; i++) {
     const dripX = faceX - mouthW + Math.random() * mouthW * 2;
     const dripStart = mouthY + mouthH * 0.3;
     const dripLen = size * 0.08 + Math.random() * size * 0.25;
+    ctx.strokeStyle = `rgba(${120 + Math.random() * 60}, 0, 0, ${0.7 + Math.random() * 0.3})`;
+    ctx.lineWidth = 2 + Math.random() * 4;
     ctx.beginPath();
     ctx.moveTo(dripX, dripStart);
     ctx.lineTo(dripX + (Math.random() - 0.5) * 8, dripStart + dripLen);
     ctx.stroke();
   }
+  ctx.shadowBlur = 0;
 
   const noseY = faceY + size * 0.08;
   ctx.fillStyle = '#0d0a08';
@@ -477,17 +542,21 @@ export class Enemy {
     const armGroup = new THREE.Group();
 
     const shoulderGeom = new THREE.SphereGeometry(p.armWidth * 1.2, 5, 4);
-    const shoulderMat = new THREE.MeshBasicMaterial({
-      color: bodyColor
+    const shoulderMat = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const shoulder = new THREE.Mesh(shoulderGeom, shoulderMat);
     shoulder.scale.set(1, 0.8, 0.9);
     armGroup.add(shoulder);
 
     const upperArmGeom = new THREE.CylinderGeometry(p.armWidth * 0.85, p.armWidth, p.armLength, 6);
-    const upperArmMat = new THREE.MeshBasicMaterial({
+    const upperArmMat = new THREE.MeshStandardMaterial({
       color: bodyColor,
-      map: veinTexture
+      map: veinTexture,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const upperArm = new THREE.Mesh(upperArmGeom, upperArmMat);
     upperArm.position.y = -p.armLength / 2 - p.armWidth * 0.3;
@@ -503,9 +572,11 @@ export class Enemy {
     forearmGroup.position.y = -p.armLength - p.armWidth * 0.3;
 
     const forearmGeom = new THREE.CylinderGeometry(p.armWidth * 0.7, p.armWidth * 0.6, p.forearmLength, 6);
-    const forearmMat = new THREE.MeshBasicMaterial({
+    const forearmMat = new THREE.MeshStandardMaterial({
       color: bodyColor,
-      map: veinTexture
+      map: veinTexture,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const forearm = new THREE.Mesh(forearmGeom, forearmMat);
     forearm.position.y = -p.forearmLength / 2;
@@ -519,8 +590,10 @@ export class Enemy {
       : this.type === EnemyType.STALKER
         ? new THREE.BoxGeometry(p.handSize * 1.3, p.handSize * 0.7, p.handSize * 1.2)
         : new THREE.SphereGeometry(p.handSize * 0.7, 6, 4);
-    const handMat = new THREE.MeshBasicMaterial({
-      color: bodyColor
+    const handMat = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const hand = new THREE.Mesh(handGeom, handMat);
     handGroup.add(hand);
@@ -529,12 +602,13 @@ export class Enemy {
     clawsGroup.position.y = -p.handSize * 0.2;
 
     const clawCount = this.type === EnemyType.RUNNER ? 4 : this.type === EnemyType.STALKER ? 3 : 5;
-    const clawColor = this.getEmissiveColor();
 
     for (let i = 0; i < clawCount; i++) {
       const clawGeom = new THREE.ConeGeometry(p.handSize * 0.08, p.handSize * 1.2, 4);
-      const clawMat = new THREE.MeshBasicMaterial({
-        color: clawColor
+      const clawMat = new THREE.MeshStandardMaterial({
+        color: 0x6a5c40,  // Garras — hueso oscuro
+        roughness: 0.6,
+        metalness: 0.05
       });
       const claw = new THREE.Mesh(clawGeom, clawMat);
       const spread = (i - (clawCount - 1) / 2) * p.handSize * 0.4;
@@ -562,17 +636,21 @@ export class Enemy {
     const legGroup = new THREE.Group();
 
     const hipGeom = new THREE.SphereGeometry(p.legWidth * 1.3, 5, 4);
-    const hipMat = new THREE.MeshBasicMaterial({
-      color: bodyColor
+    const hipMat = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const hip = new THREE.Mesh(hipGeom, hipMat);
     hip.scale.set(0.9, 0.7, 1);
     legGroup.add(hip);
 
     const upperLegGeom = new THREE.CylinderGeometry(p.legWidth * 0.9, p.legWidth * 0.85, p.legLength, 6);
-    const upperLegMat = new THREE.MeshBasicMaterial({
+    const upperLegMat = new THREE.MeshStandardMaterial({
       color: bodyColor,
-      map: veinTexture
+      map: veinTexture,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const upperLeg = new THREE.Mesh(upperLegGeom, upperLegMat);
     upperLeg.position.y = -p.legLength / 2;
@@ -588,9 +666,11 @@ export class Enemy {
     lowerLegGroup.position.y = -p.legLength;
 
     const lowerLegGeom = new THREE.CylinderGeometry(p.legWidth * 0.8, p.legWidth * 0.7, p.lowerLegLength, 6);
-    const lowerLegMat = new THREE.MeshBasicMaterial({
+    const lowerLegMat = new THREE.MeshStandardMaterial({
       color: bodyColor,
-      map: veinTexture
+      map: veinTexture,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const lowerLeg = new THREE.Mesh(lowerLegGeom, lowerLegMat);
     lowerLeg.position.y = -p.lowerLegLength / 2;
@@ -607,8 +687,10 @@ export class Enemy {
       : this.type === EnemyType.STALKER
         ? new THREE.BoxGeometry(p.footSize * 1.2, p.footSize * 0.6, p.footSize * 1.5)
         : new THREE.BoxGeometry(p.footSize, p.footSize * 0.4, p.footSize * 1.3);
-    const footMat = new THREE.MeshBasicMaterial({
-      color: bodyColor
+    const footMat = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const foot = new THREE.Mesh(footGeom, footMat);
     foot.position.set(0, -p.lowerLegLength - p.footSize * 0.3, p.footSize * 0.3);
@@ -627,24 +709,30 @@ export class Enemy {
     const headGroup = new THREE.Group();
 
     const neckGeom = new THREE.CylinderGeometry(p.headWidth * 0.35, p.headWidth * 0.4, p.neckLength, 6);
-    const neckMat = new THREE.MeshBasicMaterial({
-      color: bodyColor
+    const neckMat = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const neck = new THREE.Mesh(neckGeom, neckMat);
     neck.position.y = p.neckLength / 2;
     headGroup.add(neck);
 
     const skullGeom = new THREE.BoxGeometry(p.headWidth, p.headHeight, p.headDepth);
-    const skullMat = new THREE.MeshBasicMaterial({
-      map: faceTexture
+    const skullMat = new THREE.MeshStandardMaterial({
+      map: faceTexture,
+      roughness: 0.85,
+      metalness: 0.0
     });
     const skull = new THREE.Mesh(skullGeom, skullMat);
     skull.position.y = p.neckLength + p.headHeight / 2;
     headGroup.add(skull);
 
     const browRidgeGeom = new THREE.BoxGeometry(p.headWidth * 1.1, p.headHeight * 0.15, p.headDepth * 0.4);
-    const browRidgeMat = new THREE.MeshBasicMaterial({
-      color: bodyColor
+    const browRidgeMat = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const browRidge = new THREE.Mesh(browRidgeGeom, browRidgeMat);
     browRidge.position.set(0, p.neckLength + p.headHeight * 0.85, p.headDepth * 0.4);
@@ -653,8 +741,10 @@ export class Enemy {
     if (this.type === EnemyType.RUNNER) {
       for (let side = -1; side <= 1; side += 2) {
         const hornGeom = new THREE.ConeGeometry(0.05, 0.25, 6);
-        const hornMat = new THREE.MeshBasicMaterial({
-          color: 0x220000
+        const hornMat = new THREE.MeshStandardMaterial({
+          color: 0x1a1410,
+          roughness: 0.7,
+          metalness: 0.1
         });
         const horn = new THREE.Mesh(hornGeom, hornMat);
         horn.position.set(side * p.headWidth * 0.6, p.neckLength + p.headHeight * 1.1, -p.headDepth * 0.2);
@@ -664,8 +754,10 @@ export class Enemy {
     } else if (this.type === EnemyType.STALKER) {
       for (let side = -1; side <= 1; side += 2) {
         const earGeom = new THREE.BoxGeometry(0.08, 0.2, 0.05);
-        const earMat = new THREE.MeshBasicMaterial({
-          color: bodyColor
+        const earMat = new THREE.MeshStandardMaterial({
+          color: bodyColor,
+          roughness: 0.9,
+          metalness: 0.0
         });
         const ear = new THREE.Mesh(earGeom, earMat);
         ear.position.set(side * p.headWidth * 0.65, p.neckLength + p.headHeight * 0.7, -p.headDepth * 0.3);
@@ -696,8 +788,10 @@ export class Enemy {
     jawGroup.position.y = p.neckLength + p.headHeight * 0.2;
 
     const jawGeom = new THREE.BoxGeometry(p.headWidth * 0.9, p.jawHeight, p.headDepth * 0.7);
-    const jawMat = new THREE.MeshBasicMaterial({
-      color: bodyColor
+    const jawMat = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const jaw = new THREE.Mesh(jawGeom, jawMat);
     jaw.position.y = -p.jawHeight / 2;
@@ -705,13 +799,25 @@ export class Enemy {
 
     const teethGeom = new THREE.BoxGeometry(p.headWidth * 0.7, p.jawHeight * 0.4, p.headDepth * 0.5);
     const teethMat = new THREE.MeshBasicMaterial({
-      color: this.getEmissiveColor()
+      color: 0xb8a870  // Hueso amarillento
     });
     const teeth = new THREE.Mesh(teethGeom, teethMat);
     teeth.position.set(0, p.jawHeight * 0.2, p.headDepth * 0.35);
     jawGroup.add(teeth);
 
     headGroup.add(jawGroup);
+
+    // Ojos 3D emissivos — esferas blancas siempre brillantes
+    const eyeGlowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const eyeGlowGeom = new THREE.SphereGeometry(p.headWidth * 0.07, 6, 4);
+    const eyeY3d = p.neckLength + p.headHeight * 0.62;
+    const eyeZ3d = p.headDepth / 2 + 0.005;
+    const leftEye = new THREE.Mesh(eyeGlowGeom, eyeGlowMat);
+    leftEye.position.set(-p.headWidth * 0.2, eyeY3d, eyeZ3d);
+    headGroup.add(leftEye);
+    const rightEye = new THREE.Mesh(eyeGlowGeom, eyeGlowMat);
+    rightEye.position.set(p.headWidth * 0.2, eyeY3d, eyeZ3d);
+    headGroup.add(rightEye);
 
     return { group: headGroup, jaw };
   }
@@ -724,17 +830,21 @@ export class Enemy {
     const torsoGroup = new THREE.Group();
 
     const chestGeom = new THREE.BoxGeometry(p.torsoWidth, p.torsoHeight * 0.7, p.torsoDepth);
-    const chestMat = new THREE.MeshBasicMaterial({
+    const chestMat = new THREE.MeshStandardMaterial({
       color: bodyColor,
-      map: veinTexture
+      map: veinTexture,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const chest = new THREE.Mesh(chestGeom, chestMat);
     chest.position.y = p.torsoHeight * 0.15;
     torsoGroup.add(chest);
 
     const ribcageGeom = new THREE.BoxGeometry(p.torsoWidth * 0.85, p.torsoHeight * 0.5, p.torsoDepth * 0.5);
-    const ribcageMat = new THREE.MeshBasicMaterial({
+    const ribcageMat = new THREE.MeshStandardMaterial({
       color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0,
       transparent: true,
       opacity: 0.7
     });
@@ -749,8 +859,10 @@ export class Enemy {
 
     if (this.type === EnemyType.STALKER) {
       const humpGeom = new THREE.SphereGeometry(p.torsoWidth * 0.4, 5, 4);
-      const humpMat = new THREE.MeshBasicMaterial({
-        color: bodyColor
+      const humpMat = new THREE.MeshStandardMaterial({
+        color: bodyColor,
+        roughness: 0.9,
+        metalness: 0.0
       });
       const hump = new THREE.Mesh(humpGeom, humpMat);
       hump.position.set(0, p.torsoHeight * 0.4, -p.torsoDepth * 0.6);
@@ -759,8 +871,10 @@ export class Enemy {
     }
 
     const pelvisGeom = new THREE.BoxGeometry(p.torsoWidth * 0.95, p.torsoHeight * 0.25, p.torsoDepth * 0.75);
-    const pelvisMat = new THREE.MeshBasicMaterial({
-      color: bodyColor
+    const pelvisMat = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      roughness: 0.9,
+      metalness: 0.0
     });
     const pelvis = new THREE.Mesh(pelvisGeom, pelvisMat);
     pelvis.position.y = -p.torsoHeight * 0.5;
@@ -825,9 +939,9 @@ export class Enemy {
       rightClaws: rightArmData.clawsGroup
     };
 
-    // Luz neutra muy tenue — sin color de tipo
-    const light = new THREE.PointLight(0x221a14, 0.6, 5);
-    light.position.set(0, totalHeight * 0.7, 0.6);
+    // Luz inferior — iluminación de horror clásica desde abajo
+    const light = new THREE.PointLight(0x3a1a0a, 2.0, 7);
+    light.position.set(0, totalHeight * 0.2, 0.8);
     light.castShadow = false;
     group.add(light);
 
